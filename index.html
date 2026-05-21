@@ -921,7 +921,9 @@ function renderProjects(){
     const manualH=Math.round(manualEntries.reduce((s,e)=>s+e.hours,0)*10)/10;
     const tbEntries=D.timeblocks.filter(tb=>tb.projectId===p.id&&tb.date.startsWith(monthPfx));
     const tbH=Math.round(tbEntries.reduce((s,tb)=>s+(tb.duration||0),0)*10)/10;
-    const totalH=Math.round((taskH+manualH+tbH)*10)/10;
+    const evEntries=D.events.filter(e=>e.projectId===p.id&&e.duration&&e.date.startsWith(monthPfx));
+    const evH=Math.round(evEntries.reduce((s,e)=>s+(e.duration||0),0)*10)/10;
+    const totalH=Math.round((taskH+manualH+tbH+evH)*10)/10;
     const pct=goal>0?Math.min(100,Math.round(totalH/goal*100)):0;
     const taskRows=assignedTasks.length?`<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:7px">
       <div style="font-size:9px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">Tareas</div>
@@ -957,12 +959,19 @@ function renderProjects(){
       </div>
       <div class="pdesc">${p.desc||''}</div>
       <div class="phrow"><span style="font-weight:600;color:${p.color}">${totalH}h este mes</span><span>${goal>0?`meta ${goal}h`:'agosto'}</span></div>
-      ${(taskH>0||manualH>0||tbH>0)?`<div style="font-size:10px;color:var(--text3);margin-top:-4px;margin-bottom:4px">${taskH}h tareas · ${manualH}h manuales${tbH>0?` · ${tbH}h bloques`:''}</div>`:''}
+      ${(taskH>0||manualH>0||tbH>0||evH>0)?`<div style="font-size:10px;color:var(--text3);margin-top:-4px;margin-bottom:4px">${taskH}h tareas · ${manualH}h manuales${tbH>0?` · ${tbH}h bloques`:''}${evH>0?` · ${evH}h eventos`:''}</div>`:''}
       <div class="hbar"><div class="hfill" style="width:${pct}%;background:${p.color}"></div></div>
       <div class="pacts">
         <button class="btn btn-sm" onclick="logH(${p.id})"><i class="ti ti-plus"></i> Horas manuales</button>
       </div>
-      ${taskRows}${manualRows}${tbRows}
+      ${taskRows}${manualRows}${tbRows}${evEntries.length?`<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:7px">
+      <div style="font-size:9px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">Eventos</div>
+      ${evEntries.map(e=>`<div style="font-size:10px;color:var(--text2);display:flex;align-items:center;gap:4px;padding:1px 0">
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.time?e.time+' ':''}${e.title}</span>
+        <span style="flex-shrink:0;color:var(--text3)">${e.duration}h</span>
+        <button class="btn-del" onclick="unassignEvent(${e.id})" title="Desasignar" style="font-size:10px;padding:1px 2px"><i class="ti ti-x"></i></button>
+      </div>`).join('')}
+    </div>`:''}
     </div>`;
   }).join('');
   renderTaskPanel();
@@ -1012,6 +1021,7 @@ function openAssign(projId){S.mProjId=projId;S.mType='assigntask';S.mDay=null;S.
 function logH(projId){S.mProjId=projId;S.mType='loghours';S.mDay=null;S.editId=null;buildM()}
 function delManual(projId,entryId){const p=D.projects.find(p=>p.id===projId);if(!p)return;p.manualEntries=(p.manualEntries||[]).filter(e=>e.id!==entryId);sched();renderProjects()}
 function unassignTask(taskId){const t=D.todos.find(t=>t.id===taskId);if(!t)return;delete t.projectId;delete t.duration;sched();renderProjects()}
+function unassignEvent(eventId){const e=D.events.find(e=>e.id===eventId);if(!e)return;delete e.projectId;delete e.duration;sched();renderProjects()}
 function delTimeblock(id){D.timeblocks=D.timeblocks.filter(tb=>tb.id!==id);sched();renderProjects();if(document.querySelector('#page-week.active'))renderWeek();}
 function delProj(id){if(!confirm('¿Eliminar proyecto?'))return;D.projects=D.projects.filter(p=>p.id!==id);sched();renderProjects()}
 
@@ -1058,7 +1068,8 @@ function openEdit(type,id){
     document.getElementById('m-t').value=e.title;
     document.getElementById('m-d').value=e.date;
     document.getElementById('m-time').value=e.time||'';
-    document.getElementById('m-type').value=e.type||'event';
+    const mp=document.getElementById('m-proj');if(mp)mp.value=e.projectId||'';
+    const md=document.getElementById('m-dur');if(md)md.value=e.duration||'';
   }else if(type==='project'){
     const p=D.projects.find(p=>p.id===id);if(!p)return;
     document.getElementById('m-t').value=p.name;
@@ -1089,7 +1100,8 @@ function buildM(){
     <div class="ff"><label>Title</label><input id="m-t" placeholder="Event name"/></div>
     <div class="ff"><label>Date</label><input id="m-d" type="date" value="${day}"/></div>
     <div class="ff"><label>Time</label><input id="m-time" type="time" value="09:00"/></div>
-    <div class="ff"><label>Type</label><select id="m-type"><option value="event">Event</option><option value="meeting">Meeting</option></select></div>`;
+    <div class="ff"><label>Proyecto (opcional)</label><select id="m-proj">${projOpts}</select></div>
+    <div class="ff"><label>Duración en horas (opcional)</label><input id="m-dur" type="number" min="0.25" step="0.25" placeholder="ej. 1"/></div>`;
   else if(type==='project')b=`
     <div class="ff"><label>Nombre</label><input id="m-t" placeholder="Nombre del proyecto"/></div>
     <div class="ff"><label>Descripción</label><textarea id="m-desc" placeholder="¿De qué trata?"></textarea></div>
@@ -1135,7 +1147,8 @@ function saveM(){
     }else if(type==='event'){
       const e=D.events.find(e=>e.id===eid);if(!e)return;
       const t=gv('m-t').trim();if(!t)return;
-      Object.assign(e,{title:t,date:gv('m-d'),time:gv('m-time'),type:gv('m-type')});
+      const pid=parseInt(gv('m-proj'))||null;const dur=parseFloat(gv('m-dur'))||null;
+      Object.assign(e,{title:t,date:gv('m-d'),time:gv('m-time'),projectId:pid||undefined,duration:dur||undefined});
     }else if(type==='project'){
       const p=D.projects.find(p=>p.id===eid);if(!p)return;
       const n=gv('m-t').trim();if(!n)return;
@@ -1152,7 +1165,7 @@ function saveM(){
   } else {
     const id=nid();
     if(type==='todo'){const u=todoFromForm(id);if(!u)return;D.todos.push({...u,done:false});}
-    else if(type==='event'){const t=gv('m-t').trim();if(!t)return;D.events.push({id,title:t,date:gv('m-d'),time:gv('m-time'),type:gv('m-type')})}
+    else if(type==='event'){const t=gv('m-t').trim();if(!t)return;const pid=parseInt(gv('m-proj'))||null;const dur=parseFloat(gv('m-dur'))||null;D.events.push({id,title:t,date:gv('m-d'),time:gv('m-time'),...(pid?{projectId:pid}:{}),...(dur?{duration:dur}:{})})}
     else if(type==='project'){const n=gv('m-t').trim();if(!n)return;D.projects.push({id,name:n,desc:gv('m-desc'),color:gv('m-c'),hoursUsed:0})}
     else if(type==='assigntask'){
       const tid=parseInt(gv('m-task'));const dur=parseFloat(gv('m-dur'))||0;
