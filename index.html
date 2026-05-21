@@ -302,39 +302,39 @@ html,body{height:100%;font-family:Georgia,'Times New Roman',serif;background:var
         <div class="smsg" id="gist-msg"></div>
       </div>
 
-      <!-- GOOGLE CALENDAR -->
+      <!-- GOOGLE CALENDAR ICS -->
       <div class="scard">
         <h3><i class="ti ti-brand-google"></i> Google Calendar</h3>
         <div class="cal-status" id="gcal-status-bar"><i class="ti ti-circle"></i> Not connected</div>
-        <p>Connect to show your Google Calendar events in week and month views (read-only).</p>
+        <p>Pega la URL privada en formato iCal/ICS para mostrar tus eventos en semana y mes. La integración es solo lectura.</p>
         <ol class="ssteps">
-          <li>Go to <a href="https://console.cloud.google.com" target="_blank">console.cloud.google.com</a> → New project.</li>
-          <li>Enable <strong>Google Calendar API</strong>.</li>
-          <li>Create <strong>OAuth 2.0 Client ID</strong> (Web app). Add your GitHub Pages URL as Authorised JavaScript origin AND as Authorised redirect URI.</li>
-          <li>Copy the Client ID below.</li>
+          <li>Abre <a href="https://calendar.google.com" target="_blank">calendar.google.com</a> → ⚙️ Settings → tu calendario → <strong>Integrate calendar</strong>.</li>
+          <li>Copia la <strong>Secret address in iCal format</strong>.</li>
+          <li>Pega aquí la URL que empieza por <code>https://calendar.google.com/calendar/ical/...</code></li>
         </ol>
-        <div class="sf"><label>Google OAuth Client ID</label><input type="text" id="s-gcal" placeholder="xxxxx.apps.googleusercontent.com"/><div class="snote">Must match the origin configured in Google Cloud Console.</div></div>
+        <div class="sf"><label>Google Calendar ICS URL</label><input type="url" id="s-gcal-ics" placeholder="https://calendar.google.com/calendar/ical/.../basic.ics"/><div class="snote">Se guarda solo en este navegador. No hace falta OAuth ni Google Cloud.</div></div>
         <div class="bg">
-          <button class="btn btn-g" id="gcal-btn" onclick="connectGcal()"><i class="ti ti-brand-google"></i> Connect Google</button>
+          <button class="btn btn-g" id="gcal-btn" onclick="saveGcalIcs()"><i class="ti ti-link"></i> Save Google URL</button>
+          <button class="btn" onclick="fetchGcal()"><i class="ti ti-refresh"></i> Refresh</button>
           <button class="btn btn-sm" id="gcal-disc" onclick="disconnectGcal()" style="display:none"><i class="ti ti-x"></i> Disconnect</button>
         </div>
         <div class="smsg" id="gcal-msg"></div>
       </div>
 
-      <!-- MICROSOFT / OUTLOOK -->
+      <!-- OUTLOOK ICS -->
       <div class="scard">
         <h3><i class="ti ti-brand-windows"></i> Outlook / Microsoft 365</h3>
         <div class="cal-status" id="ms-status-bar"><i class="ti ti-circle"></i> Not connected</div>
-        <p>Connect to show your Outlook / Microsoft 365 calendar events (read-only).</p>
+        <p>Pega la URL ICS publicada de Outlook para mostrar tus eventos. La integración es solo lectura.</p>
         <ol class="ssteps">
-          <li>Go to <a href="https://portal.azure.com" target="_blank">portal.azure.com</a> → Azure Active Directory → App registrations → New registration.</li>
-          <li>Set Redirect URI to: <code id="ms-redirect-uri">your GitHub Pages URL</code></li>
-          <li>Under <strong>API permissions</strong> add <code>Calendars.Read</code> (Microsoft Graph, delegated).</li>
-          <li>Copy the Application (client) ID below.</li>
+          <li>Abre <a href="https://outlook.live.com" target="_blank">outlook.live.com</a> → Settings → View all → Calendar → Shared calendars.</li>
+          <li>En <strong>Publish a calendar</strong>, elige tu calendario y copia el enlace ICS.</li>
+          <li>Pega aquí la URL publicada.</li>
         </ol>
-        <div class="sf"><label>Azure Application (Client) ID</label><input type="text" id="s-ms" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"/><div class="snote">Single-tenant or multi-tenant both work.</div></div>
+        <div class="sf"><label>Outlook ICS URL</label><input type="url" id="s-ms-ics" placeholder="https://outlook.live.com/owa/calendar/.../calendar.ics"/><div class="snote">Para cuentas de empresa puede que el administrador limite la publicación ICS.</div></div>
         <div class="bg">
-          <button class="btn btn-ms" id="ms-btn" onclick="connectMs()"><i class="ti ti-brand-windows"></i> Connect Microsoft</button>
+          <button class="btn btn-ms" id="ms-btn" onclick="saveMsIcs()"><i class="ti ti-link"></i> Save Outlook URL</button>
+          <button class="btn" onclick="fetchMs()"><i class="ti ti-refresh"></i> Refresh</button>
           <button class="btn btn-sm" id="ms-disc" onclick="disconnectMs()" style="display:none"><i class="ti ti-x"></i> Disconnect</button>
         </div>
         <div class="smsg" id="ms-msg"></div>
@@ -378,10 +378,8 @@ let EXT={gcal:[],outlook:[]};
 let CFG={
   token:ls('planner_token')||'',
   gistId:ls('planner_gist')||'',
-  gcalClientId:ls('planner_gcal_clientid')||'',
-  gcalToken:ls('planner_gcal_token')||'',
-  msClientId:ls('planner_ms_clientid')||'',
-  msToken:ls('planner_ms_token')||''
+  gcalIcsUrl:ls('planner_gcal_ics')||'',
+  msIcsUrl:ls('planner_ms_ics')||''
 };
 
 let saveTimer=null;
@@ -448,140 +446,127 @@ function doRollover(){
   if(changed)sched();
 }
 
-// ── GOOGLE CALENDAR ────────────────────────────────────────────────────────
-function connectGcal(){
-  const cid=document.getElementById('s-gcal').value.trim()||CFG.gcalClientId;
-  if(!cid){showMsg('gcal-msg','err','Enter your Google OAuth Client ID first.');return}
-  lss('planner_gcal_clientid',cid);CFG.gcalClientId=cid;
-  const redirect=encodeURIComponent(window.location.href.split('?')[0].split('#')[0]);
-  const scope=encodeURIComponent('https://www.googleapis.com/auth/calendar.readonly');
-  const url=`https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(cid)}&redirect_uri=${redirect}&response_type=token&scope=${scope}&prompt=consent`;
-  window.location.href=url;
+// ── ICS CALENDAR INTEGRATIONS ──────────────────────────────────────────────
+function saveGcalIcs(){
+  const url=document.getElementById('s-gcal-ics').value.trim();
+  if(!url){showMsg('gcal-msg','err','Pega primero la URL ICS de Google Calendar.');return}
+  lss('planner_gcal_ics',url);CFG.gcalIcsUrl=url;
+  updateCalUI();fetchGcal();
+}
+function saveMsIcs(){
+  const url=document.getElementById('s-ms-ics').value.trim();
+  if(!url){showMsg('ms-msg','err','Pega primero la URL ICS de Outlook.');return}
+  lss('planner_ms_ics',url);CFG.msIcsUrl=url;
+  updateCalUI();fetchMs();
 }
 function disconnectGcal(){
-  lss('planner_gcal_token','');CFG.gcalToken='';EXT.gcal=[];
+  lss('planner_gcal_ics','');CFG.gcalIcsUrl='';EXT.gcal=[];
   updateCalUI();refreshPage();showMsg('gcal-msg','info','Google Calendar disconnected.');
 }
-async function fetchGcal(){
-  if(!CFG.gcalToken)return;
-  const now=new Date();
-  const tMin=new Date(now.getFullYear(),now.getMonth()-1,1).toISOString();
-  const tMax=new Date(now.getFullYear(),now.getMonth()+2,0).toISOString();
-  try{
-    const r=await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${tMin}&timeMax=${tMax}&singleEvents=true&orderBy=startTime&maxResults=200`,{headers:{Authorization:`Bearer ${CFG.gcalToken}`}});
-    if(r.status===401){disconnectGcal();showMsg('gcal-msg','err','Google token expired. Please reconnect.');return}
-    if(!r.ok)throw new Error(r.status);
-    const data=await r.json();
-    EXT.gcal=(data.items||[]).map(ev=>({
-      id:'gcal_'+ev.id,
-      title:ev.summary||'(no title)',
-      date:(ev.start.dateTime||ev.start.date||'').slice(0,10),
-      time:ev.start.dateTime?ev.start.dateTime.slice(11,16):'',
-      type:'gcal',
-      source:'Google'
-    }));
-    showMsg('gcal-msg','ok',`Loaded ${EXT.gcal.length} events from Google Calendar.`);
-  }catch(e){showMsg('gcal-msg','err','Error fetching Google Calendar.');console.error(e)}
-}
-
-// ── MICROSOFT ──────────────────────────────────────────────────────────────
-function connectMs(){
-  const cid=document.getElementById('s-ms').value.trim()||CFG.msClientId;
-  if(!cid){showMsg('ms-msg','err','Enter your Azure Application (Client) ID first.');return}
-  lss('planner_ms_clientid',cid);CFG.msClientId=cid;
-  const redirect=encodeURIComponent(window.location.href.split('?')[0].split('#')[0]);
-  const scope=encodeURIComponent('https://graph.microsoft.com/Calendars.Read offline_access openid');
-  const url=`https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=${encodeURIComponent(cid)}&redirect_uri=${redirect}&response_type=token&scope=${scope}&prompt=consent`;
-  window.location.href=url;
-}
 function disconnectMs(){
-  lss('planner_ms_token','');CFG.msToken='';EXT.outlook=[];
-  updateCalUI();refreshPage();showMsg('ms-msg','info','Microsoft Calendar disconnected.');
+  lss('planner_ms_ics','');CFG.msIcsUrl='';EXT.outlook=[];
+  updateCalUI();refreshPage();showMsg('ms-msg','info','Outlook disconnected.');
+}
+async function fetchGcal(){
+  if(!CFG.gcalIcsUrl){showMsg('gcal-msg','err','Pega y guarda una URL ICS de Google Calendar.');return}
+  try{
+    showMsg('gcal-msg','info','Loading Google Calendar…');
+    const ics=await fetchIcsText(CFG.gcalIcsUrl);
+    EXT.gcal=parseIcsEvents(ics,'gcal','Google');
+    showMsg('gcal-msg','ok',`Loaded ${EXT.gcal.length} events from Google Calendar.`);
+  }catch(e){showMsg('gcal-msg','err','Error fetching Google Calendar ICS. If it is a CORS issue, publish/open the ICS URL and try again.');console.error(e)}
 }
 async function fetchMs(){
-  if(!CFG.msToken)return;
-  const now=new Date();
-  const start=new Date(now.getFullYear(),now.getMonth()-1,1).toISOString();
-  const end=new Date(now.getFullYear(),now.getMonth()+2,0).toISOString();
+  if(!CFG.msIcsUrl){showMsg('ms-msg','err','Pega y guarda una URL ICS de Outlook.');return}
   try{
-    const r=await fetch(`https://graph.microsoft.com/v1.0/me/calendarview?startDateTime=${start}&endDateTime=${end}&$top=200&$select=subject,start,end`,{headers:{Authorization:`Bearer ${CFG.msToken}`}});
-    if(r.status===401){disconnectMs();showMsg('ms-msg','err','Microsoft token expired. Please reconnect.');return}
-    if(!r.ok)throw new Error(r.status);
-    const data=await r.json();
-    EXT.outlook=(data.value||[]).map(ev=>({
-      id:'ms_'+ev.id,
-      title:ev.subject||'(no title)',
-      date:(ev.start.dateTime||'').slice(0,10),
-      time:(ev.start.dateTime||'').slice(11,16),
-      type:'outlook',
-      source:'Outlook'
-    }));
+    showMsg('ms-msg','info','Loading Outlook…');
+    const ics=await fetchIcsText(CFG.msIcsUrl);
+    EXT.outlook=parseIcsEvents(ics,'outlook','Outlook');
     showMsg('ms-msg','ok',`Loaded ${EXT.outlook.length} events from Outlook.`);
-  }catch(e){showMsg('ms-msg','err','Error fetching Outlook Calendar.');console.error(e)}
+  }catch(e){showMsg('ms-msg','err','Error fetching Outlook ICS. If it is a CORS issue, publish/open the ICS URL and try again.');console.error(e)}
 }
-
 async function syncAllCals(){
-  await Promise.all([fetchGcal(),fetchMs()]);
+  await Promise.allSettled([CFG.gcalIcsUrl?fetchGcal():null,CFG.msIcsUrl?fetchMs():null]);
   refreshPage();
 }
-
+async function fetchIcsText(url){
+  const tries=[url,`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`];
+  let lastErr;
+  for(const u of tries){
+    try{
+      const r=await fetch(u,{cache:'no-store'});
+      if(!r.ok)throw new Error('HTTP '+r.status);
+      const txt=await r.text();
+      if(!txt.includes('BEGIN:VCALENDAR'))throw new Error('Not an ICS calendar');
+      return txt;
+    }catch(e){lastErr=e}
+  }
+  throw lastErr||new Error('Could not load ICS');
+}
+function unfoldIcs(text){return text.replace(/\r?\n[ \t]/g,'')}
+function parseIcsEvents(text,type,source){
+  const now=new Date();
+  const rangeStart=new Date(now.getFullYear(),now.getMonth()-1,1);
+  const rangeEnd=new Date(now.getFullYear(),now.getMonth()+3,0);
+  const blocks=unfoldIcs(text).match(/BEGIN:VEVENT[\s\S]*?END:VEVENT/g)||[];
+  return blocks.flatMap((block,i)=>expandIcsEvent(block,type,source,i,rangeStart,rangeEnd))
+    .filter(ev=>ev.date>=dStr(rangeStart)&&ev.date<=dStr(rangeEnd))
+    .sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+}
+function icsVal(block,name){
+  const m=block.match(new RegExp('^'+name+'(?:;[^:]*)?:(.*)$','mi'));
+  return m?m[1].trim():'';
+}
+function cleanIcsText(v){return v.replace(/\\n/g,' ').replace(/\\,/g,',').replace(/\\;/g,';').replace(/\\\\/g,'\\').trim()}
+function parseIcsDate(v){
+  if(!v)return null;
+  if(/^\d{8}$/.test(v))return {date:new Date(+v.slice(0,4),+v.slice(4,6)-1,+v.slice(6,8)),allDay:true};
+  const m=v.match(/^(\d{4})(\d{2})(\d{2})T?(\d{2})?(\d{2})?/);
+  if(!m)return null;
+  if(v.endsWith('Z'))return {date:new Date(Date.UTC(+m[1],+m[2]-1,+m[3],+(m[4]||0),+(m[5]||0))),allDay:false};
+  return {date:new Date(+m[1],+m[2]-1,+m[3],+(m[4]||0),+(m[5]||0)),allDay:false};
+}
+function timeFromDate(dt,allDay){return allDay?'':String(dt.getHours()).padStart(2,'0')+':'+String(dt.getMinutes()).padStart(2,'0')}
+function expandIcsEvent(block,type,source,idx,rangeStart,rangeEnd){
+  const title=cleanIcsText(icsVal(block,'SUMMARY')||'(no title)');
+  const uid=icsVal(block,'UID')||idx;
+  const start=parseIcsDate(icsVal(block,'DTSTART'));
+  if(!start)return [];
+  const rrule=icsVal(block,'RRULE');
+  const base={id:`${type}_${uid}`,title,type,source};
+  if(!rrule)return [{...base,date:dStr(start.date),time:timeFromDate(start.date,start.allDay)}];
+  const freq=(rrule.match(/FREQ=([^;]+)/)||[])[1];
+  const interval=parseInt((rrule.match(/INTERVAL=(\d+)/)||[])[1]||'1',10);
+  const count=parseInt((rrule.match(/COUNT=(\d+)/)||[])[1]||'0',10);
+  const untilRaw=(rrule.match(/UNTIL=([^;]+)/)||[])[1];
+  const until=untilRaw?(parseIcsDate(untilRaw)?.date):rangeEnd;
+  const out=[];let cur=new Date(start.date);let n=0;
+  while(cur<=rangeEnd && (!until||cur<=until) && (!count||n<count) && n<500){
+    if(cur>=rangeStart)out.push({...base,id:`${type}_${uid}_${n}`,date:dStr(cur),time:timeFromDate(cur,start.allDay)});
+    if(freq==='DAILY')cur.setDate(cur.getDate()+interval);
+    else if(freq==='WEEKLY')cur.setDate(cur.getDate()+7*interval);
+    else if(freq==='MONTHLY')cur.setMonth(cur.getMonth()+interval);
+    else if(freq==='YEARLY')cur.setFullYear(cur.getFullYear()+interval);
+    else break;
+    n++;
+  }
+  return out;
+}
 function updateCalUI(){
-  const gcOk=!!CFG.gcalToken;
-  const msOk=!!CFG.msToken;
-  document.getElementById('gcal-dot').style.background=gcOk?'#639922':(msOk?'#639922':'var(--text3)');
+  const gcOk=!!CFG.gcalIcsUrl;
+  const msOk=!!CFG.msIcsUrl;
+  document.getElementById('gcal-dot').style.background=(gcOk||msOk)?'#639922':'var(--text3)';
   const gcBar=document.getElementById('gcal-status-bar');
   gcBar.className='cal-status '+(gcOk?'connected':'disconnected');
-  gcBar.innerHTML=gcOk?'<i class="ti ti-check"></i> Connected':'<i class="ti ti-circle"></i> Not connected';
-  document.getElementById('gcal-btn').style.display=gcOk?'none':'inline-flex';
+  gcBar.innerHTML=gcOk?'<i class="ti ti-check"></i> Connected via ICS':'<i class="ti ti-circle"></i> Not connected';
   document.getElementById('gcal-disc').style.display=gcOk?'inline-flex':'none';
   const msBar=document.getElementById('ms-status-bar');
   msBar.className='cal-status '+(msOk?'connected':'disconnected');
-  msBar.innerHTML=msOk?'<i class="ti ti-check"></i> Connected':'<i class="ti ti-circle"></i> Not connected';
-  document.getElementById('ms-btn').style.display=msOk?'none':'inline-flex';
+  msBar.innerHTML=msOk?'<i class="ti ti-check"></i> Connected via ICS':'<i class="ti ti-circle"></i> Not connected';
   document.getElementById('ms-disc').style.display=msOk?'inline-flex':'none';
-  // fill saved client ids
-  if(CFG.gcalClientId)document.getElementById('s-gcal').value=CFG.gcalClientId;
-  if(CFG.msClientId)document.getElementById('s-ms').value=CFG.msClientId;
-  document.getElementById('ms-redirect-uri').textContent=window.location.href.split('?')[0].split('#')[0];
+  if(CFG.gcalIcsUrl)document.getElementById('s-gcal-ics').value=CFG.gcalIcsUrl;
+  if(CFG.msIcsUrl)document.getElementById('s-ms-ics').value=CFG.msIcsUrl;
 }
-
-function handleOAuthCallback(){
-  const hash=window.location.hash;
-  if(!hash)return;
-  const params=new URLSearchParams(hash.slice(1));
-  const token=params.get('access_token');
-  if(!token)return;
-  // Detect which service by checking scope hint stored before redirect
-  const pending=ls('planner_oauth_pending');
-  if(pending==='gcal'){
-    lss('planner_gcal_token',token);CFG.gcalToken=token;
-    lss('planner_oauth_pending','');
-    history.replaceState(null,'',window.location.pathname);
-    updateCalUI();fetchGcal().then(()=>{ refreshPage(); showMsg('gcal-msg','ok','Google Calendar connected!'); });
-  } else if(pending==='ms'){
-    lss('planner_ms_token',token);CFG.msToken=token;
-    lss('planner_oauth_pending','');
-    history.replaceState(null,'',window.location.pathname);
-    updateCalUI();fetchMs().then(()=>{ refreshPage(); showMsg('ms-msg','ok','Outlook connected!'); });
-  } else {
-    // Guess by token format (Google tokens start with ya29)
-    if(token.startsWith('ya29.')){
-      lss('planner_gcal_token',token);CFG.gcalToken=token;
-      history.replaceState(null,'',window.location.pathname);
-      updateCalUI();fetchGcal().then(()=>refreshPage());
-    } else {
-      lss('planner_ms_token',token);CFG.msToken=token;
-      history.replaceState(null,'',window.location.pathname);
-      updateCalUI();fetchMs().then(()=>refreshPage());
-    }
-  }
-}
-
-// Patch connect fns to store pending hint
-const _connectGcal=connectGcal;
-window.connectGcal=function(){lss('planner_oauth_pending','gcal');_connectGcal();};
-const _connectMs=connectMs;
-window.connectMs=function(){lss('planner_oauth_pending','ms');_connectMs();};
 
 // ── UTILS ──────────────────────────────────────────────────────────────────
 function nid(){return++S.nextId}
@@ -806,11 +791,10 @@ function saveModal(){
 }
 
 // ── INIT ───────────────────────────────────────────────────────────────────
-handleOAuthCallback();
 updateCalUI();
 if(CFG.token&&CFG.gistId){loadGist()}else{setSS('','Not configured')}
-if(CFG.gcalToken)fetchGcal();
-if(CFG.msToken)fetchMs();
+if(CFG.gcalIcsUrl)fetchGcal();
+if(CFG.msIcsUrl)fetchMs();
 doRollover();
 renderWeek();
 </script>
