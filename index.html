@@ -132,6 +132,12 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 .mcdots{display:flex;flex-wrap:wrap;gap:2px;margin-bottom:2px}
 .mcdot{width:5px;height:5px;border-radius:50%}
 .mc-tb{font-size:9px;padding:1px 3px;border-radius:3px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mcell.hol-cell{background:var(--amber-l)}
+.mcell.vac-cell{background:var(--blue-l)}
+.mc-badge{font-size:8px;padding:1px 3px;border-radius:3px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+.mc-hol{color:var(--amber)}
+.mc-vac{color:var(--blue);font-weight:600}
+.mvac-row{font-size:11px;color:var(--text2);padding:10px 4px 4px;display:flex;align-items:center;gap:6px}
 
 /* ── TODOS ── */
 .tfilters{display:flex;gap:5px;margin-bottom:12px;flex-wrap:wrap}
@@ -461,7 +467,7 @@ let D={events:[],todos:[],projects:[],timeblocks:[],topics:[
   {id:1,name:'Work',icon:'ti-briefcase'},
   {id:2,name:'Personal',icon:'ti-heart'},
   {id:3,name:'Ideas',icon:'ti-bulb'}
-],ideas:[],calendars:[]};
+],ideas:[],calendars:[],vacationDays:[]};
 let EXT=[];
 // Read credentials: hash params take priority, then localStorage
 function readCFG(){
@@ -552,6 +558,7 @@ async function loadGist(){
           D.events=p.events||D.events;D.todos=p.todos||D.todos;D.projects=p.projects||D.projects;
           D.timeblocks=p.timeblocks||D.timeblocks;D.topics=p.topics||D.topics;
           D.ideas=p.ideas||D.ideas;D.calendars=p.calendars||D.calendars;
+          D.vacationDays=p.vacationDays||D.vacationDays;
           if(p.nextId)S.nextId=p.nextId;
         }
       }catch(e){setSS('err','Corrupt data in Gist');return}
@@ -677,6 +684,32 @@ function fmtS(d){return`${d.getDate()} ${MFULL[d.getMonth()].slice(0,3)}`}
 function getMonday(d){const day=d.getDay(),diff=d.getDate()-day+(day===0?-6:1);return new Date(new Date(d).setDate(diff))}
 function allEvFor(ds){return[...D.events.filter(e=>e.date===ds),...EXT.filter(e=>e.date===ds)].sort((a,b)=>(a.time||'').localeCompare(b.time||''))}
 
+// ── MADRID HOLIDAYS ────────────────────────────────────────────────────────
+function getMadridHolidays(year){
+  function easterSunday(y){
+    const a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4;
+    const f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3);
+    const h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4;
+    const l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451);
+    const mo=Math.floor((h+l-7*m+114)/31),dy=((h+l-7*m+114)%31)+1;
+    return new Date(y,mo-1,dy);
+  }
+  function d2s(d){return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
+  function shift(d,n){const r=new Date(d);r.setDate(r.getDate()+n);return r}
+  function f(m,day){return`${year}-${String(m).padStart(2,'0')}-${String(day).padStart(2,'0')}`}
+  const easter=easterSunday(year);
+  const hols={};
+  [
+    [f(1,1),'Año Nuevo'],[f(1,6),'Reyes Magos'],
+    [d2s(shift(easter,-3)),'Jueves Santo'],[d2s(shift(easter,-2)),'Viernes Santo'],
+    [f(5,1),'Día del Trabajo'],[f(5,2),'Comunidad de Madrid'],
+    [f(7,25),'Santiago Apóstol'],[f(10,12),'Fiesta Nacional'],
+    [f(11,1),'Todos los Santos'],[f(11,9),'La Almudena'],
+    [f(12,6),'Constitución'],[f(12,8),'Inmaculada Concepción'],[f(12,25),'Navidad'],
+  ].forEach(([date,name])=>{hols[date]=name});
+  return hols;
+}
+
 // ── ROUTING ────────────────────────────────────────────────────────────────
 function go(name){
   if(isMobile())closeSidebar();
@@ -745,26 +778,44 @@ function renderMonth(){
   const d=S.monthDate;
   document.getElementById('mlabel').textContent=`${MFULL[d.getMonth()]} ${d.getFullYear()}`;
   const today=todayStr(),last=new Date(d.getFullYear(),d.getMonth()+1,0);
+  const holidays=getMadridHolidays(d.getFullYear());
+  const vacSet=new Set(D.vacationDays||[]);
+  const monthPfx=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  const vacThisMonth=(D.vacationDays||[]).filter(v=>v.startsWith(monthPfx)).length;
   const MON_DAYS=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
   let html=`<div class="dow-row">${MON_DAYS.map(dy=>`<div class="dlabel">${dy}</div>`).join('')}</div>`;
   let cur=new Date(d.getFullYear(),d.getMonth(),1);
   const fd=cur.getDay()||7;cur.setDate(cur.getDate()-(fd-1));
   let safe=0;
-  while((cur<=last||cur.getDay()!==0)&&safe++<8){
+  while(cur<=last&&safe++<8){
     html+=`<div class="mweek">`;
     for(let i=0;i<7;i++){
       const ds=dStr(cur);const om=cur.getMonth()!==d.getMonth();const isT=ds===today;
       const evs=allEvFor(ds);const tds=D.todos.filter(t=>t.date===ds&&!t.done);
       const tbs=D.timeblocks.filter(tb=>tb.date===ds);
+      const isHol=!om&&!!holidays[ds];
+      const isVac=!om&&vacSet.has(ds);
       let dots=evs.map(ev=>{const c=ev.color||(ev.type==='meeting'?'var(--green)':'var(--accent)');return`<div class="mcdot" style="background:${c}"></div>`;}).join('');
       dots+=tds.map(()=>`<div class="mcdot" style="background:var(--amber)"></div>`).join('');
       const blocks=tbs.map(tb=>{const p=D.projects.find(p=>p.id===tb.projectId);const c=p?p.color:'var(--accent)';return`<div class="mc-tb" style="background:${c}18;color:${c}">${tb.startTime} ${p?p.name:''}</div>`;}).join('');
-      html+=`<div class="mcell${isT?' today-cell':''}${om?' other':''}"><div class="mc-n${isT?' tn':''}">${cur.getDate()}</div><div class="mcdots">${dots}</div>${blocks}</div>`;
+      const holBadge=isHol?`<span class="mc-badge mc-hol">${holidays[ds]}</span>`:'';
+      const vacBadge=isVac?`<span class="mc-badge mc-vac">Vacaciones</span>`:'';
+      const clickAttr=!om?`onclick="toggleVacation('${ds}')" title="Marcar/desmarcar vacaciones"`:'';
+      const cellCls=`mcell${isT?' today-cell':''}${om?' other':''}${isHol?' hol-cell':''}${isVac?' vac-cell':''}`;
+      html+=`<div class="${cellCls}" ${clickAttr}><div class="mc-n${isT?' tn':''}">${cur.getDate()}</div><div class="mcdots">${dots}</div>${blocks}${holBadge}${vacBadge}</div>`;
       cur.setDate(cur.getDate()+1);
     }
     html+=`</div>`;
   }
+  html+=`<div class="mvac-row"><i class="ti ti-beach" style="color:var(--blue)"></i> Vacaciones este mes: <strong>${vacThisMonth} día${vacThisMonth!==1?'s':''}</strong>&nbsp;·&nbsp;Clic en un día para marcar/desmarcar</div>`;
   document.getElementById('month-grid').innerHTML=html;
+}
+function toggleVacation(ds){
+  if(!D.vacationDays)D.vacationDays=[];
+  const idx=D.vacationDays.indexOf(ds);
+  if(idx>=0)D.vacationDays.splice(idx,1);
+  else D.vacationDays.push(ds);
+  sched();renderMonth();
 }
 function changeMonth(d){const dt=S.monthDate;S.monthDate=new Date(dt.getFullYear(),dt.getMonth()+d,1);renderMonth()}
 
@@ -804,14 +855,16 @@ function delTodo(id){D.todos=D.todos.filter(t=>t.id!==id);sched();renderTodos()}
 function delEvent(id){D.events=D.events.filter(e=>e.id!==id);sched();renderWeek()}
 
 // ── PROJECTS ───────────────────────────────────────────────────────────────
-function monthlyGoalHours(year,month){
-  if(month===8)return 0; // agosto sin meta
+function monthlyGoalHours(year,month,excludeDays=[]){
+  if(month===8)return 0;
   const days=new Date(year,month,0).getDate();
   let total=0;
   for(let d=1;d<=days;d++){
+    const ds=`${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    if(excludeDays.includes(ds))continue;
     const dow=new Date(year,month-1,d).getDay();
-    if(dow>=1&&dow<=4)total+=8.75;   // lun-jue: 8h45m
-    else if(dow===5)total+=6;         // vie: 6h
+    if(dow>=1&&dow<=4)total+=8.75;
+    else if(dow===5)total+=6;
   }
   return Math.round(total*10)/10;
 }
@@ -819,8 +872,12 @@ function renderProjects(){
   const g=document.getElementById('proj-grid');
   if(!D.projects.length){g.innerHTML=`<div style="color:var(--text3);font-size:12px">No projects yet.</div>`;return}
   const now=new Date();
-  const monthPfx=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-  const goal=monthlyGoalHours(now.getFullYear(),now.getMonth()+1);
+  const year=now.getFullYear(),month=now.getMonth()+1;
+  const monthPfx=`${year}-${String(month).padStart(2,'0')}`;
+  const holidays=Object.keys(getMadridHolidays(year)).filter(d=>d.startsWith(monthPfx));
+  const vacations=(D.vacationDays||[]).filter(d=>d.startsWith(monthPfx));
+  const excludeDays=[...new Set([...holidays,...vacations])];
+  const goal=monthlyGoalHours(year,month,excludeDays);
   g.innerHTML=D.projects.map(p=>{
     const assignedTasks=D.todos.filter(t=>t.projectId===p.id&&t.duration&&t.date.startsWith(monthPfx));
     const taskH=Math.round(assignedTasks.reduce((s,t)=>s+(t.duration||0),0)*10)/10;
@@ -830,9 +887,10 @@ function renderProjects(){
     const pct=goal>0?Math.min(100,Math.round(totalH/goal*100)):0;
     const taskRows=assignedTasks.length?`<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:7px">
       <div style="font-size:9px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">Tareas</div>
-      ${assignedTasks.map(t=>`<div style="font-size:10px;color:var(--text2);display:flex;justify-content:space-between;padding:1px 0">
-        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px">${t.done?'✓ ':'○ '}${t.title}</span>
+      ${assignedTasks.map(t=>`<div style="font-size:10px;color:var(--text2);display:flex;align-items:center;gap:4px;padding:1px 0">
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.done?'✓ ':'○ '}${t.title}</span>
         <span style="flex-shrink:0;color:var(--text3)">${t.duration}h</span>
+        <button class="btn-del" onclick="unassignTask(${t.id})" title="Desasignar" style="font-size:10px;padding:1px 2px"><i class="ti ti-x"></i></button>
       </div>`).join('')}
     </div>`:'';
     const manualRows=manualEntries.length?`<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:7px">
@@ -866,6 +924,7 @@ function renderProjects(){
 function openAssign(projId){S.mProjId=projId;S.mType='assigntask';S.mDay=null;S.editId=null;buildM()}
 function logH(projId){S.mProjId=projId;S.mType='loghours';S.mDay=null;S.editId=null;buildM()}
 function delManual(projId,entryId){const p=D.projects.find(p=>p.id===projId);if(!p)return;p.manualEntries=(p.manualEntries||[]).filter(e=>e.id!==entryId);sched();renderProjects()}
+function unassignTask(taskId){const t=D.todos.find(t=>t.id===taskId);if(!t)return;delete t.projectId;delete t.duration;sched();renderProjects()}
 function delProj(id){if(!confirm('¿Eliminar proyecto?'))return;D.projects=D.projects.filter(p=>p.id!==id);sched();renderProjects()}
 
 // ── IDEAS ──────────────────────────────────────────────────────────────────
@@ -916,7 +975,6 @@ function openEdit(type,id){
     const p=D.projects.find(p=>p.id===id);if(!p)return;
     document.getElementById('m-t').value=p.name;
     document.getElementById('m-desc').value=p.desc||'';
-    document.getElementById('m-h').value=p.hoursGoal;
     document.getElementById('m-c').value=p.color;
   }else if(type==='topic'){
     const tp=D.topics.find(t=>t.id===id);if(!tp)return;
