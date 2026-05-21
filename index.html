@@ -151,7 +151,7 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 .tc-m{font-size:10px;color:var(--text3);margin-top:2px}
 
 /* ── PROJECTS ── */
-.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px}
 .pcard{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px;position:relative}
 .pstrip{position:absolute;top:0;left:0;right:0;height:3px;border-radius:var(--r) var(--r) 0 0}
 .pname{font-size:14px;font-weight:600;margin-top:8px;margin-bottom:3px}
@@ -804,18 +804,30 @@ function delTodo(id){D.todos=D.todos.filter(t=>t.id!==id);sched();renderTodos()}
 function delEvent(id){D.events=D.events.filter(e=>e.id!==id);sched();renderWeek()}
 
 // ── PROJECTS ───────────────────────────────────────────────────────────────
+function monthlyGoalHours(year,month){
+  if(month===8)return 0; // agosto sin meta
+  const days=new Date(year,month,0).getDate();
+  let total=0;
+  for(let d=1;d<=days;d++){
+    const dow=new Date(year,month-1,d).getDay();
+    if(dow>=1&&dow<=4)total+=8.75;   // lun-jue: 8h45m
+    else if(dow===5)total+=6;         // vie: 6h
+  }
+  return Math.round(total*10)/10;
+}
 function renderProjects(){
   const g=document.getElementById('proj-grid');
   if(!D.projects.length){g.innerHTML=`<div style="color:var(--text3);font-size:12px">No projects yet.</div>`;return}
   const now=new Date();
   const monthPfx=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const goal=monthlyGoalHours(now.getFullYear(),now.getMonth()+1);
   g.innerHTML=D.projects.map(p=>{
     const assignedTasks=D.todos.filter(t=>t.projectId===p.id&&t.duration&&t.date.startsWith(monthPfx));
     const taskH=Math.round(assignedTasks.reduce((s,t)=>s+(t.duration||0),0)*10)/10;
     const manualEntries=(p.manualEntries||[]).filter(e=>e.date.startsWith(monthPfx));
     const manualH=Math.round(manualEntries.reduce((s,e)=>s+e.hours,0)*10)/10;
     const totalH=Math.round((taskH+manualH)*10)/10;
-    const pct=p.hoursGoal>0?Math.min(100,Math.round(totalH/p.hoursGoal*100)):0;
+    const pct=goal>0?Math.min(100,Math.round(totalH/goal*100)):0;
     const taskRows=assignedTasks.length?`<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:7px">
       <div style="font-size:9px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">Tareas</div>
       ${assignedTasks.map(t=>`<div style="font-size:10px;color:var(--text2);display:flex;justify-content:space-between;padding:1px 0">
@@ -840,7 +852,7 @@ function renderProjects(){
         </div>
       </div>
       <div class="pdesc">${p.desc||''}</div>
-      <div class="phrow"><span style="font-weight:600;color:${p.color}">${totalH}h este mes</span><span>meta ${p.hoursGoal}h</span></div>
+      <div class="phrow"><span style="font-weight:600;color:${p.color}">${totalH}h este mes</span><span>${goal>0?`meta ${goal}h`:'agosto'}</span></div>
       ${(taskH>0||manualH>0)?`<div style="font-size:10px;color:var(--text3);margin-top:-4px;margin-bottom:4px">${taskH}h tareas · ${manualH}h manuales</div>`:''}
       <div class="hbar"><div class="hfill" style="width:${pct}%;background:${p.color}"></div></div>
       <div class="pacts">
@@ -933,9 +945,8 @@ function buildM(){
     <div class="ff"><label>Time</label><input id="m-time" type="time" value="09:00"/></div>
     <div class="ff"><label>Type</label><select id="m-type"><option value="event">Event</option><option value="meeting">Meeting</option></select></div>`;
   else if(type==='project')b=`
-    <div class="ff"><label>Name</label><input id="m-t" placeholder="Project name"/></div>
-    <div class="ff"><label>Description</label><textarea id="m-desc" placeholder="What is this about?"></textarea></div>
-    <div class="ff"><label>Monthly hours goal</label><input id="m-h" type="number" value="20" min="1"/></div>
+    <div class="ff"><label>Nombre</label><input id="m-t" placeholder="Nombre del proyecto"/></div>
+    <div class="ff"><label>Descripción</label><textarea id="m-desc" placeholder="¿De qué trata?"></textarea></div>
     <div class="ff"><label>Color</label><select id="m-c">${PCOLS.map(c=>`<option value="${c}">${c}</option>`).join('')}</select></div>`;
   else if(type==='assigntask'){
     const taskOpts=D.todos.map(t=>`<option value="${t.id}">[${t.date}] ${t.title}${t.done?' ✓':''}</option>`).join('');
@@ -982,7 +993,7 @@ function saveM(){
     }else if(type==='project'){
       const p=D.projects.find(p=>p.id===eid);if(!p)return;
       const n=gv('m-t').trim();if(!n)return;
-      Object.assign(p,{name:n,desc:gv('m-desc'),hoursGoal:parseFloat(gv('m-h'))||20,color:gv('m-c')});
+      Object.assign(p,{name:n,desc:gv('m-desc'),color:gv('m-c')});
     }else if(type==='topic'){
       const tp=D.topics.find(t=>t.id===eid);if(!tp)return;
       const n=gv('m-t').trim();if(!n)return;
@@ -996,7 +1007,7 @@ function saveM(){
     const id=nid();
     if(type==='todo'){const u=todoFromForm(id);if(!u)return;D.todos.push({...u,done:false});}
     else if(type==='event'){const t=gv('m-t').trim();if(!t)return;D.events.push({id,title:t,date:gv('m-d'),time:gv('m-time'),type:gv('m-type')})}
-    else if(type==='project'){const n=gv('m-t').trim();if(!n)return;D.projects.push({id,name:n,desc:gv('m-desc'),color:gv('m-c'),hoursGoal:parseFloat(gv('m-h'))||20,hoursUsed:0})}
+    else if(type==='project'){const n=gv('m-t').trim();if(!n)return;D.projects.push({id,name:n,desc:gv('m-desc'),color:gv('m-c'),hoursUsed:0})}
     else if(type==='assigntask'){
       const tid=parseInt(gv('m-task'));const dur=parseFloat(gv('m-dur'))||0;
       if(!tid||!dur)return;
