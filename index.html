@@ -287,17 +287,18 @@ html,body{height:100%;font-family:Georgia,'Times New Roman',serif;background:var
       <!-- GIST SYNC -->
       <div class="scard">
         <h3><i class="ti ti-brand-github"></i> GitHub Gist sync</h3>
-        <p>Your data is saved automatically to a private GitHub Gist and synced across all devices.</p>
+        <p>Your planner data can sync to a private GitHub Gist. This version validates the token and Gist before enabling sync.</p>
         <ol class="ssteps">
-          <li>Go to <a href="https://github.com/settings/tokens/new" target="_blank">github.com/settings/tokens/new</a>, create a token with <strong>gist</strong> scope.</li>
-          <li>Go to <a href="https://gist.github.com" target="_blank">gist.github.com</a>, create a secret Gist with filename <code>planner.json</code> and content <code>{}</code>.</li>
-          <li>Copy the Gist ID from its URL.</li>
+          <li>Create a <strong>classic</strong> GitHub token with only the <strong>gist</strong> scope. Fine-grained tokens often do not work with Gists.</li>
+          <li>Create a secret Gist with filename <code>planner.json</code> and content <code>{}</code>.</li>
+          <li>Copy the Gist ID from the URL, not the full URL.</li>
         </ol>
-        <div class="sf"><label>GitHub Token</label><input type="password" id="s-token" placeholder="ghp_xxxx…"/><div class="snote">Stored only in your browser — sent only to GitHub.</div></div>
+        <div class="sf"><label>GitHub classic token</label><input type="password" id="s-token" placeholder="ghp_xxxx…"/><div class="snote">Stored only in this browser. If sync fails, your edits remain local until the connection works.</div></div>
         <div class="sf"><label>Gist ID</label><input type="text" id="s-gist" placeholder="a1b2c3d4…"/></div>
         <div class="bg">
-          <button class="btn btn-p" onclick="saveGistSetup()"><i class="ti ti-check"></i> Save & connect</button>
+          <button class="btn btn-p" onclick="saveGistSetup()"><i class="ti ti-check"></i> Save & test sync</button>
           <button class="btn" onclick="testGist()"><i class="ti ti-refresh"></i> Test</button>
+          <button class="btn btn-sm" onclick="disconnectGist()"><i class="ti ti-x"></i> Disable</button>
         </div>
         <div class="smsg" id="gist-msg"></div>
       </div>
@@ -392,45 +393,129 @@ function setSS(cls,txt){
   document.getElementById('sdot').className='sync-dot'+(cls?' '+cls:'');
   document.getElementById('stxt').textContent=txt;
 }
+function authHeaders(){
+  return {Authorization:`Bearer ${CFG.token}`,Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'};
+}
+function normaliseGistId(v){
+  v=(v||'').trim();
+  const m=v.match(/gist\.github\.com\/(?:[^\/]+\/)?([a-f0-9]+)/i)||v.match(/([a-f0-9]{20,})/i);
+  return m?m[1]:v;
+}
+function findPlannerFile(g){
+  if(!g||!g.files)return null;
+  return g.files['planner.json']||Object.values(g.files).find(f=>f.filename==='planner.json')||Object.values(g.files)[0]||null;
+}
+function saveLocal(){
+  lss('planner_local_data',JSON.stringify({...D,nextId:S.nextId}));
+}
+function loadLocal(){
+  const raw=ls('planner_local_data');
+  if(!raw)return;
+  try{
+    const p=JSON.parse(raw);
+    if(p&&typeof p==='object'){D={...D,...p};if(p.nextId)S.nextId=p.nextId;}
+  }catch(e){console.warn('Could not load local planner data',e)}
+}
+function applyRemoteData(content){
+  if(!content||content.trim()==='{}')return;
+  const p=JSON.parse(content);
+  if(p&&typeof p==='object'){
+    D={...D,...p};
+    if(p.nextId)S.nextId=p.nextId;
+    saveLocal();
+  }
+}
+async function gistRequest(url,opts={}){
+  const r=await fetch(url,{...opts,headers:{...authHeaders(),...(opts.headers||{})}});
+  let body=null;
+  try{body=await r.json()}catch(e){}
+  if(!r.ok){
+    const msg=(body&&body.message)?body.message:`HTTP ${r.status}`;
+    throw new Error(msg);
+  }
+  return body;
+}
+function gistErrorMessage(e){
+  const msg=(e&&e.message?e.message:String(e));
+  if(/Bad credentials/i.test(msg))return 'Token incorrecto o caducado. Crea un token classic nuevo con scope gist.';
+  if(/Not Found/i.test(msg))return 'No encuentro ese Gist. Revisa que el ID sea correcto y que el token tenga acceso.';
+  if(/Resource not accessible|requires authentication|Must have admin rights/i.test(msg))return 'El token no tiene permisos suficientes. Usa un token classic con scope gist.';
+  if(/Failed to fetch|NetworkError|CORS/i.test(msg))return 'El navegador no ha podido conectar con GitHub. Revisa conexión, bloqueadores o CORS.';
+  return msg;
+}
 async function loadGist(){
-  if(!CFG.token||!CFG.gistId){setSS('','Not configured');return}
+  if(!CFG.token||!CFG.gistId){setSS('','Local only');loadLocal();refreshPage();return false}
   setSS('saving','Loading…');
   try{
-    const r=await fetch(`https://api.github.com/gists/${CFG.gistId}`,{headers:{Authorization:`token ${CFG.token}`,Accept:'application/vnd.github.v3+json'}});
-    if(!r.ok)throw new Error(r.status);
-    const g=await r.json();
-    const f=Object.values(g.files)[0];
-    if(f&&f.content&&f.content!=='{}'){
-      const p=JSON.parse(f.content);
-      if(p&&typeof p==='object'){D={...D,...p};if(p.nextId)S.nextId=p.nextId;}
+    const g=await gistRequest(`https://api.github.com/gists/${CFG.gistId}`);
+    const f=findPlannerFile(g);
+    if(!f)throw new Error('The Gist has no files. Add planner.json with {}.');
+    if(f.content!==undefined)applyRemoteData(f.content);
+    else if(f.raw_url){
+      const rr=await fetch(f.raw_url,{cache:'no-store'});
+      if(!rr.ok)throw new Error('Could not read planner.json');
+      applyRemoteData(await rr.text());
     }
     setSS('ok','Synced');
     doRollover();
     refreshPage();
-  }catch(e){setSS('err','Sync error');console.error(e)}
+    return true;
+  }catch(e){
+    setSS('err','Sync error');
+    showMsg('gist-msg','err',gistErrorMessage(e));
+    loadLocal();refreshPage();
+    console.error(e);
+    return false;
+  }
 }
 async function saveGist(){
-  if(!CFG.token||!CFG.gistId)return;
+  saveLocal();
+  if(!CFG.token||!CFG.gistId){setSS('','Local only');return false}
   setSS('saving','Saving…');
   try{
-    const files={};files['planner.json']={content:JSON.stringify({...D,nextId:S.nextId},null,2)};
-    const r=await fetch(`https://api.github.com/gists/${CFG.gistId}`,{method:'PATCH',headers:{Authorization:`token ${CFG.token}`,Accept:'application/vnd.github.v3+json','Content-Type':'application/json'},body:JSON.stringify({files})});
-    if(!r.ok)throw new Error(r.status);
+    const content=JSON.stringify({...D,nextId:S.nextId},null,2);
+    await gistRequest(`https://api.github.com/gists/${CFG.gistId}`,{
+      method:'PATCH',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({files:{'planner.json':{content}}})
+    });
     setSS('ok','Saved ✓');
-  }catch(e){setSS('err','Save failed');console.error(e)}
+    return true;
+  }catch(e){
+    setSS('err','Save failed');
+    showMsg('gist-msg','err',gistErrorMessage(e)+' Tus cambios se han guardado localmente.');
+    console.error(e);
+    return false;
+  }
 }
-function sched(){clearTimeout(saveTimer);saveTimer=setTimeout(saveGist,1200)}
+function sched(){clearTimeout(saveTimer);saveTimer=setTimeout(saveGist,800)}
 
 async function saveGistSetup(){
-  const t=document.getElementById('s-token').value.trim();
-  const g=document.getElementById('s-gist').value.trim();
-  if(!t||!g){showMsg('gist-msg','err','Fill in both fields.');return}
-  lss('planner_token',t);lss('planner_gist',g);CFG.token=t;CFG.gistId=g;
-  showMsg('gist-msg','info','Connecting…');
-  await loadGist();
-  showMsg('gist-msg','ok','Connected! Data syncing via Gist.');
+  const t=document.getElementById('s-token').value.trim()||CFG.token;
+  const g=normaliseGistId(document.getElementById('s-gist').value.trim()||CFG.gistId);
+  if(!t||!g){showMsg('gist-msg','err','Rellena el token y el Gist ID.');return}
+  CFG.token=t;CFG.gistId=g;
+  showMsg('gist-msg','info','Comprobando conexión…');
+  const ok=await loadGist();
+  if(!ok)return;
+  lss('planner_token',t);lss('planner_gist',g);
+  document.getElementById('s-gist').value=g;
+  await saveGist();
+  showMsg('gist-msg','ok','Conectado. Sync de Gist activo.');
 }
-async function testGist(){showMsg('gist-msg','info','Testing…');await loadGist();showMsg('gist-msg','ok',document.getElementById('stxt').textContent)}
+async function testGist(){
+  const t=document.getElementById('s-token').value.trim()||CFG.token;
+  const g=normaliseGistId(document.getElementById('s-gist').value.trim()||CFG.gistId);
+  if(t)CFG.token=t;if(g)CFG.gistId=g;
+  showMsg('gist-msg','info','Testing…');
+  const ok=await loadGist();
+  if(ok)showMsg('gist-msg','ok','Conexión correcta.');
+}
+function disconnectGist(){
+  lss('planner_token','');lss('planner_gist','');CFG.token='';CFG.gistId='';
+  setSS('','Local only');
+  showMsg('gist-msg','info','Sync desactivado. Los datos siguen guardados en este navegador.');
+}
 
 // ── ROLLOVER ──────────────────────────────────────────────────────────────
 function doRollover(){
@@ -792,7 +877,9 @@ function saveModal(){
 
 // ── INIT ───────────────────────────────────────────────────────────────────
 updateCalUI();
-if(CFG.token&&CFG.gistId){loadGist()}else{setSS('','Not configured')}
+if(CFG.gistId)document.getElementById('s-gist').value=CFG.gistId;
+loadLocal();
+if(CFG.token&&CFG.gistId){loadGist()}else{setSS('','Local only')}
 if(CFG.gcalIcsUrl)fetchGcal();
 if(CFG.msIcsUrl)fetchMs();
 doRollover();
