@@ -451,7 +451,7 @@ const TICOS=['ti-bulb','ti-briefcase','ti-plane','ti-heart','ti-home','ti-book',
 const isMobile=()=>window.innerWidth<=700;
 
 // ── STATE ──────────────────────────────────────────────────────────────────
-let S={weekStart:getMonday(new Date()),monthDate:new Date(),filter:'all',mType:null,mDay:null,editId:null,nextId:Date.now(),sidebarCollapsed:false};
+let S={weekStart:getMonday(new Date()),monthDate:new Date(),filter:'all',mType:null,mDay:null,editId:null,mProjId:null,nextId:Date.now(),sidebarCollapsed:false};
 let D={events:[],todos:[],projects:[],timeblocks:[],topics:[
   {id:1,name:'Work',icon:'ti-briefcase'},
   {id:2,name:'Personal',icon:'ti-heart'},
@@ -828,12 +828,14 @@ function renderProjects(){
       ${taskH>0?`<div style="font-size:10px;color:var(--text3);margin-top:-4px;margin-bottom:4px">${taskH}h de tareas · ${p.hoursUsed}h manuales</div>`:''}
       <div class="hbar"><div class="hfill" style="width:${pct}%;background:${p.color}"></div></div>
       <div class="pacts">
+        <button class="btn btn-sm btn-p" onclick="openAssign(${p.id})"><i class="ti ti-link"></i> Asignar tarea</button>
         <button class="btn btn-sm" onclick="logH(${p.id})"><i class="ti ti-plus"></i> Horas manuales</button>
       </div>
       ${taskRows}
     </div>`;
   }).join('');
 }
+function openAssign(projId){S.mProjId=projId;S.mType='assigntask';S.mDay=null;S.editId=null;buildM()}
 function logH(id){const h=prompt('Horas a registrar:');const n=parseFloat(h);if(!isNaN(n)&&n>0){const p=D.projects.find(p=>p.id===id);if(p){p.hoursUsed=Math.round((p.hoursUsed+n)*10)/10;sched();renderProjects()}}}
 function delProj(id){if(!confirm('¿Eliminar proyecto?'))return;D.projects=D.projects.filter(p=>p.id!==id);sched();renderProjects()}
 
@@ -899,7 +901,7 @@ function openEdit(type,id){
 }
 function buildM(){
   const type=S.mType,day=S.mDay||todayStr(),ed=S.editId;
-  const addT={todo:'Add to-do',event:'Add event',project:'New project',timeblock:'Add time block',topic:'New topic',idea:'New idea'};
+  const addT={todo:'Add to-do',event:'Add event',project:'New project',timeblock:'Add time block',topic:'New topic',idea:'New idea',assigntask:'Asignar tarea al proyecto'};
   const edtT={todo:'Edit to-do',event:'Edit event',project:'Edit project',topic:'Edit topic',idea:'Edit idea'};
   document.getElementById('mtitle').textContent=(ed?edtT[type]:addT[type])||'Add';
   const projOpts='<option value="">— None —</option>'+D.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
@@ -907,9 +909,7 @@ function buildM(){
   if(type==='todo')b=`
     <div class="ff"><label>Task</label><input id="m-t" placeholder="What needs to be done?"/></div>
     <div class="ff"><label>Date</label><input id="m-d" type="date" value="${day}"/></div>
-    <div class="ff"><label>Urgency</label><select id="m-u"><option value="high">Urgent</option><option value="med" selected>Medium</option><option value="low">Low</option></select></div>
-    <div class="ff"><label>Proyecto (opcional)</label><select id="m-proj">${projOpts}</select></div>
-    <div class="ff"><label>Horas dedicadas (opcional)</label><input id="m-dur" type="number" min="0.25" step="0.25" placeholder="ej. 1.5"/></div>`;
+    <div class="ff"><label>Urgency</label><select id="m-u"><option value="high">Urgent</option><option value="med" selected>Medium</option><option value="low">Low</option></select></div>`;
   else if(type==='event')b=`
     <div class="ff"><label>Title</label><input id="m-t" placeholder="Event name"/></div>
     <div class="ff"><label>Date</label><input id="m-d" type="date" value="${day}"/></div>
@@ -920,6 +920,11 @@ function buildM(){
     <div class="ff"><label>Description</label><textarea id="m-desc" placeholder="What is this about?"></textarea></div>
     <div class="ff"><label>Monthly hours goal</label><input id="m-h" type="number" value="20" min="1"/></div>
     <div class="ff"><label>Color</label><select id="m-c">${PCOLS.map(c=>`<option value="${c}">${c}</option>`).join('')}</select></div>`;
+  else if(type==='assigntask'){
+    const taskOpts=D.todos.map(t=>`<option value="${t.id}">[${t.date}] ${t.title}${t.done?' ✓':''}</option>`).join('');
+    b=`
+    <div class="ff"><label>Tarea</label><select id="m-task">${taskOpts||'<option>No hay tareas</option>'}</select></div>
+    <div class="ff"><label>Horas dedicadas</label><input id="m-dur" type="number" min="0.25" step="0.25" placeholder="ej. 1.5"/></div>`;}
   else if(type==='timeblock'){const po=D.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');b=`
     <div class="ff"><label>Date</label><input id="m-d" type="date" value="${day}"/></div>
     <div class="ff"><label>Start time</label><input id="m-time" type="time" value="10:00"/></div>
@@ -940,9 +945,7 @@ function closeMO(e){if(e.target===document.getElementById('mo'))closeM()}
 function gv(id){const el=document.getElementById(id);return el?el.value:''}
 function todoFromForm(id){
   const t=gv('m-t').trim();if(!t)return null;
-  const dur=parseFloat(gv('m-dur'))||undefined;
-  const pv=gv('m-proj');const pid=pv?parseInt(pv)||undefined:undefined;
-  return{id,title:t,date:gv('m-d'),urgency:gv('m-u'),done:false,duration:dur,projectId:pid};
+  return{id,title:t,date:gv('m-d'),urgency:gv('m-u'),done:false};
 }
 function saveM(){
   const type=S.mType,eid=S.editId;
@@ -973,6 +976,12 @@ function saveM(){
     if(type==='todo'){const u=todoFromForm(id);if(!u)return;D.todos.push({...u,done:false});}
     else if(type==='event'){const t=gv('m-t').trim();if(!t)return;D.events.push({id,title:t,date:gv('m-d'),time:gv('m-time'),type:gv('m-type')})}
     else if(type==='project'){const n=gv('m-t').trim();if(!n)return;D.projects.push({id,name:n,desc:gv('m-desc'),color:gv('m-c'),hoursGoal:parseFloat(gv('m-h'))||20,hoursUsed:0})}
+    else if(type==='assigntask'){
+      const tid=parseInt(gv('m-task'));const dur=parseFloat(gv('m-dur'))||0;
+      if(!tid||!dur)return;
+      const t=D.todos.find(t=>t.id===tid);if(!t)return;
+      t.projectId=S.mProjId;t.duration=dur;
+    }
     else if(type==='timeblock'){const pid=parseInt(gv('m-proj'));const dur=parseFloat(gv('m-dur'))||1;D.timeblocks.push({id,date:gv('m-d'),startTime:gv('m-time'),duration:dur,projectId:pid});const p=D.projects.find(p=>p.id===pid);if(p)p.hoursUsed=Math.round((p.hoursUsed+dur)*10)/10;}
     else if(type==='topic'){const n=gv('m-t').trim();if(!n)return;D.topics.push({id,name:n,icon:gv('m-icon')})}
     else if(type==='idea'){const t=gv('m-tx').trim();if(!t)return;D.ideas.push({id,topicId:parseInt(gv('m-topic')),text:t})}
