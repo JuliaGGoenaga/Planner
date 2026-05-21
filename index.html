@@ -92,6 +92,14 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 .btn-del{background:none;border:none;cursor:pointer;color:var(--text3);padding:2px 4px;border-radius:4px;font-family:inherit}
 .btn-del:hover{color:var(--red)}
 
+/* ── CAL BANNER ── */
+.cal-banner{display:flex;align-items:center;gap:10px;background:var(--blue-l);border:1px solid var(--blue);border-radius:var(--r);padding:10px 14px;margin-bottom:12px;font-size:12px;color:var(--blue)}
+.cal-banner i{font-size:18px;flex-shrink:0}
+.cal-banner-text{flex:1;line-height:1.4}
+.cal-banner-text strong{display:block;margin-bottom:1px}
+.cal-banner button{background:var(--blue);color:#fff;border:none;border-radius:var(--rs);padding:6px 12px;font-size:12px;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0}
+.cal-banner button:hover{opacity:.88}
+
 /* ── WEEK ── */
 .wnav{display:flex;align-items:center;gap:7px}
 .wlabel{font-size:12px;color:var(--text2);min-width:130px;text-align:center}
@@ -313,6 +321,14 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
             <button class="btn btn-p" onclick="openM('todo')"><i class="ti ti-plus"></i> To-do</button>
           </div>
         </div>
+        <div class="cal-banner" id="cal-banner" style="display:none">
+          <i class="ti ti-calendar-event"></i>
+          <div class="cal-banner-text">
+            <strong>Conecta tu Google Calendar u Outlook</strong>
+            Pega tu enlace ICS para ver tus eventos aquí
+          </div>
+          <button onclick="openM('quickcal')">+ Agregar calendario</button>
+        </div>
         <div class="wgrid" id="week-grid"></div>
       </div>
 
@@ -468,7 +484,10 @@ function readCFG(){
   // If found in hash, persist to localStorage so refreshes work without hash
   if(params.get('token'))lss('p_token',params.get('token'));
   if(params.get('gist'))lss('p_gist',params.get('gist'));
-  return{token,gistId};
+  // ICS calendars from hash: ics=URL1|Name1,URL2|Name2
+  const icsRaw=params.get('ics')||'';
+  const icsEntries=icsRaw?icsRaw.split(',').filter(Boolean):[];
+  return{token,gistId,icsEntries};
 }
 let CFG=readCFG();
 let saveTimer=null;
@@ -577,10 +596,25 @@ async function saveGistCfg(){
     showMsg('gist-msg','err','Could not connect. Check your token and Gist ID.');
   }
 }
+function buildBookmarkURL(){
+  const hash=window.location.hash.slice(1);
+  const params=new URLSearchParams(hash);
+  if(CFG.token)params.set('token',CFG.token);
+  if(CFG.gistId)params.set('gist',CFG.gistId);
+  if(D.calendars.length){
+    const icsParam=D.calendars.map(c=>encodeURIComponent(c.url)+'|'+encodeURIComponent(c.name)).join(',');
+    params.set('ics',icsParam);
+  } else {
+    params.delete('ics');
+  }
+  return window.location.origin+window.location.pathname+'#'+params.toString();
+}
 function showBookmarkMsg(){
+  const url=buildBookmarkURL();
+  history.replaceState(null,'','#'+new URLSearchParams(url.split('#')[1]).toString());
   const el=document.getElementById('gist-msg');
   el.className='smsg ok';
-  el.innerHTML=`Connected! ✓ &nbsp;|&nbsp; <strong>Bookmark this URL</strong> to auto-connect on any device: <br><span style="font-family:monospace;font-size:10px;word-break:break-all">${window.location.href}</span> <button onclick="copyLink()" style="margin-left:6px;font-size:10px;padding:2px 7px;border:1px solid var(--green);border-radius:4px;background:none;color:var(--green);cursor:pointer">Copy link</button>`;
+  el.innerHTML=`Connected! ✓ &nbsp;|&nbsp; <strong>Bookmark this URL</strong> to auto-connect on any device: <br><span style="font-family:monospace;font-size:10px;word-break:break-all">${url}</span> <button onclick="copyLink()" style="margin-left:6px;font-size:10px;padding:2px 7px;border:1px solid var(--green);border-radius:4px;background:none;color:var(--green);cursor:pointer">Copy link</button>`;
 }
 function copyLink(){
   navigator.clipboard.writeText(window.location.href).then(()=>{
@@ -680,9 +714,8 @@ function go(name){
     document.getElementById('s-gist').value=CFG.gistId;
     renderCalList();
     if(CFG.token&&CFG.gistId){
-      const hash='#token='+encodeURIComponent(CFG.token)+'&gist='+encodeURIComponent(CFG.gistId);
-      const url=window.location.origin+window.location.pathname+hash;
-      history.replaceState(null,'',hash);
+      const url=buildBookmarkURL();
+      history.replaceState(null,'',url.split(window.location.origin+window.location.pathname)[1]||'');
       const el=document.getElementById('gist-msg');
       el.className='smsg ok';
       el.innerHTML='✓ Connected &nbsp;|&nbsp; <strong>Your bookmarkable link:</strong><br><span style="font-family:monospace;font-size:10px;word-break:break-all">'+url+'</span> <button onclick="copyLink()" style="margin-left:6px;font-size:10px;padding:2px 7px;border:1px solid var(--green);border-radius:4px;background:none;color:var(--green);cursor:pointer">Copy</button>';
@@ -690,6 +723,12 @@ function go(name){
   }
 }
 function refreshPage(){const a=document.querySelector('.page.active');if(a)go(a.id.replace('page-',''))}
+
+// ── CAL BANNER ─────────────────────────────────────────────────────────────
+function updateCalBanner(){
+  const b=document.getElementById('cal-banner');
+  if(b)b.style.display=D.calendars.length?'none':'flex';
+}
 
 // ── WEEK ───────────────────────────────────────────────────────────────────
 function renderWeek(){
@@ -721,6 +760,7 @@ function renderWeek(){
     </div>`;
   });
   document.getElementById('week-grid').innerHTML=html;
+  updateCalBanner();
   // On mobile: scroll to today
   if(mobile){
     setTimeout(()=>{const t=document.querySelector('.today-col');if(t)t.scrollIntoView({inline:'center',behavior:'smooth'})},50);
@@ -829,13 +869,18 @@ function openM(type){S.mType=type;S.mDay=null;buildM()}
 function openMD(type,day){S.mType=type;S.mDay=day;buildM()}
 function buildM(){
   const type=S.mType,day=S.mDay||todayStr();
-  const titles={todo:'Add to-do',event:'Add event',project:'New project',timeblock:'Add time block',topic:'New topic',idea:'New idea'};
+  const titles={todo:'Add to-do',event:'Add event',project:'New project',timeblock:'Add time block',topic:'New topic',idea:'New idea',quickcal:'Conectar calendario'};
   document.getElementById('mtitle').textContent=titles[type]||'Add';
   let b='';
   if(type==='todo')b=`
     <div class="ff"><label>Task</label><input id="m-t" placeholder="What needs to be done?"/></div>
     <div class="ff"><label>Date</label><input id="m-d" type="date" value="${day}"/></div>
     <div class="ff"><label>Urgency</label><select id="m-u"><option value="high">Urgent</option><option value="med" selected>Medium</option><option value="low">Low</option></select></div>`;
+  else if(type==='quickcal')b=`
+    <div class="ff"><label>Nombre del calendario</label><input id="m-t" placeholder="Google Cal, Trabajo…"/></div>
+    <div class="ff"><label>Enlace ICS</label><input id="m-url" type="url" placeholder="https://calendar.google.com/calendar/ical/…" style="font-size:13px"/>
+      <div style="font-size:10px;color:var(--text3);margin-top:4px">Google: Configuración → tu calendario → <em>Dirección secreta en formato iCal</em></div>
+    </div>`;
   else if(type==='event')b=`
     <div class="ff"><label>Title</label><input id="m-t" placeholder="Event name"/></div>
     <div class="ff"><label>Date</label><input id="m-d" type="date" value="${day}"/></div>
@@ -872,11 +917,38 @@ function saveM(){
   else if(type==='timeblock'){const pid=parseInt(gv('m-proj'));const dur=parseFloat(gv('m-dur'))||1;D.timeblocks.push({id,date:gv('m-d'),startTime:gv('m-time'),duration:dur,projectId:pid});const p=D.projects.find(p=>p.id===pid);if(p)p.hoursUsed=Math.round((p.hoursUsed+dur)*10)/10;}
   else if(type==='topic'){const n=gv('m-t').trim();if(!n)return;D.topics.push({id,name:n,icon:gv('m-icon')})}
   else if(type==='idea'){const t=gv('m-tx').trim();if(!t)return;D.ideas.push({id,topicId:parseInt(gv('m-topic')),text:t})}
+  else if(type==='quickcal'){
+    const name=gv('m-t').trim()||'Mi calendario';
+    const url=gv('m-url').trim();
+    if(!url||!url.startsWith('http'))return;
+    D.calendars.push({id,name,url,color:PCOLS[D.calendars.length%PCOLS.length]});
+    sched();renderCalList();refreshIcs();
+    updateCalBanner();
+  }
   closeM();sched();refreshPage();
 }
 
+// ── HASH ICS INJECT ────────────────────────────────────────────────────────
+function injectHashCalendars(){
+  if(!CFG.icsEntries.length)return;
+  let changed=false;
+  CFG.icsEntries.forEach(entry=>{
+    const sep=entry.lastIndexOf('|');
+    const url=sep>0?entry.slice(0,sep).trim():entry.trim();
+    const name=sep>0?entry.slice(sep+1).trim():'Calendar';
+    if(!url)return;
+    const already=D.calendars.find(c=>c.url===url);
+    if(!already){
+      D.calendars.push({id:nid(),name,url,color:PCOLS[D.calendars.length%PCOLS.length]});
+      changed=true;
+    }
+  });
+  if(changed){renderCalList();sched();}
+  if(D.calendars.length)refreshIcs();
+}
+
 // ── INIT ───────────────────────────────────────────────────────────────────
-loadGist();
+loadGist().then(()=>injectHashCalendars()).catch(()=>injectHashCalendars());
 renderWeek();
 </script>
 </body>
