@@ -8,222 +8,223 @@
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#f7f6f3;--surface:#fff;--surface2:#f0efe9;--border:rgba(0,0,0,0.1);--border2:rgba(0,0,0,0.18);
+  --bg:#f7f6f3;--surface:#fff;--surface2:#f0efe9;--border:rgba(0,0,0,0.09);--border2:rgba(0,0,0,0.16);
   --text:#1a1917;--text2:#6b6a65;--text3:#a09f9a;
-  --accent:#534AB7;--accent-light:#EEEDFE;
-  --green:#0F6E56;--green-light:#E1F5EE;
-  --amber:#BA7517;--amber-light:#FAEEDA;
-  --red:#A32D2D;--red-light:#FCEBEB;
-  --blue:#185FA5;--blue-light:#E6F1FB;
-  --radius:10px;--radius-sm:6px
+  --accent:#534AB7;--accent-l:#EEEDFE;
+  --green:#0F6E56;--green-l:#E1F5EE;
+  --amber:#BA7517;--amber-l:#FAEEDA;
+  --red:#A32D2D;--red-l:#FCEBEB;
+  --blue:#185FA5;--blue-l:#E6F1FB;
+  --r:10px;--rs:6px
 }
 @media(prefers-color-scheme:dark){:root{
-  --bg:#1a1917;--surface:#242320;--surface2:#2e2d29;--border:rgba(255,255,255,0.1);--border2:rgba(255,255,255,0.18);
+  --bg:#1a1917;--surface:#242320;--surface2:#2e2d29;--border:rgba(255,255,255,0.09);--border2:rgba(255,255,255,0.16);
   --text:#f0efe9;--text2:#9e9d97;--text3:#5e5d58;
-  --accent-light:#2a2660;--green-light:#0a2e25;--amber-light:#2e1f05;--red-light:#2e0f0f;--blue-light:#0c2340
+  --accent-l:#2a2660;--green-l:#0a2e25;--amber-l:#2e1f05;--red-l:#2e0f0f;--blue-l:#0c2340
 }}
-html,body{height:100%;font-family:Georgia,'Times New Roman',serif;background:var(--bg);color:var(--text);font-size:14px}
+html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);font-size:14px}
 .app{display:flex;height:100vh;overflow:hidden}
 
 /* SIDEBAR */
-.sidebar{width:200px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0}
-.sidebar-top{padding:18px 14px 14px;border-bottom:1px solid var(--border)}
-.logo{font-size:17px;font-weight:700;letter-spacing:-.02em;display:flex;align-items:center;gap:7px}
-.logo i{color:var(--accent);font-size:19px}
-.sync-row{font-size:11px;color:var(--text3);margin-top:5px;display:flex;align-items:center;gap:4px}
-.sync-dot{width:6px;height:6px;border-radius:50%;background:var(--text3);flex-shrink:0}
-.sync-dot.ok{background:#639922}.sync-dot.saving{background:var(--amber);animation:pulse 1s infinite}.sync-dot.err{background:var(--red)}
+.sidebar{width:198px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0}
+.s-top{padding:16px 14px 12px;border-bottom:1px solid var(--border)}
+.logo{font-size:16px;font-weight:700;letter-spacing:-.02em;display:flex;align-items:center;gap:7px}
+.logo i{color:var(--accent)}
+.sync-row{font-size:11px;color:var(--text3);margin-top:5px;display:flex;align-items:center;gap:5px}
+.sdot{width:6px;height:6px;border-radius:50%;background:var(--text3);flex-shrink:0;transition:background .3s}
+.sdot.ok{background:#639922}.sdot.saving{background:var(--amber);animation:pulse 1s infinite}.sdot.err{background:#E24B4A}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 .nav{flex:1;padding:6px 0;overflow-y:auto}
-.nav-sec{font-size:10px;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;padding:10px 14px 3px}
-.nav-item{display:flex;align-items:center;gap:9px;padding:8px 14px;font-size:13px;color:var(--text2);cursor:pointer;border-left:2px solid transparent;transition:all .12s;font-family:inherit}
-.nav-item:hover{color:var(--text);background:var(--surface2)}
-.nav-item.active{color:var(--accent);background:var(--accent-light);border-left-color:var(--accent);font-weight:600}
-.nav-item i{font-size:16px}
-.cal-connected{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-left:auto}
-.sidebar-foot{padding:10px 14px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:6px}
-.foot-btn{background:none;border:1px solid var(--border2);border-radius:var(--radius-sm);padding:6px 10px;font-size:11px;color:var(--text2);cursor:pointer;display:flex;align-items:center;gap:6px;font-family:inherit;width:100%}
+.nav-s{font-size:10px;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;padding:10px 14px 3px}
+.ni{display:flex;align-items:center;gap:9px;padding:8px 14px;font-size:13px;color:var(--text2);cursor:pointer;border-left:2px solid transparent;transition:all .12s;background:none;border-top:none;border-right:none;border-bottom:none;width:100%;font-family:inherit;text-align:left}
+.ni:hover{color:var(--text);background:var(--surface2)}
+.ni.active{color:var(--accent);background:var(--accent-l);border-left-color:var(--accent);font-weight:600}
+.ni i{font-size:16px;flex-shrink:0}
+.s-foot{padding:10px 14px;border-top:1px solid var(--border)}
+.foot-btn{width:100%;background:none;border:1px solid var(--border2);border-radius:var(--rs);padding:7px 10px;font-size:12px;color:var(--text2);cursor:pointer;display:flex;align-items:center;gap:6px;font-family:inherit;margin-bottom:5px}
 .foot-btn:hover{background:var(--surface2);color:var(--text)}
+.foot-btn:last-child{margin-bottom:0}
 
 /* MAIN */
 .main{flex:1;overflow-y:auto;background:var(--bg)}
-.page{display:none;padding:22px 26px;min-height:100%}
+.page{display:none;padding:20px 24px;min-height:100%}
 .page.active{display:block}
-.ph{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px}
-.pt{font-size:21px;font-weight:700;letter-spacing:-.02em}
-.bg{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
-.btn{background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:6px 13px;font-size:12px;cursor:pointer;color:var(--text);display:inline-flex;align-items:center;gap:5px;font-family:inherit;transition:all .12s;white-space:nowrap}
+.ph{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px}
+.pt{font-size:20px;font-weight:700;letter-spacing:-.02em}
+.bg{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.btn{background:var(--surface);border:1px solid var(--border2);border-radius:var(--rs);padding:6px 12px;font-size:12px;cursor:pointer;color:var(--text);display:inline-flex;align-items:center;gap:5px;font-family:inherit;transition:all .12s;white-space:nowrap}
 .btn:hover{background:var(--surface2)}
 .btn-p{background:var(--accent);color:#fff;border-color:var(--accent)}
 .btn-p:hover{background:#3C3489;border-color:#3C3489}
 .btn-sm{padding:4px 9px;font-size:11px}
-.btn-g{background:var(--red-light);color:var(--red);border-color:var(--red)}
-.btn-g:hover{background:#f7c1c1}
-.btn-ms{background:var(--blue-light);color:var(--blue);border-color:var(--blue)}
-.btn-ms:hover{background:#b5d4f4}
+.btn-del{background:none;border:none;cursor:pointer;color:var(--text3);padding:2px 4px;border-radius:4px;font-family:inherit}
+.btn-del:hover{color:var(--red)}
 
 /* WEEK */
-.wnav{display:flex;align-items:center;gap:8px}
-.wnav-label{font-size:12px;color:var(--text2);min-width:155px;text-align:center}
+.wnav{display:flex;align-items:center;gap:7px}
+.wlabel{font-size:12px;color:var(--text2);min-width:150px;text-align:center}
 .wgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
-.dcol{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;min-height:500px;display:flex;flex-direction:column}
+.dcol{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;min-height:480px;display:flex;flex-direction:column}
 .dcol.today-col{border-color:var(--accent)}
 .dhead{padding:9px 9px 7px;border-bottom:1px solid var(--border)}
 .dname{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em}
 .dnum{font-size:20px;font-weight:700;letter-spacing:-.02em}
-.dnum.is-today{color:var(--accent)}
-.dbody{flex:1;padding:7px;overflow-y:auto}
-.ev-chip{border-left:2px solid var(--accent);background:var(--accent-light);border-radius:0 4px 4px 0;padding:3px 6px;margin-bottom:3px;font-size:10px;color:var(--accent);line-height:1.3}
-.ev-chip.meeting{border-left-color:var(--green);background:var(--green-light);color:var(--green)}
-.ev-chip.gcal{border-left-color:#E24B4A;background:#FCEBEB;color:#A32D2D}
-.ev-chip.outlook{border-left-color:var(--blue);background:var(--blue-light);color:var(--blue)}
+.dnum.today{color:var(--accent)}
+.dbody{flex:1;padding:6px;overflow-y:auto;display:flex;flex-direction:column;gap:3px}
+.ev{border-left:2px solid var(--accent);background:var(--accent-l);border-radius:0 4px 4px 0;padding:3px 6px;font-size:10px;color:var(--accent);line-height:1.3}
+.ev.meeting{border-left-color:var(--green);background:var(--green-l);color:var(--green)}
+.ev.ical{border-left-color:var(--blue);background:var(--blue-l);color:var(--blue)}
 .ev-time{font-size:9px;opacity:.7;display:block}
-.ev-src{font-size:8px;opacity:.6;display:block}
-.tr-week{display:flex;align-items:flex-start;gap:4px;padding:3px 0;border-bottom:1px solid var(--border)}
-.tr-week:last-child{border-bottom:none}
+.ev-cal{font-size:8px;opacity:.6}
+.tr{display:flex;align-items:flex-start;gap:4px;padding:2px 0}
 .chk{width:14px;height:14px;border:1px solid var(--border2);border-radius:3px;flex-shrink:0;margin-top:1px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .1s}
 .chk.on{background:var(--accent);border-color:var(--accent)}
 .chk.on::after{content:'✓';color:#fff;font-size:8px}
 .udot{width:5px;height:5px;border-radius:50%;flex-shrink:0;margin-top:4px}
 .u-high{background:#E24B4A}.u-med{background:#EF9F27}.u-low{background:#639922}
-.tlabel{flex:1;font-size:10px;line-height:1.3;color:var(--text)}
-.tlabel.done{text-decoration:line-through;color:var(--text3)}
-.day-adds{display:flex;gap:3px;margin-top:5px;flex-wrap:wrap}
-.day-add{background:none;border:1px dashed var(--border);border-radius:3px;color:var(--text3);font-size:10px;padding:2px 6px;cursor:pointer;display:flex;align-items:center;gap:2px;font-family:inherit}
-.day-add:hover{border-color:var(--border2);color:var(--text2)}
+.tl{flex:1;font-size:10px;line-height:1.3}
+.tl.done{text-decoration:line-through;color:var(--text3)}
+.rolled{font-size:8px;background:var(--amber-l);color:var(--amber);border-radius:8px;padding:0 4px;margin-left:2px;vertical-align:middle}
+.day-adds{display:flex;gap:3px;margin-top:4px;flex-wrap:wrap}
+.dadd{background:none;border:1px dashed var(--border2);border-radius:3px;color:var(--text3);font-size:10px;padding:2px 5px;cursor:pointer;display:flex;align-items:center;gap:2px;font-family:inherit}
+.dadd:hover{color:var(--text2);border-color:var(--border2);background:var(--surface2)}
 
 /* MONTH */
 .dow-row{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px}
-.dow-label{font-size:10px;color:var(--text3);text-align:center;text-transform:uppercase;letter-spacing:.06em;padding:3px 0}
+.dlabel{font-size:10px;color:var(--text3);text-align:center;text-transform:uppercase;letter-spacing:.06em;padding:2px 0}
 .mweek{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px}
-.mcell{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);min-height:80px;padding:5px 6px;cursor:pointer;transition:border-color .12s}
-.mcell:hover{border-color:var(--border2)}
-.mcell.is-today{border-color:var(--accent)}
-.mcell.other-m{opacity:.4}
-.mc-num{font-size:12px;font-weight:600;margin-bottom:3px}
-.mc-num.tn{color:var(--accent)}
-.mc-dots{display:flex;flex-wrap:wrap;gap:2px;margin-bottom:2px}
+.mcell{background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);min-height:78px;padding:5px 6px}
+.mcell.today-cell{border-color:var(--accent)}
+.mcell.other{opacity:.4}
+.mc-n{font-size:12px;font-weight:600;margin-bottom:2px}
+.mc-n.tn{color:var(--accent)}
+.mcdots{display:flex;flex-wrap:wrap;gap:2px;margin-bottom:2px}
 .mcdot{width:5px;height:5px;border-radius:50%}
 .mc-tb{font-size:9px;padding:1px 4px;border-radius:3px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* TODOS */
-.tf{display:flex;gap:5px;margin-bottom:14px;flex-wrap:wrap}
-.fb{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:4px 12px;font-size:11px;cursor:pointer;color:var(--text2);font-family:inherit}
+.tfilters{display:flex;gap:5px;margin-bottom:12px;flex-wrap:wrap}
+.fb{background:var(--surface);border:1px solid var(--border2);border-radius:20px;padding:4px 12px;font-size:11px;cursor:pointer;color:var(--text2);font-family:inherit}
 .fb.active{background:var(--accent);color:#fff;border-color:var(--accent)}
-.tsh{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin:14px 0 5px;display:flex;align-items:center;gap:5px}
-.tcard{display:flex;align-items:flex-start;gap:9px;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:4px;transition:border-color .12s}
+.tsh{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin:12px 0 5px;display:flex;align-items:center;gap:5px}
+.tcard{display:flex;align-items:flex-start;gap:8px;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);margin-bottom:4px}
 .tcard:hover{border-color:var(--border2)}
 .bchk{width:17px;height:17px;border:1px solid var(--border2);border-radius:4px;flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;margin-top:1px}
 .bchk.on{background:var(--accent);border-color:var(--accent)}
 .bchk.on::after{content:'✓';color:#fff;font-size:10px}
-.ubadge{font-size:10px;padding:2px 8px;border-radius:20px;font-weight:600;white-space:nowrap;margin-top:1px}
-.ub-high{background:var(--red-light);color:var(--red)}
-.ub-med{background:var(--amber-light);color:var(--amber)}
-.ub-low{background:var(--green-light);color:var(--green)}
-.tc-text{flex:1;font-size:12px;line-height:1.4}
-.tc-meta{font-size:10px;color:var(--text3);margin-top:2px}
-.tdel{background:none;border:none;cursor:pointer;color:var(--text3);padding:2px 3px;border-radius:3px}
-.tdel:hover{color:var(--red)}
-.rollover-badge{font-size:9px;background:var(--amber-light);color:var(--amber);border-radius:10px;padding:1px 6px;margin-left:4px}
+.ub{font-size:10px;padding:2px 8px;border-radius:20px;font-weight:600;white-space:nowrap}
+.ub-high{background:var(--red-l);color:var(--red)}
+.ub-med{background:var(--amber-l);color:var(--amber)}
+.ub-low{background:var(--green-l);color:var(--green)}
+.tc-t{flex:1;font-size:12px;line-height:1.4}
+.tc-m{font-size:10px;color:var(--text3);margin-top:2px}
 
 /* PROJECTS */
 .pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
-.pcard{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;position:relative}
-.pstrip{position:absolute;top:0;left:0;right:0;height:3px;border-radius:var(--radius) var(--radius) 0 0}
-.pname{font-size:14px;font-weight:600;margin-top:8px;margin-bottom:3px;letter-spacing:-.01em}
+.pcard{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px;position:relative}
+.pstrip{position:absolute;top:0;left:0;right:0;height:3px;border-radius:var(--r) var(--r) 0 0}
+.pname{font-size:14px;font-weight:600;margin-top:8px;margin-bottom:3px}
 .pdesc{font-size:11px;color:var(--text2);margin-bottom:8px;line-height:1.4}
-.phours{font-size:11px;color:var(--text2);display:flex;justify-content:space-between;margin-bottom:3px}
+.phrow{font-size:11px;color:var(--text2);display:flex;justify-content:space-between;margin-bottom:3px}
 .hbar{height:4px;background:var(--surface2);border-radius:3px;overflow:hidden}
 .hfill{height:100%;border-radius:3px;transition:width .3s}
-.pactions{display:flex;gap:5px;margin-top:9px}
+.pacts{display:flex;gap:5px;margin-top:9px}
 
 /* IDEAS */
 .igrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
-.icol{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
-.icol-head{padding:11px 13px 9px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
-.icol-name{font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px}
-.icol-name i{font-size:15px}
-.icol-body{padding:7px}
-.ichip{font-size:11px;color:var(--text2);padding:6px 7px;border-radius:4px;display:flex;align-items:flex-start;gap:5px;line-height:1.4;cursor:default}
+.icol{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.icol-h{padding:10px 13px 8px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.icol-n{font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px}
+.icol-b{padding:6px}
+.ichip{font-size:11px;color:var(--text2);padding:6px 7px;border-radius:4px;display:flex;align-items:flex-start;gap:5px;line-height:1.4}
 .ichip:hover{background:var(--surface2)}
-.ichip i{font-size:12px;margin-top:1px;color:var(--text3);flex-shrink:0}
 .idel{background:none;border:none;cursor:pointer;color:var(--text3);padding:1px;margin-left:auto;opacity:0}
 .ichip:hover .idel{opacity:1}
 .idel:hover{color:var(--red)}
 
-/* SETUP PAGE */
-.setup-wrap{display:grid;grid-template-columns:1fr 1fr;gap:14px;max-width:860px}
-@media(max-width:700px){.setup-wrap{grid-template-columns:1fr}}
-.scard{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px}
-.scard h3{font-size:15px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:7px}
-.scard p{font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:12px}
-.ssteps{counter-reset:s;list-style:none;margin-bottom:14px}
-.ssteps li{counter-increment:s;font-size:12px;color:var(--text2);padding:4px 0 4px 24px;position:relative;line-height:1.5}
-.ssteps li::before{content:counter(s);position:absolute;left:0;top:4px;width:16px;height:16px;background:var(--accent-light);color:var(--accent);border-radius:50%;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center}
-.ssteps a{color:var(--accent)}
-.sf{margin-bottom:10px}
+/* SETUP */
+.setup-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:820px}
+@media(max-width:680px){.setup-grid{grid-template-columns:1fr}}
+.scard{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px}
+.scard h3{font-size:14px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:7px}
+.scard p{font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:10px}
+.steps{counter-reset:s;list-style:none;margin-bottom:12px}
+.steps li{counter-increment:s;font-size:12px;color:var(--text2);padding:4px 0 4px 22px;position:relative;line-height:1.5}
+.steps li::before{content:counter(s);position:absolute;left:0;top:5px;width:15px;height:15px;background:var(--accent-l);color:var(--accent);border-radius:50%;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.steps a{color:var(--accent)}
+.steps code{background:var(--surface2);padding:1px 4px;border-radius:3px;font-size:11px}
+.sf{margin-bottom:9px}
 .sf label{display:block;font-size:11px;font-weight:600;margin-bottom:3px;color:var(--text2)}
-.sf input,.sf select{width:100%;padding:7px 9px;border:1px solid var(--border2);border-radius:var(--radius-sm);background:var(--surface2);color:var(--text);font-size:12px;font-family:monospace}
-.sf input:focus{outline:2px solid var(--accent);outline-offset:-1px}
+.sf input{width:100%;padding:7px 9px;border:1px solid var(--border2);border-radius:var(--rs);background:var(--surface2);color:var(--text);font-size:12px;font-family:monospace}
+.sf input:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:transparent}
 .snote{font-size:10px;color:var(--text3);margin-top:3px}
-.smsg{font-size:11px;margin-top:10px;padding:7px 10px;border-radius:var(--radius-sm);display:none}
-.smsg.ok{background:var(--green-light);color:var(--green);display:block}
-.smsg.err{background:var(--red-light);color:var(--red);display:block}
-.smsg.info{background:var(--accent-light);color:var(--accent);display:block}
-.cal-status{font-size:11px;padding:6px 10px;border-radius:var(--radius-sm);margin-bottom:10px;display:flex;align-items:center;gap:6px}
-.cal-status.connected{background:var(--green-light);color:var(--green)}
-.cal-status.disconnected{background:var(--surface2);color:var(--text2)}
+.smsg{font-size:11px;margin-top:8px;padding:6px 10px;border-radius:var(--rs);display:none}
+.smsg.ok{background:var(--green-l);color:var(--green);display:block}
+.smsg.err{background:var(--red-l);color:var(--red);display:block}
+.smsg.info{background:var(--accent-l);color:var(--accent);display:block}
+.cal-list{margin-bottom:10px}
+.cal-row{display:flex;align-items:center;gap:8px;padding:7px 9px;background:var(--surface2);border-radius:var(--rs);margin-bottom:5px;font-size:12px}
+.cal-row:last-child{margin-bottom:0}
+.cal-name{flex:1;font-weight:500}
+.cal-url{font-size:10px;color:var(--text3);font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px}
 
 /* MODAL */
-.moverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:200;align-items:center;justify-content:center}
-.moverlay.open{display:flex}
-.mbox{background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);padding:22px;width:390px;max-width:95vw;max-height:90vh;overflow-y:auto}
-.mbox h3{font-size:15px;font-weight:700;margin-bottom:14px;letter-spacing:-.01em}
-.ff{margin-bottom:11px}
+.mo{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.38);z-index:200;align-items:center;justify-content:center}
+.mo.open{display:flex}
+.mbox{background:var(--surface);border-radius:var(--r);border:1px solid var(--border);padding:20px;width:380px;max-width:95vw;max-height:90vh;overflow-y:auto}
+.mbox h3{font-size:15px;font-weight:700;margin-bottom:13px}
+.ff{margin-bottom:10px}
 .ff label{display:block;font-size:11px;font-weight:600;color:var(--text2);margin-bottom:3px}
-.ff input,.ff select,.ff textarea{width:100%;padding:7px 9px;border:1px solid var(--border2);border-radius:var(--radius-sm);background:var(--surface2);color:var(--text);font-size:12px;font-family:inherit}
-.ff textarea{resize:vertical;min-height:65px}
-.ff input:focus,.ff select:focus,.ff textarea:focus{outline:2px solid var(--accent);outline-offset:-1px}
-.mactions{display:flex;gap:7px;margin-top:14px;justify-content:flex-end}
+.ff input,.ff select,.ff textarea{width:100%;padding:7px 9px;border:1px solid var(--border2);border-radius:var(--rs);background:var(--surface2);color:var(--text);font-size:12px;font-family:inherit}
+.ff textarea{resize:vertical;min-height:60px}
+.ff input:focus,.ff select:focus,.ff textarea:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:transparent}
+.macts{display:flex;gap:6px;margin-top:13px;justify-content:flex-end}
+
+/* Divider */
+hr{border:none;border-top:1px solid var(--border);margin:14px 0}
 </style>
 </head>
 <body>
 <div class="app">
+
+<!-- SIDEBAR -->
 <div class="sidebar">
-  <div class="sidebar-top">
+  <div class="s-top">
     <div class="logo"><i class="ti ti-layout-dashboard"></i> Planner</div>
-    <div class="sync-row"><div class="sync-dot" id="sdot"></div><span id="stxt">Not configured</span></div>
+    <div class="sync-row"><div class="sdot" id="sdot"></div><span id="stxt">Loading…</span></div>
   </div>
   <div class="nav">
-    <div class="nav-sec">Calendar</div>
-    <div class="nav-item active" onclick="go('week')" id="nav-week"><i class="ti ti-calendar-week"></i> Week</div>
-    <div class="nav-item" onclick="go('month')" id="nav-month"><i class="ti ti-calendar"></i> Month</div>
-    <div class="nav-sec">Manage</div>
-    <div class="nav-item" onclick="go('todos')" id="nav-todos"><i class="ti ti-checks"></i> To-dos</div>
-    <div class="nav-item" onclick="go('projects')" id="nav-projects"><i class="ti ti-briefcase"></i> Projects</div>
-    <div class="nav-item" onclick="go('ideas')" id="nav-ideas"><i class="ti ti-bulb"></i> Ideas</div>
-    <div class="nav-sec">Integrations</div>
-    <div class="nav-item" onclick="go('setup')" id="nav-setup"><i class="ti ti-settings-2"></i> Setup <div class="cal-connected" id="gcal-dot" style="background:var(--text3)"></div></div>
+    <div class="nav-s">Calendar</div>
+    <button class="ni active" onclick="go('week')" id="nav-week"><i class="ti ti-calendar-week"></i> Week</button>
+    <button class="ni" onclick="go('month')" id="nav-month"><i class="ti ti-calendar"></i> Month</button>
+    <div class="nav-s">Manage</div>
+    <button class="ni" onclick="go('todos')" id="nav-todos"><i class="ti ti-checks"></i> To-dos</button>
+    <button class="ni" onclick="go('projects')" id="nav-projects"><i class="ti ti-briefcase"></i> Projects</button>
+    <button class="ni" onclick="go('ideas')" id="nav-ideas"><i class="ti ti-bulb"></i> Ideas</button>
+    <div class="nav-s">Settings</div>
+    <button class="ni" onclick="go('setup')" id="nav-setup"><i class="ti ti-settings-2"></i> Setup</button>
   </div>
-  <div class="sidebar-foot">
-    <button class="foot-btn" onclick="syncAllCals()"><i class="ti ti-refresh"></i> Refresh calendars</button>
-    <button class="foot-btn" onclick="go('setup')"><i class="ti ti-cloud"></i> Sync settings</button>
+  <div class="s-foot">
+    <button class="foot-btn" onclick="refreshIcs()"><i class="ti ti-refresh"></i> Refresh calendars</button>
+    <button class="foot-btn" onclick="forceSave()"><i class="ti ti-cloud-upload"></i> Save now</button>
   </div>
 </div>
 
+<!-- MAIN -->
 <div class="main">
+
   <!-- WEEK -->
   <div class="page active" id="page-week">
     <div class="ph">
-      <div class="pt" id="week-title">This week</div>
+      <div class="pt">Week</div>
       <div class="bg">
         <div class="wnav">
           <button class="btn btn-sm" onclick="changeWeek(-1)"><i class="ti ti-chevron-left"></i></button>
-          <span class="wnav-label" id="week-label"></span>
+          <span class="wlabel" id="wlabel"></span>
           <button class="btn btn-sm" onclick="changeWeek(1)"><i class="ti ti-chevron-right"></i></button>
         </div>
-        <button class="btn" onclick="openModal('event')"><i class="ti ti-calendar-plus"></i> Event</button>
-        <button class="btn btn-p" onclick="openModal('todo')"><i class="ti ti-plus"></i> To-do</button>
+        <button class="btn" onclick="openM('event')"><i class="ti ti-calendar-plus"></i> Event</button>
+        <button class="btn btn-p" onclick="openM('todo')"><i class="ti ti-plus"></i> To-do</button>
       </div>
     </div>
     <div class="wgrid" id="week-grid"></div>
@@ -235,9 +236,9 @@ html,body{height:100%;font-family:Georgia,'Times New Roman',serif;background:var
       <div class="pt">Month</div>
       <div class="bg">
         <button class="btn btn-sm" onclick="changeMonth(-1)"><i class="ti ti-chevron-left"></i></button>
-        <span style="font-size:12px;color:var(--text2);min-width:110px;text-align:center" id="month-label"></span>
+        <span style="font-size:12px;color:var(--text2);min-width:110px;text-align:center" id="mlabel"></span>
         <button class="btn btn-sm" onclick="changeMonth(1)"><i class="ti ti-chevron-right"></i></button>
-        <button class="btn btn-p" onclick="openModal('timeblock')"><i class="ti ti-plus"></i> Time block</button>
+        <button class="btn btn-p" onclick="openM('timeblock')"><i class="ti ti-plus"></i> Time block</button>
       </div>
     </div>
     <div id="month-grid"></div>
@@ -247,13 +248,13 @@ html,body{height:100%;font-family:Georgia,'Times New Roman',serif;background:var
   <div class="page" id="page-todos">
     <div class="ph">
       <div class="pt">To-dos</div>
-      <button class="btn btn-p" onclick="openModal('todo')"><i class="ti ti-plus"></i> Add to-do</button>
+      <button class="btn btn-p" onclick="openM('todo')"><i class="ti ti-plus"></i> Add</button>
     </div>
-    <div class="tf">
-      <button class="fb active" onclick="setFilter('all',this)">All</button>
-      <button class="fb" onclick="setFilter('high',this)">Urgent</button>
-      <button class="fb" onclick="setFilter('pending',this)">Pending</button>
-      <button class="fb" onclick="setFilter('done',this)">Done</button>
+    <div class="tfilters">
+      <button class="fb active" onclick="setF('all',this)">All</button>
+      <button class="fb" onclick="setF('high',this)">Urgent</button>
+      <button class="fb" onclick="setF('pending',this)">Pending</button>
+      <button class="fb" onclick="setF('done',this)">Done</button>
     </div>
     <div id="todos-list"></div>
   </div>
@@ -262,7 +263,7 @@ html,body{height:100%;font-family:Georgia,'Times New Roman',serif;background:var
   <div class="page" id="page-projects">
     <div class="ph">
       <div class="pt">Projects</div>
-      <button class="btn btn-p" onclick="openModal('project')"><i class="ti ti-plus"></i> New project</button>
+      <button class="btn btn-p" onclick="openM('project')"><i class="ti ti-plus"></i> New project</button>
     </div>
     <div class="pgrid" id="proj-grid"></div>
   </div>
@@ -272,8 +273,8 @@ html,body{height:100%;font-family:Georgia,'Times New Roman',serif;background:var
     <div class="ph">
       <div class="pt">Ideas</div>
       <div class="bg">
-        <button class="btn" onclick="openModal('topic')"><i class="ti ti-plus"></i> Topic</button>
-        <button class="btn btn-p" onclick="openModal('idea')"><i class="ti ti-sparkles"></i> Idea</button>
+        <button class="btn" onclick="openM('topic')"><i class="ti ti-plus"></i> Topic</button>
+        <button class="btn btn-p" onclick="openM('idea')"><i class="ti ti-sparkles"></i> Idea</button>
       </div>
     </div>
     <div class="igrid" id="ideas-grid"></div>
@@ -281,249 +282,316 @@ html,body{height:100%;font-family:Georgia,'Times New Roman',serif;background:var
 
   <!-- SETUP -->
   <div class="page" id="page-setup">
-    <div class="ph"><div class="pt">Setup & integrations</div></div>
-    <div class="setup-wrap">
+    <div class="ph"><div class="pt">Setup</div></div>
+    <div class="setup-grid">
 
-      <!-- GIST SYNC -->
+      <!-- GIST -->
       <div class="scard">
-        <h3><i class="ti ti-brand-github"></i> GitHub Gist sync</h3>
-        <p>Your planner data can sync to a private GitHub Gist. This version validates the token and Gist before enabling sync.</p>
-        <ol class="ssteps">
-          <li>Create a <strong>classic</strong> GitHub token with only the <strong>gist</strong> scope. Fine-grained tokens often do not work with Gists.</li>
-          <li>Create a secret Gist with filename <code>planner.json</code> and content <code>{}</code>.</li>
-          <li>Copy the Gist ID from the URL, not the full URL.</li>
+        <h3><i class="ti ti-brand-github" style="color:var(--text)"></i> GitHub Gist — data sync</h3>
+        <p>All your data is saved as JSON in a private GitHub Gist. Syncs automatically across every device where you open this page.</p>
+        <ol class="steps">
+          <li>Go to <a href="https://github.com/settings/tokens/new" target="_blank">github.com/settings/tokens/new</a><br>Name it "Planner", enable only the <strong>gist</strong> scope. Generate and copy.</li>
+          <li>Go to <a href="https://gist.github.com" target="_blank">gist.github.com</a> → New secret Gist.<br>Filename: <code>planner.json</code> · Content: <code>{}</code> · Create.</li>
+          <li>Copy the Gist ID from its URL:<br><code>gist.github.com/you/<strong>THIS_PART</strong></code></li>
         </ol>
-        <div class="sf"><label>GitHub classic token</label><input type="password" id="s-token" placeholder="ghp_xxxx…"/><div class="snote">Stored only in this browser. If sync fails, your edits remain local until the connection works.</div></div>
-        <div class="sf"><label>Gist ID</label><input type="text" id="s-gist" placeholder="a1b2c3d4…"/></div>
+        <div class="sf">
+          <label>Personal Access Token</label>
+          <input type="password" id="s-token" placeholder="ghp_xxxxxxxxxxxx"/>
+          <div class="snote">Stored only in this browser — only sent to api.github.com.</div>
+        </div>
+        <div class="sf">
+          <label>Gist ID</label>
+          <input type="text" id="s-gist" placeholder="a1b2c3d4e5f6…"/>
+        </div>
         <div class="bg">
-          <button class="btn btn-p" onclick="saveGistSetup()"><i class="ti ti-check"></i> Save & test sync</button>
+          <button class="btn btn-p" onclick="saveGist()"><i class="ti ti-check"></i> Save & connect</button>
           <button class="btn" onclick="testGist()"><i class="ti ti-refresh"></i> Test</button>
-          <button class="btn btn-sm" onclick="disconnectGist()"><i class="ti ti-x"></i> Disable</button>
         </div>
         <div class="smsg" id="gist-msg"></div>
       </div>
 
-      <!-- GOOGLE CALENDAR ICS -->
+      <!-- ICS CALENDARS -->
       <div class="scard">
-        <h3><i class="ti ti-brand-google"></i> Google Calendar</h3>
-        <div class="cal-status" id="gcal-status-bar"><i class="ti ti-circle"></i> Not connected</div>
-        <p>Pega la URL privada en formato iCal/ICS para mostrar tus eventos en semana y mes. La integración es solo lectura.</p>
-        <ol class="ssteps">
-          <li>Abre <a href="https://calendar.google.com" target="_blank">calendar.google.com</a> → ⚙️ Settings → tu calendario → <strong>Integrate calendar</strong>.</li>
-          <li>Copia la <strong>Secret address in iCal format</strong>.</li>
-          <li>Pega aquí la URL que empieza por <code>https://calendar.google.com/calendar/ical/...</code></li>
-        </ol>
-        <div class="sf"><label>Google Calendar ICS URL</label><input type="url" id="s-gcal-ics" placeholder="https://calendar.google.com/calendar/ical/.../basic.ics"/><div class="snote">Se guarda solo en este navegador. No hace falta OAuth ni Google Cloud.</div></div>
-        <div class="bg">
-          <button class="btn btn-g" id="gcal-btn" onclick="saveGcalIcs()"><i class="ti ti-link"></i> Save Google URL</button>
-          <button class="btn" onclick="fetchGcal()"><i class="ti ti-refresh"></i> Refresh</button>
-          <button class="btn btn-sm" id="gcal-disc" onclick="disconnectGcal()" style="display:none"><i class="ti ti-x"></i> Disconnect</button>
-        </div>
-        <div class="smsg" id="gcal-msg"></div>
-      </div>
+        <h3><i class="ti ti-calendar-event" style="color:var(--blue)"></i> External calendars (ICS)</h3>
+        <p>Paste the secret ICS URL from Google Calendar or Outlook. Events appear in week and month views (read-only).</p>
 
-      <!-- OUTLOOK ICS -->
-      <div class="scard">
-        <h3><i class="ti ti-brand-windows"></i> Outlook / Microsoft 365</h3>
-        <div class="cal-status" id="ms-status-bar"><i class="ti ti-circle"></i> Not connected</div>
-        <p>Pega la URL ICS publicada de Outlook para mostrar tus eventos. La integración es solo lectura.</p>
-        <ol class="ssteps">
-          <li>Abre <a href="https://outlook.live.com" target="_blank">outlook.live.com</a> → Settings → View all → Calendar → Shared calendars.</li>
-          <li>En <strong>Publish a calendar</strong>, elige tu calendario y copia el enlace ICS.</li>
-          <li>Pega aquí la URL publicada.</li>
+        <p style="font-weight:600;font-size:12px;margin-bottom:6px">How to get your ICS URL:</p>
+        <ol class="steps">
+          <li><strong>Google:</strong> calendar.google.com → Settings → your calendar → "Secret address in iCal format". Copy that URL.</li>
+          <li><strong>Outlook.com:</strong> outlook.live.com → Settings → View all → Calendar → Shared calendars → Publish → Copy ICS link.</li>
+          <li>Paste it below and click Add. You can add multiple calendars.</li>
         </ol>
-        <div class="sf"><label>Outlook ICS URL</label><input type="url" id="s-ms-ics" placeholder="https://outlook.live.com/owa/calendar/.../calendar.ics"/><div class="snote">Para cuentas de empresa puede que el administrador limite la publicación ICS.</div></div>
-        <div class="bg">
-          <button class="btn btn-ms" id="ms-btn" onclick="saveMsIcs()"><i class="ti ti-link"></i> Save Outlook URL</button>
-          <button class="btn" onclick="fetchMs()"><i class="ti ti-refresh"></i> Refresh</button>
-          <button class="btn btn-sm" id="ms-disc" onclick="disconnectMs()" style="display:none"><i class="ti ti-x"></i> Disconnect</button>
+
+        <div class="cal-list" id="cal-list"></div>
+
+        <div class="sf">
+          <label>Calendar name</label>
+          <input type="text" id="ics-name" placeholder="Work / Personal / etc."/>
         </div>
-        <div class="smsg" id="ms-msg"></div>
+        <div class="sf">
+          <label>ICS URL</label>
+          <input type="url" id="ics-url" placeholder="https://calendar.google.com/calendar/ical/…"/>
+          <div class="snote">The URL must be HTTPS. Google/Outlook provide secret URLs that don't require login.</div>
+        </div>
+        <div class="bg">
+          <button class="btn btn-p" onclick="addCal()"><i class="ti ti-plus"></i> Add calendar</button>
+          <button class="btn" onclick="refreshIcs()"><i class="ti ti-refresh"></i> Refresh all</button>
+        </div>
+        <div class="smsg" id="ics-msg"></div>
       </div>
 
       <!-- ROLLOVER INFO -->
       <div class="scard">
-        <h3><i class="ti ti-arrow-forward"></i> Task rollover</h3>
-        <p>Any to-do that was not completed before today is automatically moved to today when you open the app. You'll see a small <span class="rollover-badge">rolled over</span> badge on those tasks.</p>
-        <p style="margin-bottom:0">This happens silently in the background — your data is saved immediately to Gist after rollover so it persists across devices.</p>
+        <h3><i class="ti ti-arrow-forward" style="color:var(--amber)"></i> Task rollover</h3>
+        <p>Any to-do not completed before today is automatically moved to today when the app loads. Rolled-over tasks show a <span style="font-size:10px;background:var(--amber-l);color:var(--amber);border-radius:8px;padding:0 5px">↩</span> badge.</p>
+        <p style="margin-bottom:0">The original due date is preserved and shown in the to-do list for reference.</p>
+      </div>
+
+      <!-- CORS NOTE -->
+      <div class="scard">
+        <h3><i class="ti ti-info-circle" style="color:var(--text2)"></i> ICS / CORS note</h3>
+        <p>Browsers block direct ICS fetches from other domains (CORS). The app uses a public CORS proxy (<code>corsproxy.io</code>) to fetch ICS files. This means:</p>
+        <ul style="font-size:12px;color:var(--text2);padding-left:16px;line-height:1.8">
+          <li>ICS URLs pass through the proxy server (they are <em>secret</em> URLs, not your credentials)</li>
+          <li>If the proxy is down, calendar sync fails silently</li>
+          <li>Works with public/secret Google and Outlook ICS links</li>
+        </ul>
       </div>
 
     </div>
   </div>
-</div>
-</div>
+
+</div><!-- /main -->
+</div><!-- /app -->
 
 <!-- MODAL -->
-<div class="moverlay" id="moverlay" onclick="closeMO(event)">
+<div class="mo" id="mo" onclick="closeMO(event)">
   <div class="mbox">
     <h3 id="mtitle">Add</h3>
     <div id="mbody"></div>
-    <div class="mactions">
-      <button class="btn" onclick="closeModal()">Cancel</button>
-      <button class="btn btn-p" onclick="saveModal()">Save</button>
+    <div class="macts">
+      <button class="btn" onclick="closeM()">Cancel</button>
+      <button class="btn btn-p" onclick="saveM()">Save</button>
     </div>
   </div>
 </div>
 
 <script>
+// ─── CONSTANTS ──────────────────────────────────────────────────────────────
 const DAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-const MFULL=['January','February','March','April','May','June','July','August','September','October','November','December'];
+const MO_FULL=['January','February','March','April','May','June','July','August','September','October','November','December'];
 const PCOLS=['#534AB7','#0F6E56','#D85A30','#D4537E','#185FA5','#BA7517','#639922','#993556'];
-const TICOS=['ti-bulb','ti-briefcase','ti-plane','ti-heart','ti-home','ti-book','ti-music','ti-camera','ti-star','ti-rocket'];
+const TICOS=['ti-bulb','ti-briefcase','ti-plane','ti-heart','ti-home','ti-book','ti-music','ti-star','ti-rocket','ti-camera'];
+const PROXY='https://corsproxy.io/?';
 
-// ── STATE ─────────────────────────────────────────────────────────────────
-let S={weekStart:getMonday(new Date()),monthDate:new Date(),filter:'all',modalType:null,modalDay:null,nextId:Date.now()};
-let D={events:[],todos:[],projects:[],timeblocks:[],topics:[{id:1,name:'Work',icon:'ti-briefcase'},{id:2,name:'Personal',icon:'ti-heart'},{id:3,name:'Ideas',icon:'ti-bulb'}],ideas:[]};
-let EXT={gcal:[],outlook:[]};
+// ─── STATE ──────────────────────────────────────────────────────────────────
+let S={weekStart:getMonday(new Date()),monthDate:new Date(),filter:'all',mType:null,mDay:null,nextId:Date.now()};
+let D={events:[],todos:[],projects:[],timeblocks:[],topics:[
+  {id:1,name:'Work',icon:'ti-briefcase'},
+  {id:2,name:'Personal',icon:'ti-heart'},
+  {id:3,name:'Ideas',icon:'ti-bulb'}
+],ideas:[],calendars:[]};
+let EXT_EVENTS=[];
 
 let CFG={
-  token:ls('planner_token')||'',
-  gistId:ls('planner_gist')||'',
-  gcalIcsUrl:ls('planner_gcal_ics')||'',
-  msIcsUrl:ls('planner_ms_ics')||''
+  token:ls('p_token')||'',
+  gistId:ls('p_gist')||''
 };
-
 let saveTimer=null;
 
+// ─── LOCAL STORAGE HELPERS ──────────────────────────────────────────────────
 function ls(k){try{return localStorage.getItem(k)}catch(e){return null}}
 function lss(k,v){try{localStorage.setItem(k,v)}catch(e){}}
 
-// ── GIST SYNC ──────────────────────────────────────────────────────────────
+// ─── SYNC STATUS ────────────────────────────────────────────────────────────
 function setSS(cls,txt){
-  document.getElementById('sdot').className='sync-dot'+(cls?' '+cls:'');
+  document.getElementById('sdot').className='sdot'+(cls?' '+cls:'');
   document.getElementById('stxt').textContent=txt;
 }
-function authHeaders(){
-  return {Authorization:`Bearer ${CFG.token}`,Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'};
-}
-function normaliseGistId(v){
-  v=(v||'').trim();
-  const m=v.match(/gist\.github\.com\/(?:[^\/]+\/)?([a-f0-9]+)/i)||v.match(/([a-f0-9]{20,})/i);
-  return m?m[1]:v;
-}
-function findPlannerFile(g){
-  if(!g||!g.files)return null;
-  return g.files['planner.json']||Object.values(g.files).find(f=>f.filename==='planner.json')||Object.values(g.files)[0]||null;
-}
-function saveLocal(){
-  lss('planner_local_data',JSON.stringify({...D,nextId:S.nextId}));
-}
-function loadLocal(){
-  const raw=ls('planner_local_data');
-  if(!raw)return;
-  try{
-    const p=JSON.parse(raw);
-    if(p&&typeof p==='object'){D={...D,...p};if(p.nextId)S.nextId=p.nextId;}
-  }catch(e){console.warn('Could not load local planner data',e)}
-}
-function applyRemoteData(content){
-  if(!content||content.trim()==='{}')return;
-  const p=JSON.parse(content);
-  if(p&&typeof p==='object'){
-    D={...D,...p};
-    if(p.nextId)S.nextId=p.nextId;
-    saveLocal();
-  }
-}
-async function gistRequest(url,opts={}){
-  const r=await fetch(url,{...opts,headers:{...authHeaders(),...(opts.headers||{})}});
-  let body=null;
-  try{body=await r.json()}catch(e){}
-  if(!r.ok){
-    const msg=(body&&body.message)?body.message:`HTTP ${r.status}`;
-    throw new Error(msg);
-  }
-  return body;
-}
-function gistErrorMessage(e){
-  const msg=(e&&e.message?e.message:String(e));
-  if(/Bad credentials/i.test(msg))return 'Token incorrecto o caducado. Crea un token classic nuevo con scope gist.';
-  if(/Not Found/i.test(msg))return 'No encuentro ese Gist. Revisa que el ID sea correcto y que el token tenga acceso.';
-  if(/Resource not accessible|requires authentication|Must have admin rights/i.test(msg))return 'El token no tiene permisos suficientes. Usa un token classic con scope gist.';
-  if(/Failed to fetch|NetworkError|CORS/i.test(msg))return 'El navegador no ha podido conectar con GitHub. Revisa conexión, bloqueadores o CORS.';
-  return msg;
-}
+
+// ─── GIST LOAD / SAVE ───────────────────────────────────────────────────────
 async function loadGist(){
-  if(!CFG.token||!CFG.gistId){setSS('','Local only');loadLocal();refreshPage();return false}
+  if(!CFG.token||!CFG.gistId){setSS('','Not configured — go to Setup');return}
   setSS('saving','Loading…');
   try{
-    const g=await gistRequest(`https://api.github.com/gists/${CFG.gistId}`);
-    const f=findPlannerFile(g);
-    if(!f)throw new Error('The Gist has no files. Add planner.json with {}.');
-    if(f.content!==undefined)applyRemoteData(f.content);
-    else if(f.raw_url){
-      const rr=await fetch(f.raw_url,{cache:'no-store'});
-      if(!rr.ok)throw new Error('Could not read planner.json');
-      applyRemoteData(await rr.text());
+    const r=await fetch(`https://api.github.com/gists/${CFG.gistId}`,{
+      headers:{Authorization:`token ${CFG.token}`,Accept:'application/vnd.github.v3+json'}
+    });
+    if(r.status===401){setSS('err','Bad token — check Setup');return}
+    if(r.status===404){setSS('err','Gist not found — check ID');return}
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const g=await r.json();
+    const file=Object.values(g.files)[0];
+    if(file&&file.content&&file.content.trim()!=='{}'){
+      try{
+        const p=JSON.parse(file.content);
+        if(p&&typeof p==='object'){
+          // Merge carefully so new fields survive
+          D.events=p.events||D.events;
+          D.todos=p.todos||D.todos;
+          D.projects=p.projects||D.projects;
+          D.timeblocks=p.timeblocks||D.timeblocks;
+          D.topics=p.topics||D.topics;
+          D.ideas=p.ideas||D.ideas;
+          D.calendars=p.calendars||D.calendars;
+          if(p.nextId)S.nextId=p.nextId;
+        }
+      }catch(e){setSS('err','Corrupt data in Gist');return}
     }
-    setSS('ok','Synced');
+    setSS('ok','Synced ✓');
     doRollover();
     refreshPage();
-    return true;
-  }catch(e){
-    setSS('err','Sync error');
-    showMsg('gist-msg','err',gistErrorMessage(e));
-    loadLocal();refreshPage();
-    console.error(e);
-    return false;
-  }
+    renderCalList();
+    // Fetch ICS after loading calendars
+    if(D.calendars.length) refreshIcs();
+  }catch(e){setSS('err','Network error');console.error(e)}
 }
-async function saveGist(){
-  saveLocal();
-  if(!CFG.token||!CFG.gistId){setSS('','Local only');return false}
+
+async function saveGistNow(){
+  if(!CFG.token||!CFG.gistId){setSS('','Not configured');return}
   setSS('saving','Saving…');
   try{
-    const content=JSON.stringify({...D,nextId:S.nextId},null,2);
-    await gistRequest(`https://api.github.com/gists/${CFG.gistId}`,{
+    const payload={...D,nextId:S.nextId};
+    const files={'planner.json':{content:JSON.stringify(payload,null,2)}};
+    const r=await fetch(`https://api.github.com/gists/${CFG.gistId}`,{
       method:'PATCH',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({files:{'planner.json':{content}}})
+      headers:{Authorization:`token ${CFG.token}`,Accept:'application/vnd.github.v3+json','Content-Type':'application/json'},
+      body:JSON.stringify({files})
     });
+    if(!r.ok)throw new Error('HTTP '+r.status);
     setSS('ok','Saved ✓');
-    return true;
-  }catch(e){
-    setSS('err','Save failed');
-    showMsg('gist-msg','err',gistErrorMessage(e)+' Tus cambios se han guardado localmente.');
-    console.error(e);
-    return false;
-  }
+  }catch(e){setSS('err','Save failed');console.error(e)}
 }
-function sched(){clearTimeout(saveTimer);saveTimer=setTimeout(saveGist,800)}
 
-async function saveGistSetup(){
-  const t=document.getElementById('s-token').value.trim()||CFG.token;
-  const g=normaliseGistId(document.getElementById('s-gist').value.trim()||CFG.gistId);
-  if(!t||!g){showMsg('gist-msg','err','Rellena el token y el Gist ID.');return}
-  CFG.token=t;CFG.gistId=g;
-  showMsg('gist-msg','info','Comprobando conexión…');
-  const ok=await loadGist();
-  if(!ok)return;
-  lss('planner_token',t);lss('planner_gist',g);
-  document.getElementById('s-gist').value=g;
-  await saveGist();
-  showMsg('gist-msg','ok','Conectado. Sync de Gist activo.');
+function sched(){clearTimeout(saveTimer);saveTimer=setTimeout(saveGistNow,1500)}
+function forceSave(){clearTimeout(saveTimer);saveGistNow()}
+
+async function saveGist(){
+  const t=document.getElementById('s-token').value.trim();
+  const g=document.getElementById('s-gist').value.trim();
+  if(!t||!g){showMsg('gist-msg','err','Please fill in both fields.');return}
+  lss('p_token',t);lss('p_gist',g);CFG.token=t;CFG.gistId=g;
+  showMsg('gist-msg','info','Connecting…');
+  await loadGist();
+  const ok=document.getElementById('sdot').classList.contains('ok');
+  if(ok)showMsg('gist-msg','ok','Connected! Data syncing via Gist.');
+  else showMsg('gist-msg','err','Could not connect. Check your token and Gist ID.');
 }
 async function testGist(){
-  const t=document.getElementById('s-token').value.trim()||CFG.token;
-  const g=normaliseGistId(document.getElementById('s-gist').value.trim()||CFG.gistId);
-  if(t)CFG.token=t;if(g)CFG.gistId=g;
   showMsg('gist-msg','info','Testing…');
-  const ok=await loadGist();
-  if(ok)showMsg('gist-msg','ok','Conexión correcta.');
+  await loadGist();
+  const ok=document.getElementById('sdot').classList.contains('ok');
+  showMsg('gist-msg',ok?'ok':'err',document.getElementById('stxt').textContent);
 }
-function disconnectGist(){
-  lss('planner_token','');lss('planner_gist','');CFG.token='';CFG.gistId='';
-  setSS('','Local only');
-  showMsg('gist-msg','info','Sync desactivado. Los datos siguen guardados en este navegador.');
+function showMsg(id,cls,txt){const el=document.getElementById(id);if(!el)return;el.className='smsg '+cls;el.textContent=txt}
+
+// ─── ICS CALENDARS ──────────────────────────────────────────────────────────
+function addCal(){
+  const name=document.getElementById('ics-name').value.trim();
+  const url=document.getElementById('ics-url').value.trim();
+  if(!name||!url){showMsg('ics-msg','err','Enter both name and URL.');return}
+  if(!url.startsWith('http')){showMsg('ics-msg','err','URL must start with https://');return}
+  D.calendars.push({id:nid(),name,url,color:PCOLS[D.calendars.length%PCOLS.length]});
+  document.getElementById('ics-name').value='';
+  document.getElementById('ics-url').value='';
+  sched();renderCalList();
+  showMsg('ics-msg','info','Added. Fetching events…');
+  refreshIcs();
 }
 
-// ── ROLLOVER ──────────────────────────────────────────────────────────────
+function delCal(id){
+  D.calendars=D.calendars.filter(c=>c.id!==id);
+  EXT_EVENTS=EXT_EVENTS.filter(e=>e.calId!==id);
+  sched();renderCalList();refreshPage();
+}
+
+function renderCalList(){
+  const el=document.getElementById('cal-list');
+  if(!el)return;
+  if(!D.calendars.length){el.innerHTML='<div style="font-size:11px;color:var(--text3);margin-bottom:8px">No calendars added yet.</div>';return}
+  el.innerHTML=D.calendars.map(c=>`
+    <div class="cal-row">
+      <div style="width:8px;height:8px;border-radius:50%;background:${c.color};flex-shrink:0"></div>
+      <div style="flex:1"><div class="cal-name">${c.name}</div><div class="cal-url">${c.url}</div></div>
+      <button class="btn-del" onclick="delCal(${c.id})"><i class="ti ti-x" style="font-size:12px"></i></button>
+    </div>`).join('');
+}
+
+async function refreshIcs(){
+  if(!D.calendars.length)return;
+  setSS('saving','Syncing calendars…');
+  EXT_EVENTS=[];
+  const results=await Promise.allSettled(D.calendars.map(fetchIcs));
+  results.forEach((r,i)=>{
+    if(r.status==='fulfilled')EXT_EVENTS.push(...r.value);
+    else console.warn('ICS fetch failed for',D.calendars[i]?.name,r.reason);
+  });
+  setSS('ok',`Synced ✓ (${EXT_EVENTS.length} external events)`);
+  refreshPage();
+}
+
+async function fetchIcs(cal){
+  const url=PROXY+encodeURIComponent(cal.url);
+  const r=await fetch(url);
+  if(!r.ok)throw new Error('HTTP '+r.status);
+  const text=await r.text();
+  return parseIcs(text,cal);
+}
+
+function parseIcs(text,cal){
+  const events=[];
+  const lines=text.replace(/\r\n/g,'\n').replace(/\r/g,'\n')
+    .replace(/\n[ \t]/g,'') // unfold
+    .split('\n');
+  let ev=null;
+  for(const line of lines){
+    if(line==='BEGIN:VEVENT'){ev={};continue}
+    if(line==='END:VEVENT'){
+      if(ev&&ev.date){
+        events.push({
+          id:'ics_'+cal.id+'_'+(ev.uid||Math.random()),
+          title:ev.summary||'(no title)',
+          date:ev.date,
+          time:ev.time||'',
+          type:'ical',
+          source:cal.name,
+          calId:cal.id,
+          color:cal.color
+        });
+      }
+      ev=null;continue;
+    }
+    if(!ev)continue;
+    const colon=line.indexOf(':');
+    if(colon<0)continue;
+    const key=line.slice(0,colon).split(';')[0].toUpperCase();
+    const val=line.slice(colon+1).trim();
+    if(key==='SUMMARY')ev.summary=val.replace(/\\,/g,',').replace(/\\n/g,' ');
+    if(key==='UID')ev.uid=val;
+    if(key==='DTSTART'||key==='DTSTART'){
+      // Handle DTSTART;TZID=... and DTSTART (date or datetime)
+      const raw=line.slice(colon+1).trim().replace(/Z$/,'');
+      if(raw.length===8){
+        // All-day: YYYYMMDD
+        ev.date=`${raw.slice(0,4)}-${raw.slice(4,6)}-${raw.slice(6,8)}`;
+        ev.time='';
+      } else if(raw.length>=15){
+        // Datetime: YYYYMMDDTHHmmss
+        ev.date=`${raw.slice(0,4)}-${raw.slice(4,6)}-${raw.slice(6,8)}`;
+        ev.time=`${raw.slice(9,11)}:${raw.slice(11,13)}`;
+      }
+    }
+  }
+  return events;
+}
+
+// ─── ROLLOVER ───────────────────────────────────────────────────────────────
 function doRollover(){
   const today=todayStr();
   let changed=false;
   D.todos.forEach(t=>{
     if(!t.done&&t.date<today){
-      t.rolledFrom=t.rolledFrom||t.date;
+      if(!t.rolledFrom)t.rolledFrom=t.date;
       t.date=today;
       changed=true;
     }
@@ -531,142 +599,23 @@ function doRollover(){
   if(changed)sched();
 }
 
-// ── ICS CALENDAR INTEGRATIONS ──────────────────────────────────────────────
-function saveGcalIcs(){
-  const url=document.getElementById('s-gcal-ics').value.trim();
-  if(!url){showMsg('gcal-msg','err','Pega primero la URL ICS de Google Calendar.');return}
-  lss('planner_gcal_ics',url);CFG.gcalIcsUrl=url;
-  updateCalUI();fetchGcal();
-}
-function saveMsIcs(){
-  const url=document.getElementById('s-ms-ics').value.trim();
-  if(!url){showMsg('ms-msg','err','Pega primero la URL ICS de Outlook.');return}
-  lss('planner_ms_ics',url);CFG.msIcsUrl=url;
-  updateCalUI();fetchMs();
-}
-function disconnectGcal(){
-  lss('planner_gcal_ics','');CFG.gcalIcsUrl='';EXT.gcal=[];
-  updateCalUI();refreshPage();showMsg('gcal-msg','info','Google Calendar disconnected.');
-}
-function disconnectMs(){
-  lss('planner_ms_ics','');CFG.msIcsUrl='';EXT.outlook=[];
-  updateCalUI();refreshPage();showMsg('ms-msg','info','Outlook disconnected.');
-}
-async function fetchGcal(){
-  if(!CFG.gcalIcsUrl){showMsg('gcal-msg','err','Pega y guarda una URL ICS de Google Calendar.');return}
-  try{
-    showMsg('gcal-msg','info','Loading Google Calendar…');
-    const ics=await fetchIcsText(CFG.gcalIcsUrl);
-    EXT.gcal=parseIcsEvents(ics,'gcal','Google');
-    showMsg('gcal-msg','ok',`Loaded ${EXT.gcal.length} events from Google Calendar.`);
-  }catch(e){showMsg('gcal-msg','err','Error fetching Google Calendar ICS. If it is a CORS issue, publish/open the ICS URL and try again.');console.error(e)}
-}
-async function fetchMs(){
-  if(!CFG.msIcsUrl){showMsg('ms-msg','err','Pega y guarda una URL ICS de Outlook.');return}
-  try{
-    showMsg('ms-msg','info','Loading Outlook…');
-    const ics=await fetchIcsText(CFG.msIcsUrl);
-    EXT.outlook=parseIcsEvents(ics,'outlook','Outlook');
-    showMsg('ms-msg','ok',`Loaded ${EXT.outlook.length} events from Outlook.`);
-  }catch(e){showMsg('ms-msg','err','Error fetching Outlook ICS. If it is a CORS issue, publish/open the ICS URL and try again.');console.error(e)}
-}
-async function syncAllCals(){
-  await Promise.allSettled([CFG.gcalIcsUrl?fetchGcal():null,CFG.msIcsUrl?fetchMs():null]);
-  refreshPage();
-}
-async function fetchIcsText(url){
-  const tries=[url,`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`];
-  let lastErr;
-  for(const u of tries){
-    try{
-      const r=await fetch(u,{cache:'no-store'});
-      if(!r.ok)throw new Error('HTTP '+r.status);
-      const txt=await r.text();
-      if(!txt.includes('BEGIN:VCALENDAR'))throw new Error('Not an ICS calendar');
-      return txt;
-    }catch(e){lastErr=e}
-  }
-  throw lastErr||new Error('Could not load ICS');
-}
-function unfoldIcs(text){return text.replace(/\r?\n[ \t]/g,'')}
-function parseIcsEvents(text,type,source){
-  const now=new Date();
-  const rangeStart=new Date(now.getFullYear(),now.getMonth()-1,1);
-  const rangeEnd=new Date(now.getFullYear(),now.getMonth()+3,0);
-  const blocks=unfoldIcs(text).match(/BEGIN:VEVENT[\s\S]*?END:VEVENT/g)||[];
-  return blocks.flatMap((block,i)=>expandIcsEvent(block,type,source,i,rangeStart,rangeEnd))
-    .filter(ev=>ev.date>=dStr(rangeStart)&&ev.date<=dStr(rangeEnd))
-    .sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
-}
-function icsVal(block,name){
-  const m=block.match(new RegExp('^'+name+'(?:;[^:]*)?:(.*)$','mi'));
-  return m?m[1].trim():'';
-}
-function cleanIcsText(v){return v.replace(/\\n/g,' ').replace(/\\,/g,',').replace(/\\;/g,';').replace(/\\\\/g,'\\').trim()}
-function parseIcsDate(v){
-  if(!v)return null;
-  if(/^\d{8}$/.test(v))return {date:new Date(+v.slice(0,4),+v.slice(4,6)-1,+v.slice(6,8)),allDay:true};
-  const m=v.match(/^(\d{4})(\d{2})(\d{2})T?(\d{2})?(\d{2})?/);
-  if(!m)return null;
-  if(v.endsWith('Z'))return {date:new Date(Date.UTC(+m[1],+m[2]-1,+m[3],+(m[4]||0),+(m[5]||0))),allDay:false};
-  return {date:new Date(+m[1],+m[2]-1,+m[3],+(m[4]||0),+(m[5]||0)),allDay:false};
-}
-function timeFromDate(dt,allDay){return allDay?'':String(dt.getHours()).padStart(2,'0')+':'+String(dt.getMinutes()).padStart(2,'0')}
-function expandIcsEvent(block,type,source,idx,rangeStart,rangeEnd){
-  const title=cleanIcsText(icsVal(block,'SUMMARY')||'(no title)');
-  const uid=icsVal(block,'UID')||idx;
-  const start=parseIcsDate(icsVal(block,'DTSTART'));
-  if(!start)return [];
-  const rrule=icsVal(block,'RRULE');
-  const base={id:`${type}_${uid}`,title,type,source};
-  if(!rrule)return [{...base,date:dStr(start.date),time:timeFromDate(start.date,start.allDay)}];
-  const freq=(rrule.match(/FREQ=([^;]+)/)||[])[1];
-  const interval=parseInt((rrule.match(/INTERVAL=(\d+)/)||[])[1]||'1',10);
-  const count=parseInt((rrule.match(/COUNT=(\d+)/)||[])[1]||'0',10);
-  const untilRaw=(rrule.match(/UNTIL=([^;]+)/)||[])[1];
-  const until=untilRaw?(parseIcsDate(untilRaw)?.date):rangeEnd;
-  const out=[];let cur=new Date(start.date);let n=0;
-  while(cur<=rangeEnd && (!until||cur<=until) && (!count||n<count) && n<500){
-    if(cur>=rangeStart)out.push({...base,id:`${type}_${uid}_${n}`,date:dStr(cur),time:timeFromDate(cur,start.allDay)});
-    if(freq==='DAILY')cur.setDate(cur.getDate()+interval);
-    else if(freq==='WEEKLY')cur.setDate(cur.getDate()+7*interval);
-    else if(freq==='MONTHLY')cur.setMonth(cur.getMonth()+interval);
-    else if(freq==='YEARLY')cur.setFullYear(cur.getFullYear()+interval);
-    else break;
-    n++;
-  }
-  return out;
-}
-function updateCalUI(){
-  const gcOk=!!CFG.gcalIcsUrl;
-  const msOk=!!CFG.msIcsUrl;
-  document.getElementById('gcal-dot').style.background=(gcOk||msOk)?'#639922':'var(--text3)';
-  const gcBar=document.getElementById('gcal-status-bar');
-  gcBar.className='cal-status '+(gcOk?'connected':'disconnected');
-  gcBar.innerHTML=gcOk?'<i class="ti ti-check"></i> Connected via ICS':'<i class="ti ti-circle"></i> Not connected';
-  document.getElementById('gcal-disc').style.display=gcOk?'inline-flex':'none';
-  const msBar=document.getElementById('ms-status-bar');
-  msBar.className='cal-status '+(msOk?'connected':'disconnected');
-  msBar.innerHTML=msOk?'<i class="ti ti-check"></i> Connected via ICS':'<i class="ti ti-circle"></i> Not connected';
-  document.getElementById('ms-disc').style.display=msOk?'inline-flex':'none';
-  if(CFG.gcalIcsUrl)document.getElementById('s-gcal-ics').value=CFG.gcalIcsUrl;
-  if(CFG.msIcsUrl)document.getElementById('s-ms-ics').value=CFG.msIcsUrl;
-}
-
-// ── UTILS ──────────────────────────────────────────────────────────────────
+// ─── UTILITIES ──────────────────────────────────────────────────────────────
 function nid(){return++S.nextId}
 function todayStr(){return new Date().toISOString().slice(0,10)}
 function addDays(d,n){const r=new Date(d);r.setDate(r.getDate()+n);return r}
 function dStr(d){return d.toISOString().slice(0,10)}
-function fmtS(d){return`${d.getDate()} ${MFULL[d.getMonth()].slice(0,3)}`}
+function fmtS(d){return`${d.getDate()} ${MO_FULL[d.getMonth()].slice(0,3)}`}
 function getMonday(d){const day=d.getDay(),diff=d.getDate()-day+(day===0?-6:1);return new Date(new Date(d).setDate(diff))}
-function allEvents(ds){return[...D.events.filter(e=>e.date===ds),...EXT.gcal.filter(e=>e.date===ds),...EXT.outlook.filter(e=>e.date===ds)]}
-function showMsg(id,cls,txt){const el=document.getElementById(id);el.className='smsg '+cls;el.textContent=txt}
+function allEventsFor(ds){
+  const manual=D.events.filter(e=>e.date===ds);
+  const ext=EXT_EVENTS.filter(e=>e.date===ds);
+  return[...manual,...ext].sort((a,b)=>(a.time||'').localeCompare(b.time||''));
+}
 
-// ── PAGES ──────────────────────────────────────────────────────────────────
+// ─── PAGE ROUTING ───────────────────────────────────────────────────────────
 function go(name){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.querySelectorAll('.ni').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+name).classList.add('active');
   const ni=document.getElementById('nav-'+name);if(ni)ni.classList.add('active');
   if(name==='week')renderWeek();
@@ -674,34 +623,41 @@ function go(name){
   else if(name==='todos')renderTodos();
   else if(name==='projects')renderProjects();
   else if(name==='ideas')renderIdeas();
-  else if(name==='setup')updateCalUI();
+  else if(name==='setup'){
+    document.getElementById('s-token').value=CFG.token;
+    document.getElementById('s-gist').value=CFG.gistId;
+    renderCalList();
+  }
 }
-function refreshPage(){const a=document.querySelector('.page.active');if(a)go(a.id.replace('page-',''))}
+function refreshPage(){
+  const a=document.querySelector('.page.active');
+  if(a)go(a.id.replace('page-',''));
+}
 
-// ── WEEK ───────────────────────────────────────────────────────────────────
+// ─── WEEK ────────────────────────────────────────────────────────────────────
 function renderWeek(){
   const today=todayStr();
-  const s=S.weekStart,e=addDays(s,6);
-  document.getElementById('week-label').textContent=`${fmtS(s)} – ${fmtS(e)}`;
+  const s=S.weekStart;
+  document.getElementById('wlabel').textContent=`${fmtS(s)} – ${fmtS(addDays(s,6))}`;
   let html='';
   for(let i=0;i<7;i++){
     const d=addDays(s,i);const ds=dStr(d);const isT=ds===today;
-    const evs=allEvents(ds).sort((a,b)=>a.time.localeCompare(b.time));
+    const evs=allEventsFor(ds);
     const tds=D.todos.filter(t=>t.date===ds);
     html+=`<div class="dcol${isT?' today-col':''}">
-      <div class="dhead"><div class="dname">${DAYS[d.getDay()]}</div><div class="dnum${isT?' is-today':''}">${d.getDate()}</div></div>
+      <div class="dhead"><div class="dname">${DAYS[d.getDay()]}</div><div class="dnum${isT?' today':''}">${d.getDate()}</div></div>
       <div class="dbody">
-        ${evs.map(ev=>`<div class="ev-chip ${ev.type||'event'}">
-          <span class="ev-time">${ev.time||'all-day'}${ev.source?` · ${ev.source}`:''}</span>${ev.title}
+        ${evs.map(ev=>`<div class="ev ${ev.type||'event'}" style="${ev.color?`border-left-color:${ev.color};color:${ev.color};background:${ev.color}18`:''}" title="${ev.source||''}">
+          <span class="ev-time">${ev.time||'all-day'}${ev.source?' · '+ev.source:''}</span>${ev.title}
         </div>`).join('')}
-        ${tds.map(t=>`<div class="tr-week">
+        ${tds.map(t=>`<div class="tr">
           <div class="chk${t.done?' on':''}" onclick="toggleTodo(${t.id})"></div>
           <div class="udot u-${t.urgency}"></div>
-          <div class="tlabel${t.done?' done':''}">${t.title}${t.rolledFrom?` <span class="rollover-badge">↩</span>`:''}</div>
+          <div class="tl${t.done?' done':''}">${t.title}${t.rolledFrom?`<span class="rolled">↩</span>`:''}</div>
         </div>`).join('')}
         <div class="day-adds">
-          <button class="day-add" onclick="openModalDay('todo','${ds}')"><i class="ti ti-plus" style="font-size:9px"></i> task</button>
-          <button class="day-add" onclick="openModalDay('event','${ds}')"><i class="ti ti-plus" style="font-size:9px"></i> event</button>
+          <button class="dadd" onclick="openMD('todo','${ds}')"><i class="ti ti-plus" style="font-size:9px"></i> task</button>
+          <button class="dadd" onclick="openMD('event','${ds}')"><i class="ti ti-plus" style="font-size:9px"></i> event</button>
         </div>
       </div>
     </div>`;
@@ -710,13 +666,13 @@ function renderWeek(){
 }
 function changeWeek(d){S.weekStart=addDays(S.weekStart,d*7);renderWeek()}
 
-// ── MONTH ──────────────────────────────────────────────────────────────────
+// ─── MONTH ───────────────────────────────────────────────────────────────────
 function renderMonth(){
   const d=S.monthDate;
-  document.getElementById('month-label').textContent=`${MFULL[d.getMonth()]} ${d.getFullYear()}`;
+  document.getElementById('mlabel').textContent=`${MO_FULL[d.getMonth()]} ${d.getFullYear()}`;
   const today=todayStr();
   const last=new Date(d.getFullYear(),d.getMonth()+1,0);
-  let html=`<div class="dow-row">${DAYS.map(dy=>`<div class="dow-label">${dy}</div>`).join('')}</div>`;
+  let html=`<div class="dow-row">${DAYS.map(dy=>`<div class="dlabel">${dy}</div>`).join('')}</div>`;
   let cur=new Date(d.getFullYear(),d.getMonth(),1);
   cur.setDate(cur.getDate()-cur.getDay());
   let safe=0;
@@ -724,18 +680,18 @@ function renderMonth(){
     html+=`<div class="mweek">`;
     for(let i=0;i<7;i++){
       const ds=dStr(cur);const om=cur.getMonth()!==d.getMonth();const isT=ds===today;
-      const evs=allEvents(ds);
+      const evs=allEventsFor(ds);
       const tds=D.todos.filter(t=>t.date===ds&&!t.done);
       const tbs=D.timeblocks.filter(tb=>tb.date===ds);
       let dots=evs.map(ev=>{
-        const col=ev.type==='gcal'?'#E24B4A':ev.type==='outlook'?'var(--blue)':ev.type==='meeting'?'var(--green)':'var(--accent)';
+        const col=ev.color||(ev.type==='meeting'?'var(--green)':ev.type==='ical'?'var(--blue)':'var(--accent)');
         return`<div class="mcdot" style="background:${col}"></div>`;
       }).join('');
       dots+=tds.map(()=>`<div class="mcdot" style="background:var(--amber)"></div>`).join('');
-      const blocks=tbs.map(tb=>{const p=D.projects.find(p=>p.id===tb.projectId);const c=p?p.color:'var(--accent)';return`<div class="mc-tb" style="background:${c}22;color:${c}">${tb.startTime} ${p?p.name:''}</div>`;}).join('');
-      html+=`<div class="mcell${isT?' is-today':''}${om?' other-m':''}">
-        <div class="mc-num${isT?' tn':''}">${cur.getDate()}</div>
-        <div class="mc-dots">${dots}</div>${blocks}
+      const blocks=tbs.map(tb=>{const p=D.projects.find(p=>p.id===tb.projectId);const c=p?p.color:'var(--accent)';return`<div class="mc-tb" style="background:${c}18;color:${c}">${tb.startTime} ${p?p.name:''}</div>`;}).join('');
+      html+=`<div class="mcell${isT?' today-cell':''}${om?' other':''}">
+        <div class="mc-n${isT?' tn':''}">${cur.getDate()}</div>
+        <div class="mcdots">${dots}</div>${blocks}
       </div>`;
       cur.setDate(cur.getDate()+1);
     }
@@ -745,8 +701,8 @@ function renderMonth(){
 }
 function changeMonth(d){const dt=S.monthDate;S.monthDate=new Date(dt.getFullYear(),dt.getMonth()+d,1);renderMonth()}
 
-// ── TODOS ──────────────────────────────────────────────────────────────────
-function setFilter(f,btn){S.filter=f;document.querySelectorAll('.fb').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderTodos()}
+// ─── TODOS ───────────────────────────────────────────────────────────────────
+function setF(f,btn){S.filter=f;document.querySelectorAll('.fb').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderTodos()}
 function renderTodos(){
   const today=todayStr();
   let items=[...D.todos];
@@ -755,32 +711,29 @@ function renderTodos(){
   else if(S.filter==='done')items=items.filter(t=>t.done);
   items.sort((a,b)=>{if(a.done!==b.done)return a.done?1:-1;return a.date.localeCompare(b.date)});
   const groups={};
-  items.forEach(t=>{const k=t.date;if(!groups[k])groups[k]=[];groups[k].push(t)});
+  items.forEach(t=>{if(!groups[t.date])groups[t.date]=[];groups[t.date].push(t)});
   const keys=Object.keys(groups).sort();
   let html='';
-  if(!keys.length){html=`<div style="color:var(--text3);padding:2rem 0;font-size:12px">No to-dos here.</div>`}
+  if(!keys.length)html=`<div style="color:var(--text3);font-size:12px;padding:1.5rem 0">No to-dos here.</div>`;
   keys.forEach(k=>{
     const isT=k===today,label=isT?'Today':fmtS(new Date(k));
-    const col=isT?'color:var(--accent)':'';
-    html+=`<div class="tsh" style="${col}">${label}</div>`;
-    groups[k].forEach(t=>{
-      html+=`<div class="tcard">
-        <div class="bchk${t.done?' on':''}" onclick="toggleTodo(${t.id},true)"></div>
-        <div style="flex:1">
-          <div class="tc-text" style="${t.done?'text-decoration:line-through;color:var(--text3)':''}">${t.title}${t.rolledFrom?` <span class="rollover-badge">↩ rolled over</span>`:''}</div>
-          <div class="tc-meta">${fmtS(new Date(t.date))}${t.rolledFrom?' · was '+fmtS(new Date(t.rolledFrom)):''}</div>
-        </div>
-        <span class="ubadge ub-${t.urgency}">${t.urgency==='high'?'Urgent':t.urgency==='med'?'Medium':'Low'}</span>
-        <button class="tdel" onclick="delTodo(${t.id})"><i class="ti ti-x" style="font-size:12px"></i></button>
-      </div>`;
-    });
+    html+=`<div class="tsh" style="${isT?'color:var(--accent)':''}">${label}</div>`;
+    groups[k].forEach(t=>{html+=`<div class="tcard">
+      <div class="bchk${t.done?' on':''}" onclick="toggleTodo(${t.id},true)"></div>
+      <div style="flex:1">
+        <div class="tc-t" style="${t.done?'text-decoration:line-through;color:var(--text3)':''}">${t.title}${t.rolledFrom?`<span class="rolled" style="margin-left:5px">↩ rolled</span>`:''}</div>
+        <div class="tc-m">${fmtS(new Date(t.date))}${t.rolledFrom?' · was '+fmtS(new Date(t.rolledFrom)):''}</div>
+      </div>
+      <span class="ub ub-${t.urgency}">${t.urgency==='high'?'Urgent':t.urgency==='med'?'Medium':'Low'}</span>
+      <button class="btn-del" onclick="delTodo(${t.id})"><i class="ti ti-x" style="font-size:12px"></i></button>
+    </div>`;});
   });
   document.getElementById('todos-list').innerHTML=html;
 }
 function toggleTodo(id,re){const t=D.todos.find(t=>t.id===id);if(t){t.done=!t.done;sched()}if(re)renderTodos();else renderWeek()}
 function delTodo(id){D.todos=D.todos.filter(t=>t.id!==id);sched();renderTodos()}
 
-// ── PROJECTS ───────────────────────────────────────────────────────────────
+// ─── PROJECTS ────────────────────────────────────────────────────────────────
 function renderProjects(){
   const g=document.getElementById('proj-grid');
   if(!D.projects.length){g.innerHTML=`<div style="color:var(--text3);font-size:12px">No projects yet.</div>`;return}
@@ -790,9 +743,9 @@ function renderProjects(){
       <div class="pstrip" style="background:${p.color}"></div>
       <div class="pname">${p.name}</div>
       <div class="pdesc">${p.desc||''}</div>
-      <div class="phours"><span>${p.hoursUsed}h used</span><span>${p.hoursGoal}h goal</span></div>
+      <div class="phrow"><span>${p.hoursUsed}h used</span><span>${p.hoursGoal}h goal</span></div>
       <div class="hbar"><div class="hfill" style="width:${pct}%;background:${p.color}"></div></div>
-      <div class="pactions">
+      <div class="pacts">
         <button class="btn btn-sm" onclick="logH(${p.id})"><i class="ti ti-plus"></i> Log hours</button>
         <button class="btn btn-sm" onclick="delProj(${p.id})" style="color:var(--red)"><i class="ti ti-trash"></i></button>
       </div>
@@ -800,20 +753,20 @@ function renderProjects(){
   }).join('');
 }
 function logH(id){const h=prompt('Hours to log:');const n=parseFloat(h);if(!isNaN(n)&&n>0){const p=D.projects.find(p=>p.id===id);if(p){p.hoursUsed=Math.round((p.hoursUsed+n)*10)/10;sched();renderProjects()}}}
-function delProj(id){if(!confirm('Delete project?'))return;D.projects=D.projects.filter(p=>p.id!==id);sched();renderProjects()}
+function delProj(id){if(!confirm('Delete this project?'))return;D.projects=D.projects.filter(p=>p.id!==id);sched();renderProjects()}
 
-// ── IDEAS ──────────────────────────────────────────────────────────────────
+// ─── IDEAS ───────────────────────────────────────────────────────────────────
 function renderIdeas(){
   const g=document.getElementById('ideas-grid');
   if(!D.topics.length){g.innerHTML=`<div style="color:var(--text3);font-size:12px">Add a topic first.</div>`;return}
   g.innerHTML=D.topics.map(tp=>{
     const ideas=D.ideas.filter(i=>i.topicId===tp.id);
     return`<div class="icol">
-      <div class="icol-head">
-        <div class="icol-name"><i class="ti ${tp.icon}"></i> ${tp.name}</div>
+      <div class="icol-h">
+        <div class="icol-n"><i class="ti ${tp.icon}"></i> ${tp.name}</div>
         <span style="font-size:10px;color:var(--text3)">${ideas.length}</span>
       </div>
-      <div class="icol-body">
+      <div class="icol-b">
         ${ideas.map(idea=>`<div class="ichip"><i class="ti ti-sparkles"></i><span style="flex:1">${idea.text}</span>
           <button class="idel" onclick="delIdea(${idea.id})"><i class="ti ti-x" style="font-size:10px"></i></button>
         </div>`).join('')}
@@ -824,65 +777,59 @@ function renderIdeas(){
 }
 function delIdea(id){D.ideas=D.ideas.filter(i=>i.id!==id);sched();renderIdeas()}
 
-// ── MODAL ──────────────────────────────────────────────────────────────────
-function openModal(type){S.modalType=type;S.modalDay=null;buildModal()}
-function openModalDay(type,day){S.modalType=type;S.modalDay=day;buildModal()}
-function buildModal(){
-  const type=S.modalType,day=S.modalDay||todayStr();
+// ─── MODAL ───────────────────────────────────────────────────────────────────
+function openM(type){S.mType=type;S.mDay=null;buildM()}
+function openMD(type,day){S.mType=type;S.mDay=day;buildM()}
+function buildM(){
+  const type=S.mType,day=S.mDay||todayStr();
   const titles={todo:'Add to-do',event:'Add event',project:'New project',timeblock:'Add time block',topic:'New topic',idea:'New idea'};
-  document.getElementById('mtitle').textContent=titles[type];
+  document.getElementById('mtitle').textContent=titles[type]||'Add';
   let b='';
-  if(type==='todo'){b=`
-    <div class="ff"><label>Task</label><input id="m-title" placeholder="What needs to be done?"/></div>
-    <div class="ff"><label>Date</label><input id="m-date" type="date" value="${day}"/></div>
-    <div class="ff"><label>Urgency</label><select id="m-urg"><option value="high">Urgent</option><option value="med" selected>Medium</option><option value="low">Low</option></select></div>`
-  }else if(type==='event'){b=`
-    <div class="ff"><label>Title</label><input id="m-title" placeholder="Event name"/></div>
-    <div class="ff"><label>Date</label><input id="m-date" type="date" value="${day}"/></div>
+  if(type==='todo')b=`
+    <div class="ff"><label>Task</label><input id="m-t" placeholder="What needs to be done?"/></div>
+    <div class="ff"><label>Date</label><input id="m-d" type="date" value="${day}"/></div>
+    <div class="ff"><label>Urgency</label><select id="m-u"><option value="high">Urgent</option><option value="med" selected>Medium</option><option value="low">Low</option></select></div>`;
+  else if(type==='event')b=`
+    <div class="ff"><label>Title</label><input id="m-t" placeholder="Event name"/></div>
+    <div class="ff"><label>Date</label><input id="m-d" type="date" value="${day}"/></div>
     <div class="ff"><label>Time</label><input id="m-time" type="time" value="09:00"/></div>
-    <div class="ff"><label>Type</label><select id="m-type"><option value="event">Event</option><option value="meeting">Meeting</option></select></div>`
-  }else if(type==='project'){b=`
-    <div class="ff"><label>Name</label><input id="m-title" placeholder="Project name"/></div>
+    <div class="ff"><label>Type</label><select id="m-type"><option value="event">Event</option><option value="meeting">Meeting</option></select></div>`;
+  else if(type==='project')b=`
+    <div class="ff"><label>Name</label><input id="m-t" placeholder="Project name"/></div>
     <div class="ff"><label>Description</label><textarea id="m-desc" placeholder="What is this about?"></textarea></div>
-    <div class="ff"><label>Monthly hours goal</label><input id="m-hours" type="number" value="20" min="1"/></div>
-    <div class="ff"><label>Color</label><select id="m-color">${PCOLS.map(c=>`<option value="${c}">${c}</option>`).join('')}</select></div>`
-  }else if(type==='timeblock'){const po=D.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');b=`
-    <div class="ff"><label>Date</label><input id="m-date" type="date" value="${day}"/></div>
+    <div class="ff"><label>Monthly hours goal</label><input id="m-h" type="number" value="20" min="1"/></div>
+    <div class="ff"><label>Color</label><select id="m-c">${PCOLS.map(c=>`<option value="${c}">${c}</option>`).join('')}</select></div>`;
+  else if(type==='timeblock'){const po=D.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');b=`
+    <div class="ff"><label>Date</label><input id="m-d" type="date" value="${day}"/></div>
     <div class="ff"><label>Start time</label><input id="m-time" type="time" value="10:00"/></div>
     <div class="ff"><label>Duration (hours)</label><input id="m-dur" type="number" value="1" min="0.5" step="0.5"/></div>
-    <div class="ff"><label>Project</label><select id="m-proj">${po||'<option>No projects yet</option>'}</select></div>`
-  }else if(type==='topic'){b=`
-    <div class="ff"><label>Topic name</label><input id="m-title" placeholder="e.g. Travel, Health…"/></div>
-    <div class="ff"><label>Icon</label><select id="m-icon">${TICOS.map(ic=>`<option value="${ic}">${ic.replace('ti-','')}</option>`).join('')}</select></div>`
-  }else if(type==='idea'){const to=D.topics.map(t=>`<option value="${t.id}">${t.name}</option>`).join('');b=`
-    <div class="ff"><label>Your idea</label><textarea id="m-text" placeholder="Capture it while it's fresh…"></textarea></div>
-    <div class="ff"><label>Topic</label><select id="m-topic">${to||'<option>No topics</option>'}</select></div>`}
+    <div class="ff"><label>Project</label><select id="m-proj">${po||'<option>Create a project first</option>'}</select></div>`;}
+  else if(type==='topic')b=`
+    <div class="ff"><label>Topic name</label><input id="m-t" placeholder="e.g. Travel, Health…"/></div>
+    <div class="ff"><label>Icon</label><select id="m-icon">${TICOS.map(ic=>`<option value="${ic}">${ic.replace('ti-','')}</option>`).join('')}</select></div>`;
+  else if(type==='idea'){const to=D.topics.map(t=>`<option value="${t.id}">${t.name}</option>`).join('');b=`
+    <div class="ff"><label>Your idea</label><textarea id="m-tx" placeholder="Capture it while it's fresh…"></textarea></div>
+    <div class="ff"><label>Topic</label><select id="m-topic">${to||'<option>Add a topic first</option>'}</select></div>`;}
   document.getElementById('mbody').innerHTML=b;
-  document.getElementById('moverlay').classList.add('open');
-  setTimeout(()=>{const f=document.getElementById('mbody').querySelector('input,textarea');if(f)f.focus()},60);
+  document.getElementById('mo').classList.add('open');
+  setTimeout(()=>{const f=document.querySelector('#mbody input,#mbody textarea');if(f)f.focus()},60);
 }
-function closeModal(){document.getElementById('moverlay').classList.remove('open')}
-function closeMO(e){if(e.target===document.getElementById('moverlay'))closeModal()}
+function closeM(){document.getElementById('mo').classList.remove('open')}
+function closeMO(e){if(e.target===document.getElementById('mo'))closeM()}
 function gv(id){const el=document.getElementById(id);return el?el.value:''}
-function saveModal(){
-  const type=S.modalType,id=nid();
-  if(type==='todo'){const t=gv('m-title').trim();if(!t)return;D.todos.push({id,title:t,date:gv('m-date'),urgency:gv('m-urg'),done:false})}
-  else if(type==='event'){const t=gv('m-title').trim();if(!t)return;D.events.push({id,title:t,date:gv('m-date'),time:gv('m-time'),type:gv('m-type')})}
-  else if(type==='project'){const n=gv('m-title').trim();if(!n)return;D.projects.push({id,name:n,desc:gv('m-desc'),color:gv('m-color'),hoursGoal:parseFloat(gv('m-hours'))||20,hoursUsed:0})}
-  else if(type==='timeblock'){const pid=parseInt(gv('m-proj'));const dur=parseFloat(gv('m-dur'))||1;D.timeblocks.push({id,date:gv('m-date'),startTime:gv('m-time'),duration:dur,projectId:pid});const p=D.projects.find(p=>p.id===pid);if(p){p.hoursUsed=Math.round((p.hoursUsed+dur)*10)/10}}
-  else if(type==='topic'){const n=gv('m-title').trim();if(!n)return;D.topics.push({id,name:n,icon:gv('m-icon')})}
-  else if(type==='idea'){const t=gv('m-text').trim();if(!t)return;D.ideas.push({id,topicId:parseInt(gv('m-topic')),text:t})}
-  closeModal();sched();refreshPage();
+function saveM(){
+  const type=S.mType,id=nid();
+  if(type==='todo'){const t=gv('m-t').trim();if(!t)return;D.todos.push({id,title:t,date:gv('m-d'),urgency:gv('m-u'),done:false})}
+  else if(type==='event'){const t=gv('m-t').trim();if(!t)return;D.events.push({id,title:t,date:gv('m-d'),time:gv('m-time'),type:gv('m-type')})}
+  else if(type==='project'){const n=gv('m-t').trim();if(!n)return;D.projects.push({id,name:n,desc:gv('m-desc'),color:gv('m-c'),hoursGoal:parseFloat(gv('m-h'))||20,hoursUsed:0})}
+  else if(type==='timeblock'){const pid=parseInt(gv('m-proj'));const dur=parseFloat(gv('m-dur'))||1;D.timeblocks.push({id,date:gv('m-d'),startTime:gv('m-time'),duration:dur,projectId:pid});const p=D.projects.find(p=>p.id===pid);if(p)p.hoursUsed=Math.round((p.hoursUsed+dur)*10)/10;}
+  else if(type==='topic'){const n=gv('m-t').trim();if(!n)return;D.topics.push({id,name:n,icon:gv('m-icon')})}
+  else if(type==='idea'){const t=gv('m-tx').trim();if(!t)return;D.ideas.push({id,topicId:parseInt(gv('m-topic')),text:t})}
+  closeM();sched();refreshPage();
 }
 
-// ── INIT ───────────────────────────────────────────────────────────────────
-updateCalUI();
-if(CFG.gistId)document.getElementById('s-gist').value=CFG.gistId;
-loadLocal();
-if(CFG.token&&CFG.gistId){loadGist()}else{setSS('','Local only')}
-if(CFG.gcalIcsUrl)fetchGcal();
-if(CFG.msIcsUrl)fetchMs();
-doRollover();
+// ─── INIT ────────────────────────────────────────────────────────────────────
+loadGist();
 renderWeek();
 </script>
 </body>
