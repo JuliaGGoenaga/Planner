@@ -459,7 +459,18 @@ let D={events:[],todos:[],projects:[],timeblocks:[],topics:[
   {id:3,name:'Ideas',icon:'ti-bulb'}
 ],ideas:[],calendars:[]};
 let EXT=[];
-let CFG={token:ls('p_token')||'',gistId:ls('p_gist')||''};
+// Read credentials: hash params take priority, then localStorage
+function readCFG(){
+  const hash=window.location.hash.slice(1);
+  const params=new URLSearchParams(hash);
+  const token=params.get('token')||ls('p_token')||'';
+  const gistId=params.get('gist')||ls('p_gist')||'';
+  // If found in hash, persist to localStorage so refreshes work without hash
+  if(params.get('token'))lss('p_token',params.get('token'));
+  if(params.get('gist'))lss('p_gist',params.get('gist'));
+  return{token,gistId};
+}
+let CFG=readCFG();
 let saveTimer=null;
 
 // ── STORAGE ────────────────────────────────────────────────────────────────
@@ -555,10 +566,27 @@ async function saveGistCfg(){
   const g=document.getElementById('s-gist').value.trim();
   if(!t||!g){showMsg('gist-msg','err','Fill in both fields.');return}
   lss('p_token',t);lss('p_gist',g);CFG.token=t;CFG.gistId=g;
+  // Update hash in URL so this tab becomes the bookmarkable link
+  history.replaceState(null,'',`#token=${encodeURIComponent(t)}&gist=${encodeURIComponent(g)}`);
   showMsg('gist-msg','info','Connecting…');
   await loadGist();
   const ok=document.getElementById('sdot').classList.contains('ok');
-  showMsg('gist-msg',ok?'ok':'err',ok?'Connected! Data syncing via Gist.':'Could not connect. Check your token and Gist ID.');
+  if(ok){
+    showBookmarkMsg();
+  } else {
+    showMsg('gist-msg','err','Could not connect. Check your token and Gist ID.');
+  }
+}
+function showBookmarkMsg(){
+  const el=document.getElementById('gist-msg');
+  el.className='smsg ok';
+  el.innerHTML=`Connected! ✓ &nbsp;|&nbsp; <strong>Bookmark this URL</strong> to auto-connect on any device: <br><span style="font-family:monospace;font-size:10px;word-break:break-all">${window.location.href}</span> <button onclick="copyLink()" style="margin-left:6px;font-size:10px;padding:2px 7px;border:1px solid var(--green);border-radius:4px;background:none;color:var(--green);cursor:pointer">Copy link</button>`;
+}
+function copyLink(){
+  navigator.clipboard.writeText(window.location.href).then(()=>{
+    const btn=document.querySelector('#gist-msg button');
+    if(btn){btn.textContent='Copied!';setTimeout(()=>{btn.textContent='Copy link'},2000);}
+  });
 }
 async function testGist(){showMsg('gist-msg','info','Testing…');await loadGist();const ok=document.getElementById('sdot').classList.contains('ok');showMsg('gist-msg',ok?'ok':'err',document.getElementById('stxt').textContent)}
 function showMsg(id,cls,txt){const el=document.getElementById(id);if(el){el.className='smsg '+cls;el.textContent=txt}}
@@ -651,6 +679,14 @@ function go(name){
     document.getElementById('s-token').value=CFG.token;
     document.getElementById('s-gist').value=CFG.gistId;
     renderCalList();
+    if(CFG.token&&CFG.gistId){
+      const hash='#token='+encodeURIComponent(CFG.token)+'&gist='+encodeURIComponent(CFG.gistId);
+      const url=window.location.origin+window.location.pathname+hash;
+      history.replaceState(null,'',hash);
+      const el=document.getElementById('gist-msg');
+      el.className='smsg ok';
+      el.innerHTML='✓ Connected &nbsp;|&nbsp; <strong>Your bookmarkable link:</strong><br><span style="font-family:monospace;font-size:10px;word-break:break-all">'+url+'</span> <button onclick="copyLink()" style="margin-left:6px;font-size:10px;padding:2px 7px;border:1px solid var(--green);border-radius:4px;background:none;color:var(--green);cursor:pointer">Copy</button>';
+    }
   }
 }
 function refreshPage(){const a=document.querySelector('.page.active');if(a)go(a.id.replace('page-',''))}
