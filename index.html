@@ -124,7 +124,7 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 .dow-row{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:3px}
 .dlabel{font-size:10px;color:var(--text3);text-align:center;text-transform:uppercase;letter-spacing:.05em;padding:2px 0}
 .mweek{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:3px}
-.mcell{background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);min-height:72px;padding:4px 5px}
+.mcell{background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);min-height:72px;padding:4px 5px;overflow:hidden;min-width:0}
 .mcell.today-cell{border-color:var(--accent)}
 .mcell.other{opacity:.4}
 .mc-n{font-size:12px;font-weight:600;margin-bottom:2px}
@@ -467,7 +467,7 @@ let D={events:[],todos:[],projects:[],timeblocks:[],topics:[
   {id:1,name:'Work',icon:'ti-briefcase'},
   {id:2,name:'Personal',icon:'ti-heart'},
   {id:3,name:'Ideas',icon:'ti-bulb'}
-],ideas:[],calendars:[],vacationDays:[]};
+],ideas:[],calendars:[],vacationDays:[],customHolidays:[]};
 let EXT=[];
 // Read credentials: hash params take priority, then localStorage
 function readCFG(){
@@ -559,6 +559,7 @@ async function loadGist(){
           D.timeblocks=p.timeblocks||D.timeblocks;D.topics=p.topics||D.topics;
           D.ideas=p.ideas||D.ideas;D.calendars=p.calendars||D.calendars;
           D.vacationDays=p.vacationDays||D.vacationDays;
+          D.customHolidays=p.customHolidays||D.customHolidays;
           if(p.nextId)S.nextId=p.nextId;
         }
       }catch(e){setSS('err','Corrupt data in Gist');return}
@@ -741,7 +742,7 @@ function renderWeek(){
   let html='';
   days.forEach(i=>{
     const d=addDays(s,i);const ds=dStr(d);const isT=ds===today;
-    const evs=allEvFor(ds);const tds=D.todos.filter(t=>t.date===ds);
+    const evs=allEvFor(ds);const tds=D.todos.filter(t=>t.date===ds);const tbs=D.timeblocks.filter(tb=>tb.date===ds);
     html+=`<div class="dcol${isT?' today-col':''}">
       <div class="dhead"><div class="dname">${DAYS[d.getDay()]}</div><div class="dnum${isT?' today':''}">${d.getDate()}</div></div>
       <div class="dbody">
@@ -752,6 +753,10 @@ function renderWeek(){
           <button class="btn-del" onclick="openEdit('event',${ev.id})" title="Edit" style="font-size:10px;padding:1px 2px"><i class="ti ti-pencil"></i></button>
           <button class="btn-del" onclick="delEvent(${ev.id})" title="Delete" style="font-size:10px;padding:1px 2px"><i class="ti ti-x"></i></button>
         </div>`).join('')}
+        ${tbs.map(tb=>{const p=D.projects.find(p=>p.id===tb.projectId);const c=p?p.color:'var(--accent)';return`<div class="ev" style="border-left-color:${c};background:${c}18;color:${c};display:flex;align-items:flex-start;gap:3px">
+          <div style="flex:1"><span class="ev-time">${tb.startTime} · ${tb.duration}h</span>${p?p.name:'Bloque'}</div>
+          <button class="btn-del" onclick="delTimeblock(${tb.id})" title="Eliminar" style="font-size:10px;padding:1px 2px;color:${c}"><i class="ti ti-x"></i></button>
+        </div>`}).join('')}
         ${tds.map(t=>`<div class="tr">
           <div class="chk${t.done?' on':''}" onclick="toggleTodo(${t.id})"></div>
           <div class="udot u-${t.urgency}"></div>
@@ -761,6 +766,7 @@ function renderWeek(){
         <div class="day-adds">
           <button class="dadd" onclick="openMD('todo','${ds}')"><i class="ti ti-plus" style="font-size:9px"></i> task</button>
           <button class="dadd" onclick="openMD('event','${ds}')"><i class="ti ti-plus" style="font-size:9px"></i> event</button>
+          <button class="dadd" onclick="openMD('timeblock','${ds}')"><i class="ti ti-plus" style="font-size:9px"></i> block</button>
         </div>
       </div>
     </div>`;
@@ -780,8 +786,9 @@ function renderMonth(){
   const today=todayStr(),last=new Date(d.getFullYear(),d.getMonth()+1,0);
   const holidays=getMadridHolidays(d.getFullYear());
   const vacSet=new Set(D.vacationDays||[]);
-  const monthPfx=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-  const vacThisMonth=(D.vacationDays||[]).filter(v=>v.startsWith(monthPfx)).length;
+  const cusSet=new Set(D.customHolidays||[]);
+  const yearPfx=`${d.getFullYear()}-`;
+  const vacThisYear=(D.vacationDays||[]).filter(v=>v.startsWith(yearPfx)).length;
   const MON_DAYS=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
   let html=`<div class="dow-row">${MON_DAYS.map(dy=>`<div class="dlabel">${dy}</div>`).join('')}</div>`;
   let cur=new Date(d.getFullYear(),d.getMonth(),1);
@@ -795,26 +802,30 @@ function renderMonth(){
       const tbs=D.timeblocks.filter(tb=>tb.date===ds);
       const isHol=!om&&!!holidays[ds];
       const isVac=!om&&vacSet.has(ds);
+      const isCus=!om&&cusSet.has(ds);
       let dots=evs.map(ev=>{const c=ev.color||(ev.type==='meeting'?'var(--green)':'var(--accent)');return`<div class="mcdot" style="background:${c}"></div>`;}).join('');
       dots+=tds.map(()=>`<div class="mcdot" style="background:var(--amber)"></div>`).join('');
       const blocks=tbs.map(tb=>{const p=D.projects.find(p=>p.id===tb.projectId);const c=p?p.color:'var(--accent)';return`<div class="mc-tb" style="background:${c}18;color:${c}">${tb.startTime} ${p?p.name:''}</div>`;}).join('');
       const holBadge=isHol?`<span class="mc-badge mc-hol">${holidays[ds]}</span>`:'';
+      const cusBadge=isCus?`<span class="mc-badge mc-hol">Festivo</span>`:'';
       const vacBadge=isVac?`<span class="mc-badge mc-vac">Vacaciones</span>`:'';
-      const clickAttr=!om?`onclick="toggleVacation('${ds}')" title="Marcar/desmarcar vacaciones"`:'';
-      const cellCls=`mcell${isT?' today-cell':''}${om?' other':''}${isHol?' hol-cell':''}${isVac?' vac-cell':''}`;
-      html+=`<div class="${cellCls}" ${clickAttr}><div class="mc-n${isT?' tn':''}">${cur.getDate()}</div><div class="mcdots">${dots}</div>${blocks}${holBadge}${vacBadge}</div>`;
+      const clickAttr=!om?`onclick="toggleDayState('${ds}')" title="1 clic: vacaciones · 2 clics: festivo · 3 clics: quitar"`:'';
+      const cellCls=`mcell${isT?' today-cell':''}${om?' other':''}${(isHol||isCus)?' hol-cell':''}${isVac?' vac-cell':''}`;
+      html+=`<div class="${cellCls}" ${clickAttr}><div class="mc-n${isT?' tn':''}">${cur.getDate()}</div><div class="mcdots">${dots}</div>${blocks}${holBadge}${cusBadge}${vacBadge}</div>`;
       cur.setDate(cur.getDate()+1);
     }
     html+=`</div>`;
   }
-  html+=`<div class="mvac-row"><i class="ti ti-beach" style="color:var(--blue)"></i> Vacaciones este mes: <strong>${vacThisMonth} día${vacThisMonth!==1?'s':''}</strong>&nbsp;·&nbsp;Clic en un día para marcar/desmarcar</div>`;
+  html+=`<div class="mvac-row"><i class="ti ti-beach" style="color:var(--blue)"></i> Vacaciones ${d.getFullYear()}: <strong>${vacThisYear} día${vacThisYear!==1?'s':''}</strong>&nbsp;·&nbsp;1 clic vacaciones · 2 clics festivo · 3 quitar</div>`;
   document.getElementById('month-grid').innerHTML=html;
 }
-function toggleVacation(ds){
+function toggleDayState(ds){
   if(!D.vacationDays)D.vacationDays=[];
-  const idx=D.vacationDays.indexOf(ds);
-  if(idx>=0)D.vacationDays.splice(idx,1);
-  else D.vacationDays.push(ds);
+  if(!D.customHolidays)D.customHolidays=[];
+  const vi=D.vacationDays.indexOf(ds),ci=D.customHolidays.indexOf(ds);
+  if(ci>=0){D.customHolidays.splice(ci,1);}           // festivo → quitar
+  else if(vi>=0){D.vacationDays.splice(vi,1);D.customHolidays.push(ds);}  // vacaciones → festivo
+  else{D.vacationDays.push(ds);}                        // nada → vacaciones
   sched();renderMonth();
 }
 function changeMonth(d){const dt=S.monthDate;S.monthDate=new Date(dt.getFullYear(),dt.getMonth()+d,1);renderMonth()}
@@ -876,14 +887,17 @@ function renderProjects(){
   const monthPfx=`${year}-${String(month).padStart(2,'0')}`;
   const holidays=Object.keys(getMadridHolidays(year)).filter(d=>d.startsWith(monthPfx));
   const vacations=(D.vacationDays||[]).filter(d=>d.startsWith(monthPfx));
-  const excludeDays=[...new Set([...holidays,...vacations])];
+  const customHols=(D.customHolidays||[]).filter(d=>d.startsWith(monthPfx));
+  const excludeDays=[...new Set([...holidays,...vacations,...customHols])];
   const goal=monthlyGoalHours(year,month,excludeDays);
   g.innerHTML=D.projects.map(p=>{
     const assignedTasks=D.todos.filter(t=>t.projectId===p.id&&t.duration&&t.date.startsWith(monthPfx));
     const taskH=Math.round(assignedTasks.reduce((s,t)=>s+(t.duration||0),0)*10)/10;
     const manualEntries=(p.manualEntries||[]).filter(e=>e.date.startsWith(monthPfx));
     const manualH=Math.round(manualEntries.reduce((s,e)=>s+e.hours,0)*10)/10;
-    const totalH=Math.round((taskH+manualH)*10)/10;
+    const tbEntries=D.timeblocks.filter(tb=>tb.projectId===p.id&&tb.date.startsWith(monthPfx));
+    const tbH=Math.round(tbEntries.reduce((s,tb)=>s+(tb.duration||0),0)*10)/10;
+    const totalH=Math.round((taskH+manualH+tbH)*10)/10;
     const pct=goal>0?Math.min(100,Math.round(totalH/goal*100)):0;
     const taskRows=assignedTasks.length?`<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:7px">
       <div style="font-size:9px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">Tareas</div>
@@ -901,6 +915,14 @@ function renderProjects(){
         <button class="btn-del" onclick="delManual(${p.id},${e.id})" style="font-size:10px;padding:1px 2px"><i class="ti ti-x"></i></button>
       </div>`).join('')}
     </div>`:'';
+    const tbRows=tbEntries.length?`<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:7px">
+      <div style="font-size:9px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">Bloques de tiempo</div>
+      ${tbEntries.map(tb=>`<div style="font-size:10px;color:var(--text2);display:flex;align-items:center;gap:4px;padding:1px 0">
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${tb.date} ${tb.startTime}</span>
+        <span style="flex-shrink:0;color:var(--text3)">${tb.duration}h</span>
+        <button class="btn-del" onclick="delTimeblock(${tb.id})" title="Eliminar" style="font-size:10px;padding:1px 2px"><i class="ti ti-x"></i></button>
+      </div>`).join('')}
+    </div>`:'';
     return`<div class="pcard"><div class="pstrip" style="background:${p.color}"></div>
       <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-top:8px">
         <div class="pname" style="margin-top:0">${p.name}</div>
@@ -911,13 +933,13 @@ function renderProjects(){
       </div>
       <div class="pdesc">${p.desc||''}</div>
       <div class="phrow"><span style="font-weight:600;color:${p.color}">${totalH}h este mes</span><span>${goal>0?`meta ${goal}h`:'agosto'}</span></div>
-      ${(taskH>0||manualH>0)?`<div style="font-size:10px;color:var(--text3);margin-top:-4px;margin-bottom:4px">${taskH}h tareas · ${manualH}h manuales</div>`:''}
+      ${(taskH>0||manualH>0||tbH>0)?`<div style="font-size:10px;color:var(--text3);margin-top:-4px;margin-bottom:4px">${taskH}h tareas · ${manualH}h manuales${tbH>0?` · ${tbH}h bloques`:''}</div>`:''}
       <div class="hbar"><div class="hfill" style="width:${pct}%;background:${p.color}"></div></div>
       <div class="pacts">
         <button class="btn btn-sm btn-p" onclick="openAssign(${p.id})"><i class="ti ti-link"></i> Asignar tarea</button>
         <button class="btn btn-sm" onclick="logH(${p.id})"><i class="ti ti-plus"></i> Horas manuales</button>
       </div>
-      ${taskRows}${manualRows}
+      ${taskRows}${manualRows}${tbRows}
     </div>`;
   }).join('');
 }
@@ -925,6 +947,7 @@ function openAssign(projId){S.mProjId=projId;S.mType='assigntask';S.mDay=null;S.
 function logH(projId){S.mProjId=projId;S.mType='loghours';S.mDay=null;S.editId=null;buildM()}
 function delManual(projId,entryId){const p=D.projects.find(p=>p.id===projId);if(!p)return;p.manualEntries=(p.manualEntries||[]).filter(e=>e.id!==entryId);sched();renderProjects()}
 function unassignTask(taskId){const t=D.todos.find(t=>t.id===taskId);if(!t)return;delete t.projectId;delete t.duration;sched();renderProjects()}
+function delTimeblock(id){D.timeblocks=D.timeblocks.filter(tb=>tb.id!==id);sched();renderProjects();if(document.querySelector('#page-week.active'))renderWeek();}
 function delProj(id){if(!confirm('¿Eliminar proyecto?'))return;D.projects=D.projects.filter(p=>p.id!==id);sched();renderProjects()}
 
 // ── IDEAS ──────────────────────────────────────────────────────────────────
