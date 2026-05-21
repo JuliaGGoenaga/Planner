@@ -349,8 +349,13 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
       <div class="page" id="page-projects">
         <div class="ph">
           <div class="pt">Projects</div>
-          <button class="btn btn-p" onclick="openM('project')"><i class="ti ti-plus"></i> New</button>
+          <div class="bg">
+            <button class="btn" onclick="exportMonthUI(0)"><i class="ti ti-file-spreadsheet"></i> Exportar este mes</button>
+            <button class="btn" onclick="exportMonthUI(-1)" style="color:var(--text2)"><i class="ti ti-file-spreadsheet"></i> Mes anterior</button>
+            <button class="btn btn-p" onclick="openM('project')"><i class="ti ti-plus"></i> New</button>
+          </div>
         </div>
+        <div class="smsg" id="report-msg" style="margin-bottom:10px"></div>
         <div class="pgrid" id="proj-grid"></div>
       </div>
 
@@ -665,9 +670,9 @@ function doRollover(){
 
 // ── UTILS ──────────────────────────────────────────────────────────────────
 function nid(){return++S.nextId}
-function todayStr(){return new Date().toISOString().slice(0,10)}
+function todayStr(){const d=new Date();return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
 function addDays(d,n){const r=new Date(d);r.setDate(r.getDate()+n);return r}
-function dStr(d){return d.toISOString().slice(0,10)}
+function dStr(d){return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
 function fmtS(d){return`${d.getDate()} ${MFULL[d.getMonth()].slice(0,3)}`}
 function getMonday(d){const day=d.getDay(),diff=d.getDate()-day+(day===0?-6:1);return new Date(new Date(d).setDate(diff))}
 function allEvFor(ds){return[...D.events.filter(e=>e.date===ds),...EXT.filter(e=>e.date===ds)].sort((a,b)=>(a.time||'').localeCompare(b.time||''))}
@@ -740,8 +745,10 @@ function renderMonth(){
   const d=S.monthDate;
   document.getElementById('mlabel').textContent=`${MFULL[d.getMonth()]} ${d.getFullYear()}`;
   const today=todayStr(),last=new Date(d.getFullYear(),d.getMonth()+1,0);
-  let html=`<div class="dow-row">${DAYS.map(dy=>`<div class="dlabel">${dy}</div>`).join('')}</div>`;
-  let cur=new Date(d.getFullYear(),d.getMonth(),1);cur.setDate(cur.getDate()-cur.getDay());
+  const MON_DAYS=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  let html=`<div class="dow-row">${MON_DAYS.map(dy=>`<div class="dlabel">${dy}</div>`).join('')}</div>`;
+  let cur=new Date(d.getFullYear(),d.getMonth(),1);
+  const fd=cur.getDay()||7;cur.setDate(cur.getDate()-(fd-1));
   let safe=0;
   while((cur<=last||cur.getDay()!==0)&&safe++<8){
     html+=`<div class="mweek">`;
@@ -803,17 +810,26 @@ function renderProjects(){
   const now=new Date();
   const monthPfx=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
   g.innerHTML=D.projects.map(p=>{
-    const doneTasks=D.todos.filter(t=>t.done&&t.projectId===p.id&&t.date.startsWith(monthPfx));
-    const taskH=Math.round(doneTasks.reduce((s,t)=>s+(t.duration||0),0)*10)/10;
-    const totalH=Math.round((p.hoursUsed+taskH)*10)/10;
+    const assignedTasks=D.todos.filter(t=>t.projectId===p.id&&t.duration&&t.date.startsWith(monthPfx));
+    const taskH=Math.round(assignedTasks.reduce((s,t)=>s+(t.duration||0),0)*10)/10;
+    const manualEntries=(p.manualEntries||[]).filter(e=>e.date.startsWith(monthPfx));
+    const manualH=Math.round(manualEntries.reduce((s,e)=>s+e.hours,0)*10)/10;
+    const totalH=Math.round((taskH+manualH)*10)/10;
     const pct=p.hoursGoal>0?Math.min(100,Math.round(totalH/p.hoursGoal*100)):0;
-    const taskRows=doneTasks.length?`<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:7px">
-      <div style="font-size:9px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">Tareas este mes</div>
-      ${doneTasks.slice(0,6).map(t=>`<div style="font-size:10px;color:var(--text2);display:flex;justify-content:space-between;padding:1px 0">
-        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px">${t.title}</span>
-        <span style="flex-shrink:0;color:var(--text3)">${t.duration?t.duration+'h':'—'}</span>
+    const taskRows=assignedTasks.length?`<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:7px">
+      <div style="font-size:9px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">Tareas</div>
+      ${assignedTasks.map(t=>`<div style="font-size:10px;color:var(--text2);display:flex;justify-content:space-between;padding:1px 0">
+        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px">${t.done?'✓ ':'○ '}${t.title}</span>
+        <span style="flex-shrink:0;color:var(--text3)">${t.duration}h</span>
       </div>`).join('')}
-      ${doneTasks.length>6?`<div style="font-size:9px;color:var(--text3);margin-top:2px">+${doneTasks.length-6} más</div>`:''}
+    </div>`:'';
+    const manualRows=manualEntries.length?`<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:7px">
+      <div style="font-size:9px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">Registros manuales</div>
+      ${manualEntries.map(e=>`<div style="font-size:10px;color:var(--text2);display:flex;align-items:center;gap:4px;padding:1px 0">
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.desc||e.date}</span>
+        <span style="flex-shrink:0;color:var(--text3)">${e.hours}h</span>
+        <button class="btn-del" onclick="delManual(${p.id},${e.id})" style="font-size:10px;padding:1px 2px"><i class="ti ti-x"></i></button>
+      </div>`).join('')}
     </div>`:'';
     return`<div class="pcard"><div class="pstrip" style="background:${p.color}"></div>
       <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-top:8px">
@@ -825,18 +841,19 @@ function renderProjects(){
       </div>
       <div class="pdesc">${p.desc||''}</div>
       <div class="phrow"><span style="font-weight:600;color:${p.color}">${totalH}h este mes</span><span>meta ${p.hoursGoal}h</span></div>
-      ${taskH>0?`<div style="font-size:10px;color:var(--text3);margin-top:-4px;margin-bottom:4px">${taskH}h de tareas · ${p.hoursUsed}h manuales</div>`:''}
+      ${(taskH>0||manualH>0)?`<div style="font-size:10px;color:var(--text3);margin-top:-4px;margin-bottom:4px">${taskH}h tareas · ${manualH}h manuales</div>`:''}
       <div class="hbar"><div class="hfill" style="width:${pct}%;background:${p.color}"></div></div>
       <div class="pacts">
         <button class="btn btn-sm btn-p" onclick="openAssign(${p.id})"><i class="ti ti-link"></i> Asignar tarea</button>
         <button class="btn btn-sm" onclick="logH(${p.id})"><i class="ti ti-plus"></i> Horas manuales</button>
       </div>
-      ${taskRows}
+      ${taskRows}${manualRows}
     </div>`;
   }).join('');
 }
 function openAssign(projId){S.mProjId=projId;S.mType='assigntask';S.mDay=null;S.editId=null;buildM()}
-function logH(id){const h=prompt('Horas a registrar:');const n=parseFloat(h);if(!isNaN(n)&&n>0){const p=D.projects.find(p=>p.id===id);if(p){p.hoursUsed=Math.round((p.hoursUsed+n)*10)/10;sched();renderProjects()}}}
+function logH(projId){S.mProjId=projId;S.mType='loghours';S.mDay=null;S.editId=null;buildM()}
+function delManual(projId,entryId){const p=D.projects.find(p=>p.id===projId);if(!p)return;p.manualEntries=(p.manualEntries||[]).filter(e=>e.id!==entryId);sched();renderProjects()}
 function delProj(id){if(!confirm('¿Eliminar proyecto?'))return;D.projects=D.projects.filter(p=>p.id!==id);sched();renderProjects()}
 
 // ── IDEAS ──────────────────────────────────────────────────────────────────
@@ -901,7 +918,7 @@ function openEdit(type,id){
 }
 function buildM(){
   const type=S.mType,day=S.mDay||todayStr(),ed=S.editId;
-  const addT={todo:'Add to-do',event:'Add event',project:'New project',timeblock:'Add time block',topic:'New topic',idea:'New idea',assigntask:'Asignar tarea al proyecto'};
+  const addT={todo:'Add to-do',event:'Add event',project:'New project',timeblock:'Add time block',topic:'New topic',idea:'New idea',assigntask:'Asignar tarea al proyecto',loghours:'Registrar horas manuales'};
   const edtT={todo:'Edit to-do',event:'Edit event',project:'Edit project',topic:'Edit topic',idea:'Edit idea'};
   document.getElementById('mtitle').textContent=(ed?edtT[type]:addT[type])||'Add';
   const projOpts='<option value="">— None —</option>'+D.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
@@ -925,6 +942,10 @@ function buildM(){
     b=`
     <div class="ff"><label>Tarea</label><select id="m-task">${taskOpts||'<option>No hay tareas</option>'}</select></div>
     <div class="ff"><label>Horas dedicadas</label><input id="m-dur" type="number" min="0.25" step="0.25" placeholder="ej. 1.5"/></div>`;}
+  else if(type==='loghours')b=`
+    <div class="ff"><label>Fecha</label><input id="m-d" type="date" value="${day}"/></div>
+    <div class="ff"><label>Horas</label><input id="m-dur" type="number" min="0.25" step="0.25" placeholder="ej. 2"/></div>
+    <div class="ff"><label>Descripción</label><input id="m-t" placeholder="En qué trabajaste…"/></div>`;
   else if(type==='timeblock'){const po=D.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');b=`
     <div class="ff"><label>Date</label><input id="m-d" type="date" value="${day}"/></div>
     <div class="ff"><label>Start time</label><input id="m-time" type="time" value="10:00"/></div>
@@ -982,6 +1003,13 @@ function saveM(){
       const t=D.todos.find(t=>t.id===tid);if(!t)return;
       t.projectId=S.mProjId;t.duration=dur;
     }
+    else if(type==='loghours'){
+      const dur=parseFloat(gv('m-dur'))||0;if(!dur)return;
+      const desc=gv('m-t').trim();
+      const p=D.projects.find(p=>p.id===S.mProjId);if(!p)return;
+      if(!p.manualEntries)p.manualEntries=[];
+      p.manualEntries.push({id,date:gv('m-d'),hours:dur,desc});
+    }
     else if(type==='timeblock'){const pid=parseInt(gv('m-proj'));const dur=parseFloat(gv('m-dur'))||1;D.timeblocks.push({id,date:gv('m-d'),startTime:gv('m-time'),duration:dur,projectId:pid});const p=D.projects.find(p=>p.id===pid);if(p)p.hoursUsed=Math.round((p.hoursUsed+dur)*10)/10;}
     else if(type==='topic'){const n=gv('m-t').trim();if(!n)return;D.topics.push({id,name:n,icon:gv('m-icon')})}
     else if(type==='idea'){const t=gv('m-tx').trim();if(!t)return;D.ideas.push({id,topicId:parseInt(gv('m-topic')),text:t})}
@@ -1008,8 +1036,78 @@ function injectHashCalendars(){
   if(D.calendars.length)refreshIcs();
 }
 
+// ── MONTHLY REPORT ─────────────────────────────────────────────────────────
+function buildReportCSV(year,month){
+  const pfx=`${year}-${String(month).padStart(2,'0')}`;
+  const header=['Fecha','Proyecto','Tipo','Descripción / Tarea','Horas'];
+  const rows=[];
+  // Tasks with duration
+  D.todos.filter(t=>t.duration&&t.date.startsWith(pfx)).forEach(t=>{
+    const proj=t.projectId?D.projects.find(p=>p.id===t.projectId):null;
+    rows.push([t.date,proj?proj.name:'Sin proyecto','Tarea',t.title,t.duration]);
+  });
+  // Manual hour entries
+  D.projects.forEach(p=>{
+    (p.manualEntries||[]).filter(e=>e.date.startsWith(pfx)).forEach(e=>{
+      rows.push([e.date,p.name,'Manual',e.desc||'',e.hours]);
+    });
+  });
+  rows.sort((a,b)=>a[0].localeCompare(b[0]));
+  const totalH=rows.reduce((s,r)=>s+Number(r[4]),0);
+  rows.push(['','','','TOTAL',Math.round(totalH*10)/10]);
+  const csv=[header,...rows].map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\r\n');
+  return'﻿'+csv; // BOM for Excel UTF-8
+}
+function downloadCSV(csv,filename){
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+  a.download=filename;a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+async function saveReportToGist(year,month,csv){
+  if(!CFG.token||!CFG.gistId)return false;
+  const filename=`planner_report_${year}_${String(month).padStart(2,'0')}.csv`;
+  try{
+    const r=await fetch(`https://api.github.com/gists/${CFG.gistId}`,{
+      method:'PATCH',
+      headers:{Authorization:`token ${CFG.token}`,Accept:'application/vnd.github.v3+json','Content-Type':'application/json'},
+      body:JSON.stringify({files:{[filename]:{content:csv}}})
+    });
+    return r.ok?filename:false;
+  }catch(e){return false}
+}
+async function exportMonth(year,month){
+  const csv=buildReportCSV(year,month);
+  const filename=`planner_report_${year}_${String(month).padStart(2,'0')}.csv`;
+  downloadCSV(csv,filename);
+  const el=document.getElementById('report-msg');
+  if(!CFG.token||!CFG.gistId){
+    if(el){el.className='smsg info';el.textContent='Descargado — configura GitHub Gist para guardar también en la nube.'}
+    return;
+  }
+  if(el){el.className='smsg saving';el.textContent='Guardando en GitHub…'}
+  const saved=await saveReportToGist(year,month,csv);
+  if(el){el.className='smsg '+(saved?'ok':'err');el.textContent=saved?`✓ ${saved} guardado en tu Gist`:'Descargado, pero falló el guardado en GitHub.';}
+  if(saved)lss(`exported_${year}_${String(month).padStart(2,'0')}`,'1');
+}
+async function exportMonthUI(offset){
+  const d=new Date();d.setDate(1);d.setMonth(d.getMonth()+offset);
+  await exportMonth(d.getFullYear(),d.getMonth()+1);
+}
+async function checkAutoExport(){
+  // Run any time the app loads — exports previous month if not yet done
+  const now=new Date();
+  const d=new Date(now.getFullYear(),now.getMonth()-1,1);
+  const y=d.getFullYear(),m=d.getMonth()+1;
+  const key=`exported_${y}_${String(m).padStart(2,'0')}`;
+  if(ls(key))return; // already exported this month
+  const csv=buildReportCSV(y,m);
+  const saved=await saveReportToGist(y,m,csv);
+  if(saved){lss(key,'1');setSS('ok',`Reporte ${MFULL[m-1]} guardado automáticamente en GitHub`);}
+}
+
 // ── INIT ───────────────────────────────────────────────────────────────────
-loadGist().then(()=>injectHashCalendars()).catch(()=>injectHashCalendars());
+loadGist().then(()=>{injectHashCalendars();checkAutoExport();}).catch(()=>injectHashCalendars());
 renderWeek();
 </script>
 </body>
