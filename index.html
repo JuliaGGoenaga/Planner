@@ -92,14 +92,6 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 .btn-del{background:none;border:none;cursor:pointer;color:var(--text3);padding:2px 4px;border-radius:4px;font-family:inherit}
 .btn-del:hover{color:var(--red)}
 
-/* ── CAL BANNER ── */
-.cal-banner{display:flex;align-items:center;gap:10px;background:var(--blue-l);border:1px solid var(--blue);border-radius:var(--r);padding:10px 14px;margin-bottom:12px;font-size:12px;color:var(--blue)}
-.cal-banner i{font-size:18px;flex-shrink:0}
-.cal-banner-text{flex:1;line-height:1.4}
-.cal-banner-text strong{display:block;margin-bottom:1px}
-.cal-banner button{background:var(--blue);color:#fff;border:none;border-radius:var(--rs);padding:6px 12px;font-size:12px;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0}
-.cal-banner button:hover{opacity:.88}
-
 /* ── WEEK ── */
 .wnav{display:flex;align-items:center;gap:7px}
 .wlabel{font-size:12px;color:var(--text2);min-width:130px;text-align:center}
@@ -321,14 +313,6 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
             <button class="btn btn-p" onclick="openM('todo')"><i class="ti ti-plus"></i> To-do</button>
           </div>
         </div>
-        <div class="cal-banner" id="cal-banner" style="display:none">
-          <i class="ti ti-calendar-event"></i>
-          <div class="cal-banner-text">
-            <strong>Conecta tu Google Calendar u Outlook</strong>
-            Pega tu enlace ICS para ver tus eventos aquí
-          </div>
-          <button onclick="openM('quickcal')">+ Agregar calendario</button>
-        </div>
         <div class="wgrid" id="week-grid"></div>
       </div>
 
@@ -411,7 +395,7 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
             </ol>
             <div class="cal-list" id="cal-list"></div>
             <div class="sf"><label>Calendar name</label><input type="text" id="ics-name" placeholder="Work, Personal…"/></div>
-            <div class="sf"><label>ICS URL</label><input type="url" id="ics-url" placeholder="https://calendar.google.com/calendar/ical/…"/><div class="snote">Uses corsproxy.io to bypass browser CORS restrictions.</div></div>
+            <div class="sf"><label>ICS URL</label><input type="url" id="ics-url" placeholder="https://calendar.google.com/calendar/ical/…"/><div class="snote">Uses public CORS proxies to fetch your calendar. If one fails, others are tried automatically.</div></div>
             <div class="bg">
               <button class="btn btn-p" onclick="addCal()"><i class="ti ti-plus"></i> Add</button>
               <button class="btn" onclick="refreshIcs()"><i class="ti ti-refresh"></i> Refresh all</button>
@@ -424,7 +408,7 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
           </div>
           <div class="scard">
             <h3><i class="ti ti-info-circle" style="color:var(--text2)"></i> ICS & CORS note</h3>
-            <p>Browsers block direct ICS fetches. The app routes them through <code>corsproxy.io</code> (a public proxy). Your ICS URLs are secret links — not credentials. If the proxy is unavailable, calendar sync fails silently.</p>
+            <p>Browsers block direct ICS fetches. The app tries three public proxies automatically. Your ICS URLs are secret links — not credentials. If all proxies fail, the sync status bar will show an error.</p>
           </div>
         </div>
       </div>
@@ -464,11 +448,10 @@ const DAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const MFULL=['January','February','March','April','May','June','July','August','September','October','November','December'];
 const PCOLS=['#534AB7','#0F6E56','#D85A30','#D4537E','#185FA5','#BA7517','#639922','#993556'];
 const TICOS=['ti-bulb','ti-briefcase','ti-plane','ti-heart','ti-home','ti-book','ti-music','ti-star','ti-rocket','ti-camera'];
-const PROXY='https://corsproxy.io/?';
 const isMobile=()=>window.innerWidth<=700;
 
 // ── STATE ──────────────────────────────────────────────────────────────────
-let S={weekStart:getMonday(new Date()),monthDate:new Date(),filter:'all',mType:null,mDay:null,nextId:Date.now(),sidebarCollapsed:false};
+let S={weekStart:getMonday(new Date()),monthDate:new Date(),filter:'all',mType:null,mDay:null,editId:null,nextId:Date.now(),sidebarCollapsed:false};
 let D={events:[],todos:[],projects:[],timeblocks:[],topics:[
   {id:1,name:'Work',icon:'ti-briefcase'},
   {id:2,name:'Personal',icon:'ti-heart'},
@@ -481,10 +464,15 @@ function readCFG(){
   const params=new URLSearchParams(hash);
   const token=params.get('token')||ls('p_token')||'';
   const gistId=params.get('gist')||ls('p_gist')||'';
-  // If found in hash, persist to localStorage so refreshes work without hash
   if(params.get('token'))lss('p_token',params.get('token'));
   if(params.get('gist'))lss('p_gist',params.get('gist'));
-  // ICS calendars from hash: ics=URL1|Name1,URL2|Name2
+  // Clean credentials from URL — they're now in localStorage
+  if(params.get('token')||params.get('gist')){
+    const clean=new URLSearchParams(hash);
+    clean.delete('token');clean.delete('gist');
+    const rest=clean.toString();
+    history.replaceState(null,'',rest?'#'+rest:window.location.pathname);
+  }
   const icsRaw=params.get('ics')||'';
   const icsEntries=icsRaw?icsRaw.split(',').filter(Boolean):[];
   return{token,gistId,icsEntries};
@@ -585,42 +573,11 @@ async function saveGistCfg(){
   const g=document.getElementById('s-gist').value.trim();
   if(!t||!g){showMsg('gist-msg','err','Fill in both fields.');return}
   lss('p_token',t);lss('p_gist',g);CFG.token=t;CFG.gistId=g;
-  // Update hash in URL so this tab becomes the bookmarkable link
-  history.replaceState(null,'',`#token=${encodeURIComponent(t)}&gist=${encodeURIComponent(g)}`);
   showMsg('gist-msg','info','Connecting…');
   await loadGist();
   const ok=document.getElementById('sdot').classList.contains('ok');
-  if(ok){
-    showBookmarkMsg();
-  } else {
-    showMsg('gist-msg','err','Could not connect. Check your token and Gist ID.');
-  }
-}
-function buildBookmarkURL(){
-  const hash=window.location.hash.slice(1);
-  const params=new URLSearchParams(hash);
-  if(CFG.token)params.set('token',CFG.token);
-  if(CFG.gistId)params.set('gist',CFG.gistId);
-  if(D.calendars.length){
-    const icsParam=D.calendars.map(c=>encodeURIComponent(c.url)+'|'+encodeURIComponent(c.name)).join(',');
-    params.set('ics',icsParam);
-  } else {
-    params.delete('ics');
-  }
-  return window.location.origin+window.location.pathname+'#'+params.toString();
-}
-function showBookmarkMsg(){
-  const url=buildBookmarkURL();
-  history.replaceState(null,'','#'+new URLSearchParams(url.split('#')[1]).toString());
-  const el=document.getElementById('gist-msg');
-  el.className='smsg ok';
-  el.innerHTML=`Connected! ✓ &nbsp;|&nbsp; <strong>Bookmark this URL</strong> to auto-connect on any device: <br><span style="font-family:monospace;font-size:10px;word-break:break-all">${url}</span> <button onclick="copyLink()" style="margin-left:6px;font-size:10px;padding:2px 7px;border:1px solid var(--green);border-radius:4px;background:none;color:var(--green);cursor:pointer">Copy link</button>`;
-}
-function copyLink(){
-  navigator.clipboard.writeText(window.location.href).then(()=>{
-    const btn=document.querySelector('#gist-msg button');
-    if(btn){btn.textContent='Copied!';setTimeout(()=>{btn.textContent='Copy link'},2000);}
-  });
+  if(ok){showMsg('gist-msg','ok','Connected ✓ — credentials saved in this browser.');}
+  else{showMsg('gist-msg','err','Could not connect. Check your token and Gist ID.');}
 }
 async function testGist(){showMsg('gist-msg','info','Testing…');await loadGist();const ok=document.getElementById('sdot').classList.contains('ok');showMsg('gist-msg',ok?'ok':'err',document.getElementById('stxt').textContent)}
 function showMsg(id,cls,txt){const el=document.getElementById(id);if(el){el.className='smsg '+cls;el.textContent=txt}}
@@ -650,14 +607,32 @@ async function refreshIcs(){
   setSS('saving','Syncing calendars…');
   EXT=[];
   const res=await Promise.allSettled(D.calendars.map(fetchIcs));
-  res.forEach((r,i)=>{if(r.status==='fulfilled')EXT.push(...r.value);else console.warn('ICS fail',D.calendars[i]?.name,r.reason)});
-  setSS('ok',`Synced ✓ (${EXT.length} ext. events)`);
+  let failed=0;
+  res.forEach((r,i)=>{
+    if(r.status==='fulfilled')EXT.push(...r.value);
+    else{failed++;console.warn('ICS fail',D.calendars[i]?.name,r.reason);}
+  });
+  if(failed>0&&EXT.length===0)setSS('err',`Calendar sync failed — check Setup`);
+  else if(failed>0)setSS('ok',`Synced ✓ (${EXT.length} events, ${failed} failed)`);
+  else setSS('ok',`Synced ✓ (${EXT.length} events)`);
   refreshPage();
 }
+const PROXIES=[
+  'https://corsproxy.io/?',
+  'https://api.allorigins.win/raw?url=',
+  'https://thingproxy.freeboard.io/fetch/'
+];
 async function fetchIcs(cal){
-  const r=await fetch(PROXY+encodeURIComponent(cal.url));
-  if(!r.ok)throw new Error(r.status);
-  return parseIcs(await r.text(),cal);
+  for(const proxy of PROXIES){
+    try{
+      const r=await fetch(proxy+encodeURIComponent(cal.url),{signal:AbortSignal.timeout(8000)});
+      if(r.ok){
+        const text=await r.text();
+        if(text.includes('BEGIN:VCALENDAR'))return parseIcs(text,cal);
+      }
+    }catch(e){}
+  }
+  throw new Error('All proxies failed');
 }
 function parseIcs(text,cal){
   const evs=[];
@@ -713,22 +688,10 @@ function go(name){
     document.getElementById('s-token').value=CFG.token;
     document.getElementById('s-gist').value=CFG.gistId;
     renderCalList();
-    if(CFG.token&&CFG.gistId){
-      const url=buildBookmarkURL();
-      history.replaceState(null,'',url.split(window.location.origin+window.location.pathname)[1]||'');
-      const el=document.getElementById('gist-msg');
-      el.className='smsg ok';
-      el.innerHTML='✓ Connected &nbsp;|&nbsp; <strong>Your bookmarkable link:</strong><br><span style="font-family:monospace;font-size:10px;word-break:break-all">'+url+'</span> <button onclick="copyLink()" style="margin-left:6px;font-size:10px;padding:2px 7px;border:1px solid var(--green);border-radius:4px;background:none;color:var(--green);cursor:pointer">Copy</button>';
-    }
+    if(CFG.token&&CFG.gistId){showMsg('gist-msg','ok','✓ Connected — credentials saved in this browser.');}
   }
 }
 function refreshPage(){const a=document.querySelector('.page.active');if(a)go(a.id.replace('page-',''))}
-
-// ── CAL BANNER ─────────────────────────────────────────────────────────────
-function updateCalBanner(){
-  const b=document.getElementById('cal-banner');
-  if(b)b.style.display=D.calendars.length?'none':'flex';
-}
 
 // ── WEEK ───────────────────────────────────────────────────────────────────
 function renderWeek(){
@@ -744,13 +707,18 @@ function renderWeek(){
     html+=`<div class="dcol${isT?' today-col':''}">
       <div class="dhead"><div class="dname">${DAYS[d.getDay()]}</div><div class="dnum${isT?' today':''}">${d.getDate()}</div></div>
       <div class="dbody">
-        ${evs.map(ev=>`<div class="ev ${ev.type||'event'}" style="${ev.color?`border-left-color:${ev.color};color:${ev.color};background:${ev.color}18`:''}">
-          <span class="ev-time">${ev.time||'all-day'}${ev.source?' · '+ev.source:''}</span>${ev.title}
+        ${evs.map(ev=>ev.source?`<div class="ev ${ev.type||'event'}" style="${ev.color?`border-left-color:${ev.color};color:${ev.color};background:${ev.color}18`:''}">
+          <span class="ev-time">${ev.time||'all-day'} · ${ev.source}</span>${ev.title}
+        </div>`:`<div class="ev ${ev.type||'event'}" style="display:flex;align-items:flex-start;gap:3px">
+          <div style="flex:1"><span class="ev-time">${ev.time||'all-day'}</span>${ev.title}</div>
+          <button class="btn-del" onclick="openEdit('event',${ev.id})" title="Edit" style="font-size:10px;padding:1px 2px"><i class="ti ti-pencil"></i></button>
+          <button class="btn-del" onclick="delEvent(${ev.id})" title="Delete" style="font-size:10px;padding:1px 2px"><i class="ti ti-x"></i></button>
         </div>`).join('')}
         ${tds.map(t=>`<div class="tr">
           <div class="chk${t.done?' on':''}" onclick="toggleTodo(${t.id})"></div>
           <div class="udot u-${t.urgency}"></div>
-          <div class="tl${t.done?' done':''}">${t.title}${t.rolledFrom?'<span class="rolled">↩</span>':''}</div>
+          <div class="tl${t.done?' done':''}" style="flex:1">${t.title}${t.rolledFrom?'<span class="rolled">↩</span>':''}</div>
+          <button class="btn-del" onclick="openEdit('todo',${t.id})" title="Edit" style="font-size:9px;padding:1px 2px"><i class="ti ti-pencil"></i></button>
         </div>`).join('')}
         <div class="day-adds">
           <button class="dadd" onclick="openMD('todo','${ds}')"><i class="ti ti-plus" style="font-size:9px"></i> task</button>
@@ -760,7 +728,6 @@ function renderWeek(){
     </div>`;
   });
   document.getElementById('week-grid').innerHTML=html;
-  updateCalBanner();
   // On mobile: scroll to today
   if(mobile){
     setTimeout(()=>{const t=document.querySelector('.today-col');if(t)t.scrollIntoView({inline:'center',behavior:'smooth'})},50);
@@ -810,40 +777,65 @@ function renderTodos(){
   keys.forEach(k=>{
     const isT=k===today,label=isT?'Today':fmtS(new Date(k));
     html+=`<div class="tsh" style="${isT?'color:var(--accent)':''}">${label}</div>`;
-    groups[k].forEach(t=>{html+=`<div class="tcard">
+    groups[k].forEach(t=>{
+      const proj=t.projectId?D.projects.find(p=>p.id===t.projectId):null;
+      html+=`<div class="tcard">
       <div class="bchk${t.done?' on':''}" onclick="toggleTodo(${t.id},true)"></div>
       <div style="flex:1">
         <div class="tc-t" style="${t.done?'text-decoration:line-through;color:var(--text3)':''}">${t.title}${t.rolledFrom?`<span class="rolled" style="margin-left:5px">↩ rolled</span>`:''}</div>
-        <div class="tc-m">${fmtS(new Date(t.date))}${t.rolledFrom?' · was '+fmtS(new Date(t.rolledFrom)):''}</div>
+        <div class="tc-m">${fmtS(new Date(t.date))}${t.rolledFrom?' · was '+fmtS(new Date(t.rolledFrom)):''}${proj?` · <span style="color:${proj.color}">${proj.name}</span>`:''}${t.duration?` · ${t.duration}h`:''}</div>
       </div>
       <span class="ub ub-${t.urgency}">${t.urgency==='high'?'Urgent':t.urgency==='med'?'Medium':'Low'}</span>
-      <button class="btn-del" onclick="delTodo(${t.id})"><i class="ti ti-x" style="font-size:12px"></i></button>
+      <button class="btn-del" onclick="openEdit('todo',${t.id})" title="Edit"><i class="ti ti-pencil" style="font-size:12px"></i></button>
+      <button class="btn-del" onclick="delTodo(${t.id})" title="Delete"><i class="ti ti-x" style="font-size:12px"></i></button>
     </div>`;});
   });
   document.getElementById('todos-list').innerHTML=html;
 }
 function toggleTodo(id,re){const t=D.todos.find(t=>t.id===id);if(t){t.done=!t.done;sched()}if(re)renderTodos();else renderWeek()}
 function delTodo(id){D.todos=D.todos.filter(t=>t.id!==id);sched();renderTodos()}
+function delEvent(id){D.events=D.events.filter(e=>e.id!==id);sched();renderWeek()}
 
 // ── PROJECTS ───────────────────────────────────────────────────────────────
 function renderProjects(){
   const g=document.getElementById('proj-grid');
   if(!D.projects.length){g.innerHTML=`<div style="color:var(--text3);font-size:12px">No projects yet.</div>`;return}
+  const now=new Date();
+  const monthPfx=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
   g.innerHTML=D.projects.map(p=>{
-    const pct=p.hoursGoal>0?Math.min(100,Math.round(p.hoursUsed/p.hoursGoal*100)):0;
+    const doneTasks=D.todos.filter(t=>t.done&&t.projectId===p.id&&t.date.startsWith(monthPfx));
+    const taskH=Math.round(doneTasks.reduce((s,t)=>s+(t.duration||0),0)*10)/10;
+    const totalH=Math.round((p.hoursUsed+taskH)*10)/10;
+    const pct=p.hoursGoal>0?Math.min(100,Math.round(totalH/p.hoursGoal*100)):0;
+    const taskRows=doneTasks.length?`<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:7px">
+      <div style="font-size:9px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">Tareas este mes</div>
+      ${doneTasks.slice(0,6).map(t=>`<div style="font-size:10px;color:var(--text2);display:flex;justify-content:space-between;padding:1px 0">
+        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px">${t.title}</span>
+        <span style="flex-shrink:0;color:var(--text3)">${t.duration?t.duration+'h':'—'}</span>
+      </div>`).join('')}
+      ${doneTasks.length>6?`<div style="font-size:9px;color:var(--text3);margin-top:2px">+${doneTasks.length-6} más</div>`:''}
+    </div>`:'';
     return`<div class="pcard"><div class="pstrip" style="background:${p.color}"></div>
-      <div class="pname">${p.name}</div><div class="pdesc">${p.desc||''}</div>
-      <div class="phrow"><span>${p.hoursUsed}h used</span><span>${p.hoursGoal}h goal</span></div>
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-top:8px">
+        <div class="pname" style="margin-top:0">${p.name}</div>
+        <div style="display:flex;gap:2px">
+          <button class="btn-del" onclick="openEdit('project',${p.id})" title="Edit"><i class="ti ti-pencil" style="font-size:13px"></i></button>
+          <button class="btn-del" onclick="delProj(${p.id})" title="Delete" style="color:var(--text3)"><i class="ti ti-trash" style="font-size:13px"></i></button>
+        </div>
+      </div>
+      <div class="pdesc">${p.desc||''}</div>
+      <div class="phrow"><span style="font-weight:600;color:${p.color}">${totalH}h este mes</span><span>meta ${p.hoursGoal}h</span></div>
+      ${taskH>0?`<div style="font-size:10px;color:var(--text3);margin-top:-4px;margin-bottom:4px">${taskH}h de tareas · ${p.hoursUsed}h manuales</div>`:''}
       <div class="hbar"><div class="hfill" style="width:${pct}%;background:${p.color}"></div></div>
       <div class="pacts">
-        <button class="btn btn-sm" onclick="logH(${p.id})"><i class="ti ti-plus"></i> Log hours</button>
-        <button class="btn btn-sm" onclick="delProj(${p.id})" style="color:var(--red)"><i class="ti ti-trash"></i></button>
+        <button class="btn btn-sm" onclick="logH(${p.id})"><i class="ti ti-plus"></i> Horas manuales</button>
       </div>
+      ${taskRows}
     </div>`;
   }).join('');
 }
-function logH(id){const h=prompt('Hours to log:');const n=parseFloat(h);if(!isNaN(n)&&n>0){const p=D.projects.find(p=>p.id===id);if(p){p.hoursUsed=Math.round((p.hoursUsed+n)*10)/10;sched();renderProjects()}}}
-function delProj(id){if(!confirm('Delete project?'))return;D.projects=D.projects.filter(p=>p.id!==id);sched();renderProjects()}
+function logH(id){const h=prompt('Horas a registrar:');const n=parseFloat(h);if(!isNaN(n)&&n>0){const p=D.projects.find(p=>p.id===id);if(p){p.hoursUsed=Math.round((p.hoursUsed+n)*10)/10;sched();renderProjects()}}}
+function delProj(id){if(!confirm('¿Eliminar proyecto?'))return;D.projects=D.projects.filter(p=>p.id!==id);sched();renderProjects()}
 
 // ── IDEAS ──────────────────────────────────────────────────────────────────
 function renderIdeas(){
@@ -853,9 +845,14 @@ function renderIdeas(){
     const ideas=D.ideas.filter(i=>i.topicId===tp.id);
     return`<div class="icol"><div class="icol-h">
         <div class="icol-n"><i class="ti ${tp.icon}"></i> ${tp.name}</div>
-        <span style="font-size:10px;color:var(--text3)">${ideas.length}</span>
+        <div style="display:flex;align-items:center;gap:4px">
+          <span style="font-size:10px;color:var(--text3)">${ideas.length}</span>
+          <button class="btn-del" onclick="openEdit('topic',${tp.id})" title="Edit topic"><i class="ti ti-pencil" style="font-size:11px"></i></button>
+          <button class="btn-del" onclick="delTopic(${tp.id})" title="Delete topic"><i class="ti ti-x" style="font-size:11px"></i></button>
+        </div>
       </div><div class="icol-b">
         ${ideas.map(idea=>`<div class="ichip"><i class="ti ti-sparkles"></i><span style="flex:1">${idea.text}</span>
+          <button class="idel" onclick="openEdit('idea',${idea.id})"><i class="ti ti-pencil" style="font-size:10px"></i></button>
           <button class="idel" onclick="delIdea(${idea.id})"><i class="ti ti-x" style="font-size:10px"></i></button>
         </div>`).join('')}
         ${!ideas.length?`<div style="font-size:11px;color:var(--text3);padding:6px 3px">No ideas yet</div>`:''}
@@ -863,24 +860,56 @@ function renderIdeas(){
   }).join('');
 }
 function delIdea(id){D.ideas=D.ideas.filter(i=>i.id!==id);sched();renderIdeas()}
+function delTopic(id){if(!confirm('¿Eliminar tema e ideas?'))return;D.topics=D.topics.filter(t=>t.id!==id);D.ideas=D.ideas.filter(i=>i.topicId!==id);sched();renderIdeas()}
 
 // ── MODAL ──────────────────────────────────────────────────────────────────
-function openM(type){S.mType=type;S.mDay=null;buildM()}
-function openMD(type,day){S.mType=type;S.mDay=day;buildM()}
+function openM(type){S.mType=type;S.mDay=null;S.editId=null;buildM()}
+function openMD(type,day){S.mType=type;S.mDay=day;S.editId=null;buildM()}
+function openEdit(type,id){
+  S.mType=type;S.mDay=null;S.editId=id;
+  buildM();
+  if(type==='todo'){
+    const t=D.todos.find(t=>t.id===id);if(!t)return;
+    document.getElementById('m-t').value=t.title;
+    document.getElementById('m-d').value=t.date;
+    document.getElementById('m-u').value=t.urgency;
+    const mp=document.getElementById('m-proj');if(mp)mp.value=t.projectId||'';
+    const md=document.getElementById('m-dur');if(md)md.value=t.duration||'';
+  }else if(type==='event'){
+    const e=D.events.find(e=>e.id===id);if(!e)return;
+    document.getElementById('m-t').value=e.title;
+    document.getElementById('m-d').value=e.date;
+    document.getElementById('m-time').value=e.time||'';
+    document.getElementById('m-type').value=e.type||'event';
+  }else if(type==='project'){
+    const p=D.projects.find(p=>p.id===id);if(!p)return;
+    document.getElementById('m-t').value=p.name;
+    document.getElementById('m-desc').value=p.desc||'';
+    document.getElementById('m-h').value=p.hoursGoal;
+    document.getElementById('m-c').value=p.color;
+  }else if(type==='topic'){
+    const tp=D.topics.find(t=>t.id===id);if(!tp)return;
+    document.getElementById('m-t').value=tp.name;
+    document.getElementById('m-icon').value=tp.icon;
+  }else if(type==='idea'){
+    const i=D.ideas.find(i=>i.id===id);if(!i)return;
+    document.getElementById('m-tx').value=i.text;
+    document.getElementById('m-topic').value=i.topicId;
+  }
+}
 function buildM(){
-  const type=S.mType,day=S.mDay||todayStr();
-  const titles={todo:'Add to-do',event:'Add event',project:'New project',timeblock:'Add time block',topic:'New topic',idea:'New idea',quickcal:'Conectar calendario'};
-  document.getElementById('mtitle').textContent=titles[type]||'Add';
+  const type=S.mType,day=S.mDay||todayStr(),ed=S.editId;
+  const addT={todo:'Add to-do',event:'Add event',project:'New project',timeblock:'Add time block',topic:'New topic',idea:'New idea'};
+  const edtT={todo:'Edit to-do',event:'Edit event',project:'Edit project',topic:'Edit topic',idea:'Edit idea'};
+  document.getElementById('mtitle').textContent=(ed?edtT[type]:addT[type])||'Add';
+  const projOpts='<option value="">— None —</option>'+D.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
   let b='';
   if(type==='todo')b=`
     <div class="ff"><label>Task</label><input id="m-t" placeholder="What needs to be done?"/></div>
     <div class="ff"><label>Date</label><input id="m-d" type="date" value="${day}"/></div>
-    <div class="ff"><label>Urgency</label><select id="m-u"><option value="high">Urgent</option><option value="med" selected>Medium</option><option value="low">Low</option></select></div>`;
-  else if(type==='quickcal')b=`
-    <div class="ff"><label>Nombre del calendario</label><input id="m-t" placeholder="Google Cal, Trabajo…"/></div>
-    <div class="ff"><label>Enlace ICS</label><input id="m-url" type="url" placeholder="https://calendar.google.com/calendar/ical/…" style="font-size:13px"/>
-      <div style="font-size:10px;color:var(--text3);margin-top:4px">Google: Configuración → tu calendario → <em>Dirección secreta en formato iCal</em></div>
-    </div>`;
+    <div class="ff"><label>Urgency</label><select id="m-u"><option value="high">Urgent</option><option value="med" selected>Medium</option><option value="low">Low</option></select></div>
+    <div class="ff"><label>Proyecto (opcional)</label><select id="m-proj">${projOpts}</select></div>
+    <div class="ff"><label>Horas dedicadas (opcional)</label><input id="m-dur" type="number" min="0.25" step="0.25" placeholder="ej. 1.5"/></div>`;
   else if(type==='event')b=`
     <div class="ff"><label>Title</label><input id="m-t" placeholder="Event name"/></div>
     <div class="ff"><label>Date</label><input id="m-d" type="date" value="${day}"/></div>
@@ -909,21 +938,44 @@ function buildM(){
 function closeM(){document.getElementById('mo').classList.remove('open')}
 function closeMO(e){if(e.target===document.getElementById('mo'))closeM()}
 function gv(id){const el=document.getElementById(id);return el?el.value:''}
+function todoFromForm(id){
+  const t=gv('m-t').trim();if(!t)return null;
+  const dur=parseFloat(gv('m-dur'))||undefined;
+  const pv=gv('m-proj');const pid=pv?parseInt(pv)||undefined:undefined;
+  return{id,title:t,date:gv('m-d'),urgency:gv('m-u'),done:false,duration:dur,projectId:pid};
+}
 function saveM(){
-  const type=S.mType,id=nid();
-  if(type==='todo'){const t=gv('m-t').trim();if(!t)return;D.todos.push({id,title:t,date:gv('m-d'),urgency:gv('m-u'),done:false})}
-  else if(type==='event'){const t=gv('m-t').trim();if(!t)return;D.events.push({id,title:t,date:gv('m-d'),time:gv('m-time'),type:gv('m-type')})}
-  else if(type==='project'){const n=gv('m-t').trim();if(!n)return;D.projects.push({id,name:n,desc:gv('m-desc'),color:gv('m-c'),hoursGoal:parseFloat(gv('m-h'))||20,hoursUsed:0})}
-  else if(type==='timeblock'){const pid=parseInt(gv('m-proj'));const dur=parseFloat(gv('m-dur'))||1;D.timeblocks.push({id,date:gv('m-d'),startTime:gv('m-time'),duration:dur,projectId:pid});const p=D.projects.find(p=>p.id===pid);if(p)p.hoursUsed=Math.round((p.hoursUsed+dur)*10)/10;}
-  else if(type==='topic'){const n=gv('m-t').trim();if(!n)return;D.topics.push({id,name:n,icon:gv('m-icon')})}
-  else if(type==='idea'){const t=gv('m-tx').trim();if(!t)return;D.ideas.push({id,topicId:parseInt(gv('m-topic')),text:t})}
-  else if(type==='quickcal'){
-    const name=gv('m-t').trim()||'Mi calendario';
-    const url=gv('m-url').trim();
-    if(!url||!url.startsWith('http'))return;
-    D.calendars.push({id,name,url,color:PCOLS[D.calendars.length%PCOLS.length]});
-    sched();renderCalList();refreshIcs();
-    updateCalBanner();
+  const type=S.mType,eid=S.editId;
+  if(eid){
+    if(type==='todo'){
+      const t=D.todos.find(t=>t.id===eid);if(!t)return;
+      const u=todoFromForm(eid);if(!u)return;
+      Object.assign(t,{title:u.title,date:u.date,urgency:u.urgency,duration:u.duration,projectId:u.projectId});
+    }else if(type==='event'){
+      const e=D.events.find(e=>e.id===eid);if(!e)return;
+      const t=gv('m-t').trim();if(!t)return;
+      Object.assign(e,{title:t,date:gv('m-d'),time:gv('m-time'),type:gv('m-type')});
+    }else if(type==='project'){
+      const p=D.projects.find(p=>p.id===eid);if(!p)return;
+      const n=gv('m-t').trim();if(!n)return;
+      Object.assign(p,{name:n,desc:gv('m-desc'),hoursGoal:parseFloat(gv('m-h'))||20,color:gv('m-c')});
+    }else if(type==='topic'){
+      const tp=D.topics.find(t=>t.id===eid);if(!tp)return;
+      const n=gv('m-t').trim();if(!n)return;
+      Object.assign(tp,{name:n,icon:gv('m-icon')});
+    }else if(type==='idea'){
+      const i=D.ideas.find(i=>i.id===eid);if(!i)return;
+      const t=gv('m-tx').trim();if(!t)return;
+      Object.assign(i,{text:t,topicId:parseInt(gv('m-topic'))});
+    }
+  } else {
+    const id=nid();
+    if(type==='todo'){const u=todoFromForm(id);if(!u)return;D.todos.push({...u,done:false});}
+    else if(type==='event'){const t=gv('m-t').trim();if(!t)return;D.events.push({id,title:t,date:gv('m-d'),time:gv('m-time'),type:gv('m-type')})}
+    else if(type==='project'){const n=gv('m-t').trim();if(!n)return;D.projects.push({id,name:n,desc:gv('m-desc'),color:gv('m-c'),hoursGoal:parseFloat(gv('m-h'))||20,hoursUsed:0})}
+    else if(type==='timeblock'){const pid=parseInt(gv('m-proj'));const dur=parseFloat(gv('m-dur'))||1;D.timeblocks.push({id,date:gv('m-d'),startTime:gv('m-time'),duration:dur,projectId:pid});const p=D.projects.find(p=>p.id===pid);if(p)p.hoursUsed=Math.round((p.hoursUsed+dur)*10)/10;}
+    else if(type==='topic'){const n=gv('m-t').trim();if(!n)return;D.topics.push({id,name:n,icon:gv('m-icon')})}
+    else if(type==='idea'){const t=gv('m-tx').trim();if(!t)return;D.ideas.push({id,topicId:parseInt(gv('m-topic')),text:t})}
   }
   closeM();sched();refreshPage();
 }
