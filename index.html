@@ -157,8 +157,29 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 .tc-m{font-size:10px;color:var(--text3);margin-top:2px}
 
 /* ── PROJECTS ── */
-.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px}
-.pcard{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px;position:relative}
+.proj-layout{display:flex;gap:14px;align-items:flex-start}
+.proj-layout>.pgrid{flex:1;min-width:0}
+.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
+.pcard{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px;position:relative;transition:border-color .15s,box-shadow .15s}
+.pcard.drop-over{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-l)}
+/* ── TASK PANEL ── */
+.task-panel{width:220px;flex-shrink:0;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:10px;position:sticky;top:0;max-height:calc(100dvh - 120px);overflow-y:auto}
+.tp-head{font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between}
+.tp-cnt{font-size:11px;font-weight:500;color:var(--text2);background:var(--surface2);padding:1px 6px;border-radius:10px}
+.tp-task{background:var(--surface2);border:1.5px dashed var(--border2);border-radius:var(--rs);padding:7px 8px;margin-bottom:5px;cursor:grab;user-select:none;transition:border-color .12s,opacity .15s}
+.tp-task:hover{border-color:var(--accent);border-style:solid}
+.tp-task.dragging{opacity:.3;cursor:grabbing}
+.tp-top{display:flex;align-items:flex-start;gap:5px;margin-bottom:4px}
+.tp-tit{font-size:11px;font-weight:500;flex:1;line-height:1.35}
+.tp-tit.done-t{text-decoration:line-through;color:var(--text3)}
+.tp-meta{display:flex;align-items:center;justify-content:space-between}
+.tp-date{font-size:9px;color:var(--text3)}
+.tp-hrow{display:flex;align-items:center;gap:3px}
+.tp-hlbl{font-size:9px;color:var(--text3)}
+.tp-h{width:44px;padding:2px 4px;border:1px solid var(--border2);border-radius:3px;background:var(--bg);color:var(--text);font-size:11px;font-family:inherit;text-align:center}
+.tp-empty{font-size:11px;color:var(--text3);text-align:center;padding:16px 6px;line-height:1.6}
+.tp-hint{font-size:9px;color:var(--text3);text-align:center;margin-top:8px;opacity:.6}
+@media(max-width:860px){.proj-layout{flex-direction:column}.task-panel{width:100%;position:static;max-height:none}}
 .pstrip{position:absolute;top:0;left:0;right:0;height:3px;border-radius:var(--r) var(--r) 0 0}
 .pname{font-size:14px;font-weight:600;margin-top:8px;margin-bottom:3px}
 .pdesc{font-size:11px;color:var(--text2);margin-bottom:8px;line-height:1.4}
@@ -362,7 +383,10 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
           </div>
         </div>
         <div class="smsg" id="report-msg" style="margin-bottom:10px"></div>
-        <div class="pgrid" id="proj-grid"></div>
+        <div class="proj-layout">
+          <div class="pgrid" id="proj-grid"></div>
+          <div class="task-panel" id="task-panel"></div>
+        </div>
       </div>
 
       <!-- IDEAS -->
@@ -923,7 +947,7 @@ function renderProjects(){
         <button class="btn-del" onclick="delTimeblock(${tb.id})" title="Eliminar" style="font-size:10px;padding:1px 2px"><i class="ti ti-x"></i></button>
       </div>`).join('')}
     </div>`:'';
-    return`<div class="pcard"><div class="pstrip" style="background:${p.color}"></div>
+    return`<div class="pcard" ondragover="event.preventDefault();this.classList.add('drop-over')" ondragleave="if(!this.contains(event.relatedTarget))this.classList.remove('drop-over')" ondrop="dropTask(event,${p.id})"><div class="pstrip" style="background:${p.color}"></div>
       <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-top:8px">
         <div class="pname" style="margin-top:0">${p.name}</div>
         <div style="display:flex;gap:2px">
@@ -936,12 +960,53 @@ function renderProjects(){
       ${(taskH>0||manualH>0||tbH>0)?`<div style="font-size:10px;color:var(--text3);margin-top:-4px;margin-bottom:4px">${taskH}h tareas · ${manualH}h manuales${tbH>0?` · ${tbH}h bloques`:''}</div>`:''}
       <div class="hbar"><div class="hfill" style="width:${pct}%;background:${p.color}"></div></div>
       <div class="pacts">
-        <button class="btn btn-sm btn-p" onclick="openAssign(${p.id})"><i class="ti ti-link"></i> Asignar tarea</button>
         <button class="btn btn-sm" onclick="logH(${p.id})"><i class="ti ti-plus"></i> Horas manuales</button>
       </div>
       ${taskRows}${manualRows}${tbRows}
     </div>`;
   }).join('');
+  renderTaskPanel();
+}
+function renderTaskPanel(){
+  const el=document.getElementById('task-panel');if(!el)return;
+  const tasks=D.todos.filter(t=>!t.projectId);
+  let html=`<div class="tp-head">Disponibles<span class="tp-cnt">${tasks.length}</span></div>`;
+  if(!tasks.length){
+    html+=`<div class="tp-empty"><i class="ti ti-checks" style="font-size:22px;display:block;margin-bottom:6px;opacity:.35"></i>Todas las tareas<br>están asignadas</div>`;
+  }else{
+    html+=tasks.map(t=>`<div class="tp-task" draggable="true" ondragstart="startDrag(event,${t.id})" ondragend="this.classList.remove('dragging')">
+      <div class="tp-top">
+        <div class="udot u-${t.urgency}" style="flex-shrink:0;margin-top:3px"></div>
+        <span class="tp-tit${t.done?' done-t':''}">${t.title}</span>
+      </div>
+      <div class="tp-meta">
+        <span class="tp-date">${t.date}</span>
+        <div class="tp-hrow">
+          <span class="tp-hlbl">h</span>
+          <input class="tp-h" type="number" value="1" min="0.25" step="0.25" onclick="event.stopPropagation()" onmousedown="event.stopPropagation()">
+        </div>
+      </div>
+    </div>`).join('');
+    html+=`<div class="tp-hint"><i class="ti ti-drag-drop"></i> Arrastra a un proyecto</div>`;
+  }
+  el.innerHTML=html;
+}
+function startDrag(event,taskId){
+  event.currentTarget.classList.add('dragging');
+  const inp=event.currentTarget.querySelector('.tp-h');
+  const hours=inp?Math.max(0.25,parseFloat(inp.value)||1):1;
+  event.dataTransfer.setData('taskId',String(taskId));
+  event.dataTransfer.setData('hours',String(hours));
+  event.dataTransfer.effectAllowed='move';
+}
+function dropTask(event,projId){
+  event.preventDefault();
+  event.currentTarget.classList.remove('drop-over');
+  const taskId=parseInt(event.dataTransfer.getData('taskId'));
+  const hours=parseFloat(event.dataTransfer.getData('hours'))||1;
+  const t=D.todos.find(t=>t.id===taskId);if(!t)return;
+  t.projectId=projId;t.duration=hours;
+  sched();renderProjects();
 }
 function openAssign(projId){S.mProjId=projId;S.mType='assigntask';S.mDay=null;S.editId=null;buildM()}
 function logH(projId){S.mProjId=projId;S.mType='loghours';S.mDay=null;S.editId=null;buildM()}
