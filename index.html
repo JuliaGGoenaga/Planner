@@ -122,7 +122,7 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 
 /* ── WEEK TIME GRID (desktop) ── */
 /* week page fills available height via flex chain */
-.page-area:has(#page-week.active){overflow:hidden;display:flex;flex-direction:column;padding-bottom:0}
+.page-area:has(#page-week.active){overflow:hidden;display:flex;flex-direction:column;padding-bottom:16px}
 #page-week.active{flex:1;min-height:0;display:flex;flex-direction:column}
 #page-week.active .ph{flex-shrink:0}
 #page-week.active #week-grid{flex:1;min-height:0;overflow:hidden}
@@ -753,6 +753,13 @@ function dStr(d){return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'
 function fmtS(d){return`${d.getDate()} ${MFULL[d.getMonth()].slice(0,3)}`}
 function getMonday(d){const day=d.getDay(),diff=d.getDate()-day+(day===0?-6:1);return new Date(new Date(d).setDate(diff))}
 function allEvFor(ds){return[...D.events.filter(e=>e.date===ds),...EXT.filter(e=>e.date===ds)].sort((a,b)=>(a.time||'').localeCompare(b.time||''))}
+function timeDiff(start,end){
+  if(!start||!end)return null;
+  const[sh,sm]=start.split(':').map(Number);
+  const[eh,em]=end.split(':').map(Number);
+  const d=(eh+em/60)-(sh+sm/60);
+  return d>0?Math.round(d*100)/100:null;
+}
 
 // ── MADRID HOLIDAYS ────────────────────────────────────────────────────────
 function getMadridHolidays(year){
@@ -825,19 +832,6 @@ function renderWeek(){
     html+=`<div class="wt-hcell${isT?' wt-today-head':''}"><div class="wt-dname">${DAYS[d.getDay()]}</div><div class="wt-dnum${isT?' wt-today-num':''}">${d.getDate()}</div></div>`;
   }
   html+=`</div>`;
-  // ── All-day / tasks row ──
-  html+=`<div class="wt-allday"><div class="wt-gutter-lbl">tareas</div>`;
-  for(let i=0;i<7;i++){
-    const d=addDays(s,i),ds=dStr(d);
-    const tds=D.todos.filter(t=>t.date===ds&&!t.time);
-    const adEvs=[...D.events.filter(e=>e.date===ds&&!e.time),...EXT.filter(e=>e.date===ds&&!e.time)];
-    html+=`<div class="wt-allday-cell" ondragover="event.preventDefault()" ondrop="dropOnAllDay(event,'${ds}')">`;
-    adEvs.forEach(ev=>{const c=ev.color||'var(--accent)';html+=`<div class="wt-chip" style="background:${c}18;color:${c}">${ev.title}</div>`;});
-    tds.forEach(t=>{html+=`<div class="wt-task-chip" draggable="true" ondragstart="startTimeDrag(event,'task',${t.id});this.style.opacity='.35'" ondragend="this.style.opacity='';_timeDrag={kind:null,id:null}"><div class="chk${t.done?' on':''}" onclick="event.stopPropagation();toggleTodo(${t.id})" style="width:11px;height:11px;flex-shrink:0;margin-top:1px"></div><span style="${t.done?'text-decoration:line-through;color:var(--text3)':''}">${t.title}</span><button class="btn-del" onclick="event.stopPropagation();openEdit('todo',${t.id})" style="font-size:9px;padding:0 1px"><i class="ti ti-pencil"></i></button></div>`;});
-    html+=`<button class="wt-add-btn" onclick="openMD('todo','${ds}')"><i class="ti ti-plus"></i></button>`;
-    html+=`</div>`;
-  }
-  html+=`</div>`;
   // ── Time body ──
   html+=`<div class="wt-body"><div class="wt-time-col">`;
   for(let h=HS;h<HE;h++) html+=`<div class="wt-hlbl">${String(h).padStart(2,'0')}:00</div>`;
@@ -846,7 +840,6 @@ function renderWeek(){
   for(let i=0;i<7;i++){
     const d=addDays(s,i),ds=dStr(d),isT=ds===today;
     const timedEvs=[...D.events.filter(e=>e.date===ds&&e.time),...EXT.filter(e=>e.date===ds&&e.time)];
-    const tbs=D.timeblocks.filter(tb=>tb.date===ds);
     const timedTasks=D.todos.filter(t=>t.date===ds&&t.time);
     html+=`<div class="wt-daycol${isT?' wt-today-col':''}" ondragover="event.preventDefault();event.dataTransfer.dropEffect='move'" ondrop="dropOnTime(event,'${ds}')">`;
     for(let h=HS;h<HE;h++) html+=`<div class="wt-slot" onclick="openMDTime('event','${ds}','${String(h).padStart(2,'0')}:00')"></div>`;
@@ -859,14 +852,8 @@ function renderWeek(){
       const drag=!isExt?` draggable="true" ondragstart="startTimeDrag(event,'ev',${ev.id})" ondragend="this.style.opacity='';_timeDrag={kind:null,id:null}"`:'' ;
       const click=!isExt?` onclick="openEdit('event',${ev.id})"`:'' ;
       const del=!isExt?`<button class="btn-del" onclick="event.stopPropagation();delEvent(${ev.id})" style="font-size:9px;padding:0 1px"><i class="ti ti-x"></i></button>`:'';
-      html+=`<div class="wt-ev"${drag}${click} style="top:${top}px;border-left-color:${c};background:${c}18;color:${c}"><span class="wt-evtime">${ev.time}${ev.source?' · '+ev.source:''}</span><span class="wt-evtitle">${ev.title}</span><div class="wt-evacts">${del}</div></div>`;
-    });
-    tbs.forEach(tb=>{
-      const[th,tm]=(tb.startTime||'00:00').split(':').map(Number);
-      const top=Math.max(0,(th+tm/60-HS)*SH);
-      const p=D.projects.find(p=>p.id===tb.projectId);
-      const c=p?p.color:'var(--accent)';
-      html+=`<div class="wt-ev" draggable="true" ondragstart="startTimeDrag(event,'tb',${tb.id})" ondragend="this.style.opacity='';_timeDrag={kind:null,id:null}" style="top:${top}px;border-left-color:${c};background:${c}18;color:${c}"><span class="wt-evtime">${tb.startTime}</span><span class="wt-evtitle">${p?p.name:'Bloque'}</span><div class="wt-evacts"><button class="btn-del" onclick="event.stopPropagation();delTimeblock(${tb.id})" style="font-size:9px;padding:0 1px;color:${c}"><i class="ti ti-x"></i></button></div></div>`;
+      const tLabel=ev.endTime?`${ev.time}–${ev.endTime}`:ev.time;
+      html+=`<div class="wt-ev"${drag}${click} style="top:${top}px;border-left-color:${c};background:${c}18;color:${c}"><span class="wt-evtime">${tLabel}${ev.source?' · '+ev.source:''}</span><span class="wt-evtitle">${ev.title}</span><div class="wt-evacts">${del}</div></div>`;
     });
     timedTasks.forEach(t=>{
       const[th,tm]=(t.time||'00:00').split(':').map(Number);
@@ -939,7 +926,14 @@ function dropOnAllDay(e,ds){
 }
 function openMDTime(type,day,time){
   S.mType=type;S.mDay=day;S.editId=null;buildM();
-  const f=document.getElementById('m-time');if(f)f.value=time;
+  if(type==='event'){
+    const ts=document.getElementById('m-tstart');if(ts)ts.value=time;
+    const[h,m]=time.split(':').map(Number);
+    const eh=Math.min(23,h+1);
+    const te=document.getElementById('m-tend');if(te)te.value=`${String(eh).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+  }else{
+    const f=document.getElementById('m-time');if(f)f.value=time;
+  }
 }
 function changeWeek(d){S.weekStart=addDays(S.weekStart,d*7);renderWeek()}
 
@@ -963,19 +957,17 @@ function renderMonth(){
     for(let i=0;i<7;i++){
       const ds=dStr(cur);const om=cur.getMonth()!==d.getMonth();const isT=ds===today;
       const evs=allEvFor(ds);const tds=D.todos.filter(t=>t.date===ds&&!t.done);
-      const tbs=D.timeblocks.filter(tb=>tb.date===ds);
       const isHol=!om&&!!holidays[ds];
       const isVac=!om&&vacSet.has(ds);
       const isCus=!om&&cusSet.has(ds);
       let dots=evs.map(ev=>{const c=ev.color||(ev.type==='meeting'?'var(--green)':'var(--accent)');return`<div class="mcdot" style="background:${c}"></div>`;}).join('');
       dots+=tds.map(()=>`<div class="mcdot" style="background:var(--amber)"></div>`).join('');
-      const blocks=tbs.map(tb=>{const p=D.projects.find(p=>p.id===tb.projectId);const c=p?p.color:'var(--accent)';return`<div class="mc-tb" style="background:${c}18;color:${c}">${tb.startTime} ${p?p.name:''}</div>`;}).join('');
       const holBadge=isHol?`<span class="mc-badge mc-hol">${holidays[ds]}</span>`:'';
       const cusBadge=isCus?`<span class="mc-badge mc-hol">Festivo</span>`:'';
       const vacBadge=isVac?`<span class="mc-badge mc-vac">Vacaciones</span>`:'';
       const clickAttr=!om?`onclick="toggleDayState('${ds}')" title="1 clic: vacaciones · 2 clics: festivo · 3 clics: quitar"`:'';
       const cellCls=`mcell${isT?' today-cell':''}${om?' other':''}${(isHol||isCus)?' hol-cell':''}${isVac?' vac-cell':''}`;
-      html+=`<div class="${cellCls}" ${clickAttr}><div class="mc-n${isT?' tn':''}">${cur.getDate()}</div><div class="mcdots">${dots}</div>${blocks}${holBadge}${cusBadge}${vacBadge}</div>`;
+      html+=`<div class="${cellCls}" ${clickAttr}><div class="mc-n${isT?' tn':''}">${cur.getDate()}</div><div class="mcdots">${dots}</div>${holBadge}${cusBadge}${vacBadge}</div>`;
       cur.setDate(cur.getDate()+1);
     }
     html+=`</div>`;
@@ -1255,9 +1247,9 @@ function openEdit(type,id){
     const e=D.events.find(e=>e.id===id);if(!e)return;
     document.getElementById('m-t').value=e.title;
     document.getElementById('m-d').value=e.date;
-    document.getElementById('m-time').value=e.time||'';
+    const ts=document.getElementById('m-tstart');if(ts)ts.value=e.time||'';
+    const te=document.getElementById('m-tend');if(te)te.value=e.endTime||'';
     const mp=document.getElementById('m-proj');if(mp)mp.value=e.projectId||'';
-    const md=document.getElementById('m-dur');if(md)md.value=e.duration||'';
   }else if(type==='project'){
     const p=D.projects.find(p=>p.id===id);if(!p)return;
     document.getElementById('m-t').value=p.name;
@@ -1285,11 +1277,13 @@ function buildM(){
     <div class="ff"><label>Fecha <span style="font-size:10px;color:var(--text3);font-weight:400">(opcional — puedes arrastrarla al día después)</span></label><input id="m-d" type="date" value="${day}"/></div>
     <div class="ff"><label>Urgencia</label><select id="m-u"><option value="high">Urgente</option><option value="med" selected>Normal</option><option value="low">Baja</option></select></div>`;
   else if(type==='event')b=`
-    <div class="ff"><label>Title</label><input id="m-t" placeholder="Event name"/></div>
-    <div class="ff"><label>Date</label><input id="m-d" type="date" value="${day}"/></div>
-    <div class="ff"><label>Time</label><input id="m-time" type="time" value="09:00"/></div>
-    <div class="ff"><label>Proyecto (opcional)</label><select id="m-proj">${projOpts}</select></div>
-    <div class="ff"><label>Duración en horas (opcional)</label><input id="m-dur" type="number" min="0.25" step="0.25" placeholder="ej. 1"/></div>`;
+    <div class="ff"><label>Título</label><input id="m-t" placeholder="Nombre del evento"/></div>
+    <div class="ff"><label>Fecha</label><input id="m-d" type="date" value="${day}"/></div>
+    <div style="display:flex;gap:8px">
+      <div class="ff" style="flex:1"><label>Hora inicio</label><input id="m-tstart" type="time" value="09:00"/></div>
+      <div class="ff" style="flex:1"><label>Hora fin</label><input id="m-tend" type="time" value="10:00"/></div>
+    </div>
+    <div class="ff"><label>Proyecto (opcional)</label><select id="m-proj">${projOpts}</select></div>`;
   else if(type==='project')b=`
     <div class="ff"><label>Nombre</label><input id="m-t" placeholder="Nombre del proyecto"/></div>
     <div class="ff"><label>Descripción</label><textarea id="m-desc" placeholder="¿De qué trata?"></textarea></div>
@@ -1336,8 +1330,10 @@ function saveM(){
     }else if(type==='event'){
       const e=D.events.find(e=>e.id===eid);if(!e)return;
       const t=gv('m-t').trim();if(!t)return;
-      const pid=parseInt(gv('m-proj'))||null;const dur=parseFloat(gv('m-dur'))||null;
-      Object.assign(e,{title:t,date:gv('m-d'),time:gv('m-time'),projectId:pid||undefined,duration:dur||undefined});
+      const pid=parseInt(gv('m-proj'))||null;
+      const tstart=gv('m-tstart'),tend=gv('m-tend');
+      const dur=timeDiff(tstart,tend);
+      Object.assign(e,{title:t,date:gv('m-d'),time:tstart,endTime:tend||undefined,projectId:pid||undefined,duration:dur||undefined});
     }else if(type==='project'){
       const p=D.projects.find(p=>p.id===eid);if(!p)return;
       const n=gv('m-t').trim();if(!n)return;
@@ -1354,7 +1350,7 @@ function saveM(){
   } else {
     const id=nid();
     if(type==='todo'){const u=todoFromForm(id);if(!u)return;D.todos.push({...u,done:false});}
-    else if(type==='event'){const t=gv('m-t').trim();if(!t)return;const pid=parseInt(gv('m-proj'))||null;const dur=parseFloat(gv('m-dur'))||null;D.events.push({id,title:t,date:gv('m-d'),time:gv('m-time'),...(pid?{projectId:pid}:{}),...(dur?{duration:dur}:{})})}
+    else if(type==='event'){const t=gv('m-t').trim();if(!t)return;const pid=parseInt(gv('m-proj'))||null;const tstart=gv('m-tstart'),tend=gv('m-tend');const dur=timeDiff(tstart,tend);D.events.push({id,title:t,date:gv('m-d'),time:tstart,...(tend?{endTime:tend}:{}),...(pid?{projectId:pid}:{}),...(dur?{duration:dur}:{})})}
     else if(type==='project'){const n=gv('m-t').trim();if(!n)return;D.projects.push({id,name:n,desc:gv('m-desc'),color:gv('m-c'),hoursUsed:0})}
     else if(type==='assigntask'){
       const tid=parseInt(gv('m-task'));const dur=parseFloat(gv('m-dur'))||0;
