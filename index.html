@@ -144,17 +144,17 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 .wt-add-btn:hover{opacity:1;color:var(--accent)}
 .wt-body{display:grid;grid-template-columns:44px repeat(7,1fr);flex:1;overflow-y:auto;min-height:0}
 .wt-time-col{background:var(--surface2);border-right:1px solid var(--border)}
-.wt-hlbl{height:52px;font-size:9px;color:var(--text3);text-align:right;padding:3px 5px 0 0;border-top:1px solid var(--border);box-sizing:border-box}
+.wt-hlbl{height:44px;font-size:9px;color:var(--text3);text-align:right;padding:3px 5px 0 0;border-top:1px solid var(--border);box-sizing:border-box}
 .wt-daycol{position:relative;border-left:1px solid var(--border);background:var(--surface)}
 .wt-today-col{border-left:2px solid var(--accent) !important}
-.wt-slot{height:52px;border-top:1px solid var(--border);box-sizing:border-box;cursor:pointer}
+.wt-slot{height:44px;border-top:1px solid var(--border);box-sizing:border-box;cursor:pointer}
 .wt-slot:hover{background:var(--accent-l)}
 .wt-evlayer{position:absolute;top:0;left:0;right:0;pointer-events:none}
-.wt-ev{position:absolute;left:2px;right:2px;border-radius:0 4px 4px 0;border-left:2px solid;padding:2px 4px;pointer-events:auto;font-size:10px;line-height:1.3;display:flex;flex-direction:column;overflow:hidden;cursor:grab;min-height:22px}
+.wt-ev{position:absolute;left:2px;right:2px;border-radius:0 4px 4px 0;border-left:2px solid;padding:1px 5px 1px 4px;pointer-events:auto;font-size:10px;display:flex;flex-direction:row;align-items:center;gap:3px;overflow:hidden;cursor:grab;height:20px;white-space:nowrap}
 .wt-ev:active{cursor:grabbing}
-.wt-evtime{font-size:8px;opacity:.75;flex-shrink:0;white-space:nowrap;overflow:hidden}
-.wt-evtitle{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1}
-.wt-evacts{display:flex;gap:1px;justify-content:flex-end;flex-shrink:0;opacity:0;transition:opacity .1s}
+.wt-evtime{font-size:8px;opacity:.65;flex-shrink:0}
+.wt-evtitle{flex:1;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.wt-evacts{display:flex;gap:1px;flex-shrink:0;opacity:0;transition:opacity .1s}
 .wt-ev:hover .wt-evacts{opacity:1}
 .wt-inbox{display:flex;align-items:center;gap:5px;padding:5px 8px;border-bottom:1px solid var(--border2);background:var(--surface2);flex-shrink:0;flex-wrap:wrap;min-height:34px}
 .wt-inbox-lbl{font-size:9px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.06em;flex-shrink:0;white-space:nowrap}
@@ -807,7 +807,7 @@ function renderWeek(){
   const today=todayStr(),s=S.weekStart;
   document.getElementById('wlabel').textContent=`${fmtS(s)} – ${fmtS(addDays(s,6))}`;
   if(isMobile()){renderWeekMobile();return}
-  const HS=8,HE=21,SH=52;
+  const HS=8,HE=21,SH=44;
   const inbox=D.todos.filter(t=>!t.done&&!t.date);
   let html=`<div class="wt-wrap">`;
   // ── Inbox strip ──
@@ -854,25 +854,24 @@ function renderWeek(){
     timedEvs.forEach(ev=>{
       const[eh,em]=(ev.time||'00:00').split(':').map(Number);
       const top=Math.max(0,(eh+em/60-HS)*SH);
-      const ht=Math.max(22,(ev.duration||1)*SH);
       const c=ev.color||(ev.type==='meeting'?'var(--green)':ev.source?'var(--blue)':'var(--accent)');
       const isExt=!!ev.source;
       const drag=!isExt?` draggable="true" ondragstart="startTimeDrag(event,'ev',${ev.id})" ondragend="this.style.opacity='';_timeDrag={kind:null,id:null}"`:'' ;
-      const acts=!isExt?`<div class="wt-evacts"><button class="btn-del" onclick="event.stopPropagation();openEdit('event',${ev.id})" style="font-size:9px;padding:0 1px"><i class="ti ti-pencil"></i></button><button class="btn-del" onclick="event.stopPropagation();delEvent(${ev.id})" style="font-size:9px;padding:0 1px"><i class="ti ti-x"></i></button></div>`:'';
-      html+=`<div class="wt-ev"${drag} style="top:${top}px;min-height:${ht}px;border-left-color:${c};background:${c}18;color:${c}"><span class="wt-evtime">${ev.time}${ev.source?' · '+ev.source:''}</span><span class="wt-evtitle">${ev.title}</span>${acts}</div>`;
+      const click=!isExt?` onclick="openEdit('event',${ev.id})"`:'' ;
+      const del=!isExt?`<button class="btn-del" onclick="event.stopPropagation();delEvent(${ev.id})" style="font-size:9px;padding:0 1px"><i class="ti ti-x"></i></button>`:'';
+      html+=`<div class="wt-ev"${drag}${click} style="top:${top}px;border-left-color:${c};background:${c}18;color:${c}"><span class="wt-evtime">${ev.time}${ev.source?' · '+ev.source:''}</span><span class="wt-evtitle">${ev.title}</span><div class="wt-evacts">${del}</div></div>`;
     });
     tbs.forEach(tb=>{
       const[th,tm]=(tb.startTime||'00:00').split(':').map(Number);
       const top=Math.max(0,(th+tm/60-HS)*SH);
-      const ht=Math.max(22,(tb.duration||1)*SH);
       const p=D.projects.find(p=>p.id===tb.projectId);
       const c=p?p.color:'var(--accent)';
-      html+=`<div class="wt-ev" draggable="true" ondragstart="startTimeDrag(event,'tb',${tb.id})" ondragend="this.style.opacity='';_timeDrag={kind:null,id:null}" style="top:${top}px;min-height:${ht}px;border-left-color:${c};background:${c}18;color:${c}"><span class="wt-evtime">${tb.startTime} · ${tb.duration}h</span><span class="wt-evtitle">${p?p.name:'Bloque'}</span><div class="wt-evacts"><button class="btn-del" onclick="event.stopPropagation();delTimeblock(${tb.id})" style="font-size:9px;padding:0 1px;color:${c}"><i class="ti ti-x"></i></button></div></div>`;
+      html+=`<div class="wt-ev" draggable="true" ondragstart="startTimeDrag(event,'tb',${tb.id})" ondragend="this.style.opacity='';_timeDrag={kind:null,id:null}" style="top:${top}px;border-left-color:${c};background:${c}18;color:${c}"><span class="wt-evtime">${tb.startTime}</span><span class="wt-evtitle">${p?p.name:'Bloque'}</span><div class="wt-evacts"><button class="btn-del" onclick="event.stopPropagation();delTimeblock(${tb.id})" style="font-size:9px;padding:0 1px;color:${c}"><i class="ti ti-x"></i></button></div></div>`;
     });
     timedTasks.forEach(t=>{
       const[th,tm]=(t.time||'00:00').split(':').map(Number);
       const top=Math.max(0,(th+tm/60-HS)*SH);
-      html+=`<div class="wt-ev wt-task-ev" draggable="true" ondragstart="startTimeDrag(event,'task',${t.id})" ondragend="this.style.opacity='';_timeDrag={kind:null,id:null}" style="top:${top}px;min-height:${SH}px"><span class="wt-evtime">${t.time}</span><span class="wt-evtitle">${t.title}</span><div class="wt-evacts"><button class="btn-del" onclick="event.stopPropagation();toggleTodo(${t.id})" style="font-size:9px;padding:0 1px;color:var(--amber)" title="Completar"><i class="ti ti-check"></i></button><button class="btn-del" onclick="event.stopPropagation();openEdit('todo',${t.id})" style="font-size:9px;padding:0 1px;color:var(--amber)"><i class="ti ti-pencil"></i></button></div></div>`;
+      html+=`<div class="wt-ev wt-task-ev" draggable="true" ondragstart="startTimeDrag(event,'task',${t.id})" ondragend="this.style.opacity='';_timeDrag={kind:null,id:null}" onclick="openEdit('todo',${t.id})" style="top:${top}px"><span class="wt-evtime">${t.time}</span><span class="wt-evtitle">${t.title}</span><div class="wt-evacts"><button class="btn-del" onclick="event.stopPropagation();toggleTodo(${t.id})" style="font-size:9px;padding:0 1px;color:var(--amber)" title="Completar"><i class="ti ti-check"></i></button></div></div>`;
     });
     html+=`</div></div>`;
   }
@@ -915,7 +914,7 @@ function dropOnTime(e,ds){
   e.preventDefault();
   const{kind,id}=_timeDrag;
   if(!kind)return;
-  const HS=8,SH=52;
+  const HS=8,SH=44;
   const rect=e.currentTarget.getBoundingClientRect();
   const y=e.clientY-rect.top;
   const hourF=HS+y/SH;
