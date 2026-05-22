@@ -120,6 +120,44 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 .dadd{background:none;border:1px dashed var(--border2);border-radius:3px;color:var(--text3);font-size:10px;padding:2px 4px;cursor:pointer;display:flex;align-items:center;gap:2px;font-family:inherit}
 .dadd:hover{color:var(--text2);background:var(--surface2)}
 
+/* ── WEEK TIME GRID (desktop) ── */
+.wt-wrap{display:flex;flex-direction:column;border:1px solid var(--border);border-radius:var(--r);overflow:hidden;height:calc(100dvh - 162px)}
+.wt-head{display:grid;grid-template-columns:44px repeat(7,1fr);border-bottom:1px solid var(--border);flex-shrink:0}
+.wt-gutter{background:var(--surface2)}
+.wt-gutter-lbl{font-size:9px;color:var(--text3);display:flex;align-items:center;justify-content:flex-end;padding:3px 5px 3px 0;background:var(--surface2)}
+.wt-hcell{padding:7px 6px 6px;text-align:center;border-left:1px solid var(--border);background:var(--surface2)}
+.wt-today-head{background:var(--accent-l)}
+.wt-dname{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em}
+.wt-dnum{font-size:17px;font-weight:700;letter-spacing:-.02em}
+.wt-today-num{color:var(--accent)}
+.wt-allday{display:grid;grid-template-columns:44px repeat(7,1fr);border-bottom:2px solid var(--border2);flex-shrink:0}
+.wt-allday-cell{border-left:1px solid var(--border);padding:3px 4px;min-height:26px;background:var(--surface);display:flex;flex-direction:column;gap:2px}
+.wt-chip{font-size:9px;padding:1px 4px;border-radius:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wt-task-chip{display:flex;align-items:center;gap:3px;padding:1px 3px;border-radius:3px;background:var(--surface2);min-width:0}
+.wt-task-chip span{font-size:10px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.wt-add-btn{background:none;border:none;cursor:pointer;color:var(--text3);padding:0;font-size:10px;opacity:.4;align-self:flex-start;font-family:inherit}
+.wt-add-btn:hover{opacity:1;color:var(--accent)}
+.wt-body{display:grid;grid-template-columns:44px repeat(7,1fr);flex:1;overflow-y:auto;min-height:0}
+.wt-time-col{background:var(--surface2);border-right:1px solid var(--border)}
+.wt-hlbl{height:52px;font-size:9px;color:var(--text3);text-align:right;padding:3px 5px 0 0;border-top:1px solid var(--border);box-sizing:border-box}
+.wt-daycol{position:relative;border-left:1px solid var(--border);background:var(--surface)}
+.wt-today-col{border-left:2px solid var(--accent) !important}
+.wt-slot{height:52px;border-top:1px solid var(--border);box-sizing:border-box;cursor:pointer}
+.wt-slot:hover{background:var(--accent-l)}
+.wt-evlayer{position:absolute;top:0;left:0;right:0;pointer-events:none}
+.wt-ev{position:absolute;left:2px;right:2px;border-radius:0 4px 4px 0;border-left:2px solid;padding:2px 4px;pointer-events:auto;font-size:10px;line-height:1.3;display:flex;flex-direction:column;overflow:hidden;cursor:grab;min-height:22px}
+.wt-ev:active{cursor:grabbing}
+.wt-evtime{font-size:8px;opacity:.75;flex-shrink:0;white-space:nowrap;overflow:hidden}
+.wt-evtitle{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1}
+.wt-evacts{display:flex;gap:1px;justify-content:flex-end;flex-shrink:0;opacity:0;transition:opacity .1s}
+.wt-ev:hover .wt-evacts{opacity:1}
+.wt-inbox{display:flex;align-items:center;gap:5px;padding:5px 8px;border-bottom:1px solid var(--border2);background:var(--surface2);flex-shrink:0;flex-wrap:wrap;min-height:34px}
+.wt-inbox-lbl{font-size:9px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.06em;flex-shrink:0;white-space:nowrap}
+.wt-inbox-chip{background:var(--surface);border:1.5px dashed var(--border2);border-radius:var(--rs);padding:2px 7px 2px 5px;font-size:10px;cursor:grab;user-select:none;display:flex;align-items:center;gap:4px;white-space:nowrap;transition:border-color .1s,opacity .1s}
+.wt-inbox-chip:hover{border-color:var(--accent);border-style:solid}
+.wt-inbox-chip.dragging{opacity:.3;cursor:grabbing}
+.wt-task-ev{border-left-color:var(--amber) !important;background:var(--amber-l) !important;color:var(--amber) !important}
+
 /* ── MONTH ── */
 .dow-row{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:3px}
 .dlabel{font-size:10px;color:var(--text3);text-align:center;text-transform:uppercase;letter-spacing:.05em;padding:2px 0}
@@ -159,7 +197,7 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 /* ── PROJECTS ── */
 .proj-layout{display:flex;gap:14px;align-items:flex-start}
 .proj-layout>.pgrid{flex:1;min-width:0}
-.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
+.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,320px));gap:10px}
 .pcard{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px;position:relative;transition:border-color .15s,box-shadow .15s}
 .pcard.drop-over{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-l)}
 /* ── TASK PANEL ── */
@@ -191,7 +229,8 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 /* ── IDEAS ── */
 .igrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
 .icol{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
-.icol-h{padding:10px 13px 8px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.icol-h{padding:10px 13px 8px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;cursor:pointer}
+.icol-h:hover{background:var(--surface2)}
 .icol-n{font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px}
 .icol-b{padding:6px}
 .ichip{font-size:11px;color:var(--text2);padding:6px 7px;border-radius:4px;display:flex;align-items:flex-start;gap:5px;line-height:1.4}
@@ -262,6 +301,7 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
   .page-area{padding:14px 12px;padding-bottom:calc(8px + env(safe-area-inset-bottom))}
   .wgrid{grid-template-columns:1fr}
   .dcol{min-height:auto}
+  .pgrid{grid-template-columns:1fr}
 }
 
 /* ── MODAL ── */
@@ -696,7 +736,7 @@ function parseIcs(text,cal){
 // ── ROLLOVER ───────────────────────────────────────────────────────────────
 function doRollover(){
   const today=todayStr();let changed=false;
-  D.todos.forEach(t=>{if(!t.done&&t.date<today){if(!t.rolledFrom)t.rolledFrom=t.date;t.date=today;changed=true;}});
+  D.todos.forEach(t=>{if(!t.done&&t.date&&t.date<today){if(!t.rolledFrom)t.rolledFrom=t.date;t.date=today;changed=true;}});
   if(changed)sched();
 }
 
@@ -757,49 +797,145 @@ function go(name){
 function refreshPage(){const a=document.querySelector('.page.active');if(a)go(a.id.replace('page-',''))}
 
 // ── WEEK ───────────────────────────────────────────────────────────────────
+let _timeDrag={kind:null,id:null};
 function renderWeek(){
   const today=todayStr(),s=S.weekStart;
   document.getElementById('wlabel').textContent=`${fmtS(s)} – ${fmtS(addDays(s,6))}`;
-  const mobile=isMobile();
-  // On mobile show only today or selected day; on desktop show all 7
-  const days=mobile?[0,1,2,3,4,5,6]:[0,1,2,3,4,5,6];
-  let html='';
-  days.forEach(i=>{
-    const d=addDays(s,i);const ds=dStr(d);const isT=ds===today;
-    const evs=allEvFor(ds);const tds=D.todos.filter(t=>t.date===ds);const tbs=D.timeblocks.filter(tb=>tb.date===ds);
+  if(isMobile()){renderWeekMobile();return}
+  const HS=8,HE=21,SH=52;
+  const inbox=D.todos.filter(t=>!t.done&&!t.date);
+  let html=`<div class="wt-wrap">`;
+  // ── Inbox strip ──
+  html+=`<div class="wt-inbox"><span class="wt-inbox-lbl">Bandeja</span>`;
+  if(inbox.length){
+    html+=inbox.map(t=>`<div class="wt-inbox-chip" draggable="true" ondragstart="startTimeDrag(event,'task',${t.id});this.classList.add('dragging')" ondragend="this.classList.remove('dragging');this.style.opacity='';_timeDrag={kind:null,id:null}"><div class="udot u-${t.urgency}" style="flex-shrink:0"></div><span>${t.title}</span></div>`).join('');
+  }else{
+    html+=`<span style="font-size:10px;color:var(--text3)">Sin tareas pendientes sin fecha</span>`;
+  }
+  html+=`<button class="wt-add-btn" style="margin-left:4px;opacity:.7;white-space:nowrap" onclick="openM('todo')"><i class="ti ti-plus"></i> Nueva tarea</button></div>`;
+  // ── Header ──
+  html+=`<div class="wt-head"><div class="wt-gutter"></div>`;
+  for(let i=0;i<7;i++){
+    const d=addDays(s,i),ds=dStr(d),isT=ds===today;
+    html+=`<div class="wt-hcell${isT?' wt-today-head':''}"><div class="wt-dname">${DAYS[d.getDay()]}</div><div class="wt-dnum${isT?' wt-today-num':''}">${d.getDate()}</div></div>`;
+  }
+  html+=`</div>`;
+  // ── All-day / tasks row ──
+  html+=`<div class="wt-allday"><div class="wt-gutter-lbl">tareas</div>`;
+  for(let i=0;i<7;i++){
+    const d=addDays(s,i),ds=dStr(d);
+    const tds=D.todos.filter(t=>t.date===ds&&!t.time);
+    const adEvs=[...D.events.filter(e=>e.date===ds&&!e.time),...EXT.filter(e=>e.date===ds&&!e.time)];
+    html+=`<div class="wt-allday-cell" ondragover="event.preventDefault()" ondrop="dropOnAllDay(event,'${ds}')">`;
+    adEvs.forEach(ev=>{const c=ev.color||'var(--accent)';html+=`<div class="wt-chip" style="background:${c}18;color:${c}">${ev.title}</div>`;});
+    tds.forEach(t=>{html+=`<div class="wt-task-chip" draggable="true" ondragstart="startTimeDrag(event,'task',${t.id});this.style.opacity='.35'" ondragend="this.style.opacity='';_timeDrag={kind:null,id:null}"><div class="chk${t.done?' on':''}" onclick="event.stopPropagation();toggleTodo(${t.id})" style="width:11px;height:11px;flex-shrink:0;margin-top:1px"></div><span style="${t.done?'text-decoration:line-through;color:var(--text3)':''}">${t.title}</span><button class="btn-del" onclick="event.stopPropagation();openEdit('todo',${t.id})" style="font-size:9px;padding:0 1px"><i class="ti ti-pencil"></i></button></div>`;});
+    html+=`<button class="wt-add-btn" onclick="openMD('todo','${ds}')"><i class="ti ti-plus"></i></button>`;
+    html+=`</div>`;
+  }
+  html+=`</div>`;
+  // ── Time body ──
+  html+=`<div class="wt-body"><div class="wt-time-col">`;
+  for(let h=HS;h<HE;h++) html+=`<div class="wt-hlbl">${String(h).padStart(2,'0')}:00</div>`;
+  html+=`</div>`;
+  // Day columns
+  for(let i=0;i<7;i++){
+    const d=addDays(s,i),ds=dStr(d),isT=ds===today;
+    const timedEvs=[...D.events.filter(e=>e.date===ds&&e.time),...EXT.filter(e=>e.date===ds&&e.time)];
+    const tbs=D.timeblocks.filter(tb=>tb.date===ds);
+    const timedTasks=D.todos.filter(t=>t.date===ds&&t.time);
+    html+=`<div class="wt-daycol${isT?' wt-today-col':''}" ondragover="event.preventDefault();event.dataTransfer.dropEffect='move'" ondrop="dropOnTime(event,'${ds}')">`;
+    for(let h=HS;h<HE;h++) html+=`<div class="wt-slot" onclick="openMDTime('event','${ds}','${String(h).padStart(2,'0')}:00')"></div>`;
+    html+=`<div class="wt-evlayer">`;
+    timedEvs.forEach(ev=>{
+      const[eh,em]=(ev.time||'00:00').split(':').map(Number);
+      const top=Math.max(0,(eh+em/60-HS)*SH);
+      const ht=Math.max(22,(ev.duration||1)*SH);
+      const c=ev.color||(ev.type==='meeting'?'var(--green)':ev.source?'var(--blue)':'var(--accent)');
+      const isExt=!!ev.source;
+      const drag=!isExt?` draggable="true" ondragstart="startTimeDrag(event,'ev',${ev.id})" ondragend="this.style.opacity='';_timeDrag={kind:null,id:null}"`:'' ;
+      const acts=!isExt?`<div class="wt-evacts"><button class="btn-del" onclick="event.stopPropagation();openEdit('event',${ev.id})" style="font-size:9px;padding:0 1px"><i class="ti ti-pencil"></i></button><button class="btn-del" onclick="event.stopPropagation();delEvent(${ev.id})" style="font-size:9px;padding:0 1px"><i class="ti ti-x"></i></button></div>`:'';
+      html+=`<div class="wt-ev"${drag} style="top:${top}px;min-height:${ht}px;border-left-color:${c};background:${c}18;color:${c}"><span class="wt-evtime">${ev.time}${ev.source?' · '+ev.source:''}</span><span class="wt-evtitle">${ev.title}</span>${acts}</div>`;
+    });
+    tbs.forEach(tb=>{
+      const[th,tm]=(tb.startTime||'00:00').split(':').map(Number);
+      const top=Math.max(0,(th+tm/60-HS)*SH);
+      const ht=Math.max(22,(tb.duration||1)*SH);
+      const p=D.projects.find(p=>p.id===tb.projectId);
+      const c=p?p.color:'var(--accent)';
+      html+=`<div class="wt-ev" draggable="true" ondragstart="startTimeDrag(event,'tb',${tb.id})" ondragend="this.style.opacity='';_timeDrag={kind:null,id:null}" style="top:${top}px;min-height:${ht}px;border-left-color:${c};background:${c}18;color:${c}"><span class="wt-evtime">${tb.startTime} · ${tb.duration}h</span><span class="wt-evtitle">${p?p.name:'Bloque'}</span><div class="wt-evacts"><button class="btn-del" onclick="event.stopPropagation();delTimeblock(${tb.id})" style="font-size:9px;padding:0 1px;color:${c}"><i class="ti ti-x"></i></button></div></div>`;
+    });
+    timedTasks.forEach(t=>{
+      const[th,tm]=(t.time||'00:00').split(':').map(Number);
+      const top=Math.max(0,(th+tm/60-HS)*SH);
+      html+=`<div class="wt-ev wt-task-ev" draggable="true" ondragstart="startTimeDrag(event,'task',${t.id})" ondragend="this.style.opacity='';_timeDrag={kind:null,id:null}" style="top:${top}px;min-height:${SH}px"><span class="wt-evtime">${t.time}</span><span class="wt-evtitle">${t.title}</span><div class="wt-evacts"><button class="btn-del" onclick="event.stopPropagation();toggleTodo(${t.id})" style="font-size:9px;padding:0 1px;color:var(--amber)" title="Completar"><i class="ti ti-check"></i></button><button class="btn-del" onclick="event.stopPropagation();openEdit('todo',${t.id})" style="font-size:9px;padding:0 1px;color:var(--amber)"><i class="ti ti-pencil"></i></button></div></div>`;
+    });
+    html+=`</div></div>`;
+  }
+  html+=`</div></div>`;
+  document.getElementById('week-grid').innerHTML=html;
+}
+function renderWeekMobile(){
+  const today=todayStr(),s=S.weekStart;
+  let html='<div class="wgrid">';
+  for(let i=0;i<7;i++){
+    const d=addDays(s,i),ds=dStr(d),isT=ds===today;
+    const evs=allEvFor(ds),tds=D.todos.filter(t=>t.date===ds),tbs=D.timeblocks.filter(tb=>tb.date===ds);
     html+=`<div class="dcol${isT?' today-col':''}">
       <div class="dhead"><div class="dname">${DAYS[d.getDay()]}</div><div class="dnum${isT?' today':''}">${d.getDate()}</div></div>
       <div class="dbody">
-        ${evs.map(ev=>ev.source?`<div class="ev ${ev.type||'event'}" style="${ev.color?`border-left-color:${ev.color};color:${ev.color};background:${ev.color}18`:''}">
-          <span class="ev-time">${ev.time||'all-day'} · ${ev.source}</span>${ev.title}
-        </div>`:`<div class="ev ${ev.type||'event'}" style="display:flex;align-items:flex-start;gap:3px">
-          <div style="flex:1"><span class="ev-time">${ev.time||'all-day'}</span>${ev.title}</div>
-          <button class="btn-del" onclick="openEdit('event',${ev.id})" title="Edit" style="font-size:10px;padding:1px 2px"><i class="ti ti-pencil"></i></button>
-          <button class="btn-del" onclick="delEvent(${ev.id})" title="Delete" style="font-size:10px;padding:1px 2px"><i class="ti ti-x"></i></button>
-        </div>`).join('')}
-        ${tbs.map(tb=>{const p=D.projects.find(p=>p.id===tb.projectId);const c=p?p.color:'var(--accent)';return`<div class="ev" style="border-left-color:${c};background:${c}18;color:${c};display:flex;align-items:flex-start;gap:3px">
-          <div style="flex:1"><span class="ev-time">${tb.startTime} · ${tb.duration}h</span>${p?p.name:'Bloque'}</div>
-          <button class="btn-del" onclick="delTimeblock(${tb.id})" title="Eliminar" style="font-size:10px;padding:1px 2px;color:${c}"><i class="ti ti-x"></i></button>
-        </div>`}).join('')}
-        ${tds.map(t=>`<div class="tr">
-          <div class="chk${t.done?' on':''}" onclick="toggleTodo(${t.id})"></div>
-          <div class="udot u-${t.urgency}"></div>
-          <div class="tl${t.done?' done':''}" style="flex:1">${t.title}${t.rolledFrom?'<span class="rolled">↩</span>':''}</div>
-          <button class="btn-del" onclick="openEdit('todo',${t.id})" title="Edit" style="font-size:9px;padding:1px 2px"><i class="ti ti-pencil"></i></button>
-        </div>`).join('')}
+        ${evs.map(ev=>ev.source
+          ?`<div class="ev ical" style="${ev.color?`border-left-color:${ev.color};color:${ev.color};background:${ev.color}18`:''}"><span class="ev-time">${ev.time||'all-day'} · ${ev.source}</span>${ev.title}</div>`
+          :`<div class="ev" style="display:flex;align-items:flex-start;gap:3px"><div style="flex:1"><span class="ev-time">${ev.time||'all-day'}</span>${ev.title}</div><button class="btn-del" onclick="openEdit('event',${ev.id})" style="font-size:10px;padding:1px 2px"><i class="ti ti-pencil"></i></button><button class="btn-del" onclick="delEvent(${ev.id})" style="font-size:10px;padding:1px 2px"><i class="ti ti-x"></i></button></div>`
+        ).join('')}
+        ${tbs.map(tb=>{const p=D.projects.find(p=>p.id===tb.projectId);const c=p?p.color:'var(--accent)';return`<div class="ev" style="border-left-color:${c};background:${c}18;color:${c};display:flex;align-items:flex-start;gap:3px"><div style="flex:1"><span class="ev-time">${tb.startTime} · ${tb.duration}h</span>${p?p.name:'Bloque'}</div><button class="btn-del" onclick="delTimeblock(${tb.id})" style="font-size:10px;padding:1px 2px;color:${c}"><i class="ti ti-x"></i></button></div>`;}).join('')}
+        ${tds.map(t=>`<div class="tr"><div class="chk${t.done?' on':''}" onclick="toggleTodo(${t.id})"></div><div class="udot u-${t.urgency}"></div><div class="tl${t.done?' done':''}" style="flex:1">${t.title}${t.rolledFrom?'<span class="rolled">↩</span>':''}</div><button class="btn-del" onclick="openEdit('todo',${t.id})" style="font-size:9px;padding:1px 2px"><i class="ti ti-pencil"></i></button></div>`).join('')}
         <div class="day-adds">
           <button class="dadd" onclick="openMD('todo','${ds}')"><i class="ti ti-plus" style="font-size:9px"></i> task</button>
           <button class="dadd" onclick="openMD('event','${ds}')"><i class="ti ti-plus" style="font-size:9px"></i> event</button>
-          <button class="dadd" onclick="openMD('timeblock','${ds}')"><i class="ti ti-plus" style="font-size:9px"></i> block</button>
         </div>
       </div>
     </div>`;
-  });
-  document.getElementById('week-grid').innerHTML=html;
-  // On mobile: scroll to today
-  if(mobile){
-    setTimeout(()=>{const t=document.querySelector('.today-col');if(t)t.scrollIntoView({inline:'center',behavior:'smooth'})},50);
   }
+  html+='</div>';
+  document.getElementById('week-grid').innerHTML=html;
+  setTimeout(()=>{const t=document.querySelector('.today-col');if(t)t.scrollIntoView({inline:'center',behavior:'smooth'})},50);
+}
+function startTimeDrag(e,kind,id){
+  _timeDrag={kind,id};
+  e.dataTransfer.effectAllowed='move';
+  e.dataTransfer.setData('text/plain',`${kind}:${id}`);
+  e.currentTarget.style.opacity='.35';
+}
+function dropOnTime(e,ds){
+  e.preventDefault();
+  const{kind,id}=_timeDrag;
+  if(!kind)return;
+  const HS=8,SH=52;
+  const rect=e.currentTarget.getBoundingClientRect();
+  const y=e.clientY-rect.top;
+  const hourF=HS+y/SH;
+  const hour=Math.max(HS,Math.min(20,Math.floor(hourF)));
+  const mins=(hourF%1)>=0.5?30:0;
+  const t=`${String(hour).padStart(2,'0')}:${String(mins).padStart(2,'0')}`;
+  if(kind==='ev'){const ev=D.events.find(e=>e.id===id);if(ev){ev.date=ds;ev.time=t;}}
+  else if(kind==='tb'){const tb=D.timeblocks.find(tb=>tb.id===id);if(tb){tb.date=ds;tb.startTime=t;}}
+  else if(kind==='task'){const todo=D.todos.find(t=>t.id===id);if(todo){todo.date=ds;todo.time=t;}}
+  _timeDrag={kind:null,id:null};
+  sched();renderWeek();
+  if(document.querySelector('#page-projects.active'))renderProjects();
+}
+function dropOnAllDay(e,ds){
+  e.preventDefault();
+  const{kind,id}=_timeDrag;
+  if(kind!=='task')return;
+  const todo=D.todos.find(t=>t.id===id);
+  if(todo){todo.date=ds;delete todo.time;}
+  _timeDrag={kind:null,id:null};
+  sched();renderWeek();
+}
+function openMDTime(type,day,time){
+  S.mType=type;S.mDay=day;S.editId=null;buildM();
+  const f=document.getElementById('m-time');if(f)f.value=time;
 }
 function changeWeek(d){S.weekStart=addDays(S.weekStart,d*7);renderWeek()}
 
@@ -862,13 +998,31 @@ function renderTodos(){
   if(S.filter==='high')items=items.filter(t=>t.urgency==='high'&&!t.done);
   else if(S.filter==='pending')items=items.filter(t=>!t.done);
   else if(S.filter==='done')items=items.filter(t=>t.done);
-  items.sort((a,b)=>{if(a.done!==b.done)return a.done?1:-1;return a.date.localeCompare(b.date)});
-  const groups={};items.forEach(t=>{if(!groups[t.date])groups[t.date]=[];groups[t.date].push(t)});
+  items.sort((a,b)=>{if(a.done!==b.done)return a.done?1:-1;return(a.date||'').localeCompare(b.date||'')});
+  const unscheduled=items.filter(t=>!t.date);
+  const scheduled=items.filter(t=>t.date);
+  const groups={};scheduled.forEach(t=>{if(!groups[t.date])groups[t.date]=[];groups[t.date].push(t)});
   const keys=Object.keys(groups).sort();
   let html='';
-  if(!keys.length)html=`<div style="color:var(--text3);font-size:12px;padding:1.5rem 0">No to-dos here.</div>`;
+  if(!unscheduled.length&&!keys.length)html=`<div style="color:var(--text3);font-size:12px;padding:1.5rem 0">No to-dos here.</div>`;
+  if(unscheduled.length){
+    html+=`<div class="tsh"><i class="ti ti-inbox" style="font-size:11px"></i>&nbsp;Bandeja de entrada <span style="font-weight:400;color:var(--text3)">${unscheduled.length}</span></div>`;
+    unscheduled.forEach(t=>{
+      const proj=t.projectId?D.projects.find(p=>p.id===t.projectId):null;
+      html+=`<div class="tcard">
+      <div class="bchk${t.done?' on':''}" onclick="toggleTodo(${t.id},true)"></div>
+      <div style="flex:1">
+        <div class="tc-t" style="${t.done?'text-decoration:line-through;color:var(--text3)':''}">${t.title}</div>
+        <div class="tc-m">Sin fecha · arrastra a la vista semanal para programar${proj?` · <span style="color:${proj.color}">${proj.name}</span>`:''}${t.duration?` · ${t.duration}h`:''}</div>
+      </div>
+      <span class="ub ub-${t.urgency}">${t.urgency==='high'?'Urgente':t.urgency==='med'?'Normal':'Baja'}</span>
+      <button class="btn-del" onclick="openEdit('todo',${t.id})" title="Edit"><i class="ti ti-pencil" style="font-size:12px"></i></button>
+      <button class="btn-del" onclick="delTodo(${t.id})" title="Delete"><i class="ti ti-x" style="font-size:12px"></i></button>
+    </div>`;
+    });
+  }
   keys.forEach(k=>{
-    const isT=k===today,label=isT?'Today':fmtS(new Date(k));
+    const isT=k===today,label=isT?'Hoy':fmtS(new Date(k));
     html+=`<div class="tsh" style="${isT?'color:var(--accent)':''}">${label}</div>`;
     groups[k].forEach(t=>{
       const proj=t.projectId?D.projects.find(p=>p.id===t.projectId):null;
@@ -876,12 +1030,13 @@ function renderTodos(){
       <div class="bchk${t.done?' on':''}" onclick="toggleTodo(${t.id},true)"></div>
       <div style="flex:1">
         <div class="tc-t" style="${t.done?'text-decoration:line-through;color:var(--text3)':''}">${t.title}${t.rolledFrom?`<span class="rolled" style="margin-left:5px">↩ rolled</span>`:''}</div>
-        <div class="tc-m">${fmtS(new Date(t.date))}${t.rolledFrom?' · was '+fmtS(new Date(t.rolledFrom)):''}${proj?` · <span style="color:${proj.color}">${proj.name}</span>`:''}${t.duration?` · ${t.duration}h`:''}</div>
+        <div class="tc-m">${fmtS(new Date(t.date))}${t.time?` · ${t.time}`:''}${t.rolledFrom?' · was '+fmtS(new Date(t.rolledFrom)):''}${proj?` · <span style="color:${proj.color}">${proj.name}</span>`:''}${t.duration?` · ${t.duration}h`:''}</div>
       </div>
-      <span class="ub ub-${t.urgency}">${t.urgency==='high'?'Urgent':t.urgency==='med'?'Medium':'Low'}</span>
+      <span class="ub ub-${t.urgency}">${t.urgency==='high'?'Urgente':t.urgency==='med'?'Normal':'Baja'}</span>
       <button class="btn-del" onclick="openEdit('todo',${t.id})" title="Edit"><i class="ti ti-pencil" style="font-size:12px"></i></button>
       <button class="btn-del" onclick="delTodo(${t.id})" title="Delete"><i class="ti ti-x" style="font-size:12px"></i></button>
-    </div>`;});
+    </div>`;
+    });
   });
   document.getElementById('todos-list').innerHTML=html;
 }
@@ -995,7 +1150,7 @@ function renderTaskPanel(){
           <span class="tp-tit${t.done?' done-t':''}">${t.title}</span>
         </div>
         <div class="tp-meta">
-          <span class="tp-date">${t.date}</span>
+          <span class="tp-date">${t.date||'Sin fecha'}</span>
           <div class="tp-hrow"><span class="tp-hlbl">h</span><input class="tp-h" type="number" value="1" min="0.25" step="0.25" onclick="event.stopPropagation()" onmousedown="event.stopPropagation()"></div>
         </div>
       </div>`).join('');
@@ -1055,12 +1210,13 @@ function renderIdeas(){
   if(!D.topics.length){g.innerHTML=`<div style="color:var(--text3);font-size:12px">Add a topic first.</div>`;return}
   g.innerHTML=D.topics.map(tp=>{
     const ideas=D.ideas.filter(i=>i.topicId===tp.id);
-    return`<div class="icol"><div class="icol-h">
+    return`<div class="icol"><div class="icol-h" onclick="openIdeaForTopic(${tp.id})" title="Clic para añadir idea">
         <div class="icol-n"><i class="ti ${tp.icon}"></i> ${tp.name}</div>
         <div style="display:flex;align-items:center;gap:4px">
           <span style="font-size:10px;color:var(--text3)">${ideas.length}</span>
-          <button class="btn-del" onclick="openEdit('topic',${tp.id})" title="Edit topic"><i class="ti ti-pencil" style="font-size:11px"></i></button>
-          <button class="btn-del" onclick="delTopic(${tp.id})" title="Delete topic"><i class="ti ti-x" style="font-size:11px"></i></button>
+          <span style="font-size:9px;color:var(--accent);opacity:.7"><i class="ti ti-plus"></i></span>
+          <button class="btn-del" onclick="event.stopPropagation();openEdit('topic',${tp.id})" title="Edit topic"><i class="ti ti-pencil" style="font-size:11px"></i></button>
+          <button class="btn-del" onclick="event.stopPropagation();delTopic(${tp.id})" title="Delete topic"><i class="ti ti-x" style="font-size:11px"></i></button>
         </div>
       </div><div class="icol-b">
         ${ideas.map(idea=>`<div class="ichip"><i class="ti ti-sparkles"></i><span style="flex:1">${idea.text}</span>
@@ -1073,6 +1229,10 @@ function renderIdeas(){
 }
 function delIdea(id){D.ideas=D.ideas.filter(i=>i.id!==id);sched();renderIdeas()}
 function delTopic(id){if(!confirm('¿Eliminar tema e ideas?'))return;D.topics=D.topics.filter(t=>t.id!==id);D.ideas=D.ideas.filter(i=>i.topicId!==id);sched();renderIdeas()}
+function openIdeaForTopic(topicId){
+  S.mType='idea';S.mDay=null;S.editId=null;buildM();
+  const sel=document.getElementById('m-topic');if(sel)sel.value=String(topicId);
+}
 
 // ── MODAL ──────────────────────────────────────────────────────────────────
 function openM(type){S.mType=type;S.mDay=null;S.editId=null;buildM()}
@@ -1083,7 +1243,7 @@ function openEdit(type,id){
   if(type==='todo'){
     const t=D.todos.find(t=>t.id===id);if(!t)return;
     document.getElementById('m-t').value=t.title;
-    document.getElementById('m-d').value=t.date;
+    document.getElementById('m-d').value=t.date||'';
     document.getElementById('m-u').value=t.urgency;
     const mp=document.getElementById('m-proj');if(mp)mp.value=t.projectId||'';
     const md=document.getElementById('m-dur');if(md)md.value=t.duration||'';
@@ -1110,16 +1270,16 @@ function openEdit(type,id){
   }
 }
 function buildM(){
-  const type=S.mType,day=S.mDay||todayStr(),ed=S.editId;
+  const type=S.mType,day=S.mDay||(type==='todo'?'':todayStr()),ed=S.editId;
   const addT={todo:'Add to-do',event:'Add event',project:'New project',timeblock:'Add time block',topic:'New topic',idea:'New idea',assigntask:'Asignar tarea al proyecto',loghours:'Registrar horas manuales'};
   const edtT={todo:'Edit to-do',event:'Edit event',project:'Edit project',topic:'Edit topic',idea:'Edit idea'};
   document.getElementById('mtitle').textContent=(ed?edtT[type]:addT[type])||'Add';
   const projOpts='<option value="">— None —</option>'+D.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
   let b='';
   if(type==='todo')b=`
-    <div class="ff"><label>Task</label><input id="m-t" placeholder="What needs to be done?"/></div>
-    <div class="ff"><label>Date</label><input id="m-d" type="date" value="${day}"/></div>
-    <div class="ff"><label>Urgency</label><select id="m-u"><option value="high">Urgent</option><option value="med" selected>Medium</option><option value="low">Low</option></select></div>`;
+    <div class="ff"><label>Tarea</label><input id="m-t" placeholder="¿Qué hay que hacer?"/></div>
+    <div class="ff"><label>Fecha <span style="font-size:10px;color:var(--text3);font-weight:400">(opcional — puedes arrastrarla al día después)</span></label><input id="m-d" type="date" value="${day}"/></div>
+    <div class="ff"><label>Urgencia</label><select id="m-u"><option value="high">Urgente</option><option value="med" selected>Normal</option><option value="low">Baja</option></select></div>`;
   else if(type==='event')b=`
     <div class="ff"><label>Title</label><input id="m-t" placeholder="Event name"/></div>
     <div class="ff"><label>Date</label><input id="m-d" type="date" value="${day}"/></div>
@@ -1159,7 +1319,8 @@ function closeMO(e){if(e.target===document.getElementById('mo'))closeM()}
 function gv(id){const el=document.getElementById(id);return el?el.value:''}
 function todoFromForm(id){
   const t=gv('m-t').trim();if(!t)return null;
-  return{id,title:t,date:gv('m-d'),urgency:gv('m-u'),done:false};
+  const date=gv('m-d')||null;
+  return{id,title:t,date,urgency:gv('m-u'),done:false};
 }
 function saveM(){
   const type=S.mType,eid=S.editId;
