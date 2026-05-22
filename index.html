@@ -1138,7 +1138,7 @@ function renderProjects(){
   const excludeDays=[...new Set([...holidays,...vacations,...customHols])];
   const goal=monthlyGoalHours(year,month,excludeDays);
   g.innerHTML=D.projects.map(p=>{
-    const allProjectTasks=D.todos.filter(t=>t.projectId===p.id&&!t.done);
+    const allProjectTasks=D.todos.filter(t=>t.projectId===p.id);
     const taskH=Math.round(D.todos.filter(t=>t.projectId===p.id&&t.duration&&(!t.date||t.date.startsWith(monthPfx))).reduce((s,t)=>s+(t.duration||0),0)*10)/10;
     const manualEntries=(p.manualEntries||[]).filter(e=>e.date.startsWith(monthPfx));
     const manualH=Math.round(manualEntries.reduce((s,e)=>s+e.hours,0)*10)/10;
@@ -1150,8 +1150,8 @@ function renderProjects(){
     const pct=goal>0?Math.min(100,Math.round(totalH/goal*100)):0;
     const taskRows=allProjectTasks.length?`<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:7px">
       <div style="font-size:9px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">Tareas</div>
-      ${allProjectTasks.map(t=>`<div style="font-size:10px;color:var(--text2);display:flex;align-items:center;gap:4px;padding:2px 0">
-        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">○ ${t.title}${t.date?` <span style="color:var(--text3);font-size:9px">${fmtS(new Date(t.date))}${t.time?' '+t.time:''}</span>`:'<span style="color:var(--text3);font-size:9px"> · sin fecha</span>'}</span>
+      ${allProjectTasks.map(t=>`<div style="font-size:10px;color:${t.done?'var(--text3)':'var(--text2)'};display:flex;align-items:center;gap:4px;padding:2px 0${t.done?';opacity:.7':''}">
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${t.done?'text-decoration:line-through':''}">${t.done?'✓':'○'} ${t.title}${t.date?` <span style="color:var(--text3);font-size:9px">${fmtS(new Date(t.date))}${t.time?' '+t.time:''}</span>`:'<span style="color:var(--text3);font-size:9px"> · sin fecha</span>'}</span>
         <input type="number" value="${t.duration||''}" min="0" step="0.25" placeholder="h" style="width:42px;padding:2px 3px;border:1px solid var(--border2);border-radius:3px;background:var(--bg);color:var(--text);font-size:10px;font-family:inherit;text-align:center" onchange="updateTaskHours(${t.id},this.value)" onclick="event.stopPropagation()" title="Horas este mes">
         <button class="btn-del" onclick="unassignTask(${t.id})" title="Desasignar" style="font-size:10px;padding:1px 2px"><i class="ti ti-x"></i></button>
       </div>`).join('')}
