@@ -325,6 +325,13 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
   .pgrid{grid-template-columns:1fr}
 }
 
+/* ── COLOR PICKER ── */
+.color-picker{display:flex;gap:8px;flex-wrap:wrap;padding:4px 0}
+.cpick{width:26px;height:26px;border-radius:50%;cursor:pointer;border:3px solid transparent;box-shadow:0 0 0 1px rgba(0,0,0,0.18);transition:transform .1s,border-color .1s;flex-shrink:0}
+.cpick:hover{transform:scale(1.15)}
+.cpick.cpick-sel{border-color:var(--text) !important;transform:scale(1.1);box-shadow:0 0 0 2px var(--text)}
+@media(prefers-color-scheme:dark){.cpick{box-shadow:0 0 0 1px rgba(255,255,255,0.2)}}
+
 /* ── MODAL ── */
 .mo{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.38);z-index:200;align-items:center;justify-content:center;padding:16px}
 .mo.open{display:flex}
@@ -373,7 +380,6 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
     <!-- TOPBAR -->
     <div class="topbar">
       <div class="topbar-logo" id="topbar-logo"><i class="ti ti-layout-dashboard"></i> Planner</div>
-      <div class="topbar-sync"><div class="sdot" id="sdot2"></div><span id="stxt2"></span></div>
       <div class="topbar-btns">
         <button class="icon-btn" id="sidebar-toggle" onclick="toggleSidebar()" title="Toggle sidebar">
           <i class="ti ti-layout-sidebar" id="sidebar-toggle-icon"></i>
@@ -582,8 +588,8 @@ function lss(k,v){try{localStorage.setItem(k,v)}catch(e){}}
 
 // ── SYNC STATUS ────────────────────────────────────────────────────────────
 function setSS(cls,txt){
-  ['sdot','sdot2'].forEach(id=>{const el=document.getElementById(id);if(el)el.className='sdot'+(cls?' '+cls:'')});
-  ['stxt','stxt2'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=txt});
+  const dot=document.getElementById('sdot');if(dot)dot.className='sdot'+(cls?' '+cls:'');
+  const tx=document.getElementById('stxt');if(tx)tx.textContent=txt;
 }
 
 // ── SIDEBAR TOGGLE ─────────────────────────────────────────────────────────
@@ -1315,7 +1321,8 @@ function openEdit(type,id){
     const p=D.projects.find(p=>p.id===id);if(!p)return;
     document.getElementById('m-t').value=p.name;
     document.getElementById('m-desc').value=p.desc||'';
-    document.getElementById('m-c').value=p.color;
+    const ci=document.getElementById('m-c');if(ci)ci.value=p.color;
+    document.querySelectorAll('.cpick').forEach(el=>el.classList.toggle('cpick-sel',el.dataset.color===p.color));
   }else if(type==='topic'){
     const tp=D.topics.find(t=>t.id===id);if(!tp)return;
     document.getElementById('m-t').value=tp.name;
@@ -1349,7 +1356,10 @@ function buildM(){
   else if(type==='project')b=`
     <div class="ff"><label>Nombre</label><input id="m-t" placeholder="Nombre del proyecto"/></div>
     <div class="ff"><label>Descripción</label><textarea id="m-desc" placeholder="¿De qué trata?"></textarea></div>
-    <div class="ff"><label>Color</label><select id="m-c">${PCOLS.map(c=>`<option value="${c}">${c}</option>`).join('')}</select></div>`;
+    <div class="ff"><label>Color</label>
+      <div class="color-picker">${PCOLS.map((c,i)=>`<div class="cpick${i===0?' cpick-sel':''}" data-color="${c}" style="background:${c}" onclick="pickColor(this,'${c}')"></div>`).join('')}</div>
+      <input type="hidden" id="m-c" value="${PCOLS[0]}">
+    </div>`;
   else if(type==='assigntask'){
     const taskOpts=D.todos.map(t=>`<option value="${t.id}">[${t.date}] ${t.title}${t.done?' ✓':''}</option>`).join('');
     b=`
@@ -1373,6 +1383,11 @@ function buildM(){
   document.getElementById('mbody').innerHTML=b;
   document.getElementById('mo').classList.add('open');
   setTimeout(()=>{const f=document.querySelector('#mbody input,#mbody textarea');if(f)f.focus()},80);
+}
+function pickColor(el,c){
+  document.getElementById('m-c').value=c;
+  el.closest('.color-picker').querySelectorAll('.cpick').forEach(d=>d.classList.remove('cpick-sel'));
+  el.classList.add('cpick-sel');
 }
 function closeM(){document.getElementById('mo').classList.remove('open')}
 function closeMO(e){if(e.target===document.getElementById('mo'))closeM()}
