@@ -150,18 +150,21 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 .wt-slot{height:44px;border-top:1px solid var(--border);box-sizing:border-box;cursor:pointer}
 .wt-slot:hover{background:var(--accent-l)}
 .wt-evlayer{position:absolute;top:0;left:0;right:0;pointer-events:none}
-.wt-ev{position:absolute;left:2px;right:2px;border-radius:0 4px 4px 0;border-left:2px solid;padding:1px 5px 1px 4px;pointer-events:auto;font-size:10px;display:flex;flex-direction:row;align-items:center;gap:3px;overflow:hidden;cursor:grab;height:20px;white-space:nowrap}
+.wt-ev{position:absolute;left:2px;right:2px;border-radius:0 4px 4px 0;border-left:2px solid;padding:2px 5px 2px 4px;pointer-events:auto;font-size:10px;display:flex;flex-direction:column;align-items:flex-start;gap:1px;overflow:hidden;cursor:grab;min-height:20px}
 .wt-ev:active{cursor:grabbing}
-.wt-evtime{font-size:8px;opacity:.65;flex-shrink:0}
-.wt-evtitle{flex:1;overflow:hidden;text-overflow:ellipsis;min-width:0}
-.wt-evacts{display:flex;gap:1px;flex-shrink:0;opacity:0;transition:opacity .1s}
+.wt-evtime{font-size:8px;opacity:.65;flex-shrink:0;white-space:nowrap}
+.wt-evtitle{flex:1;overflow:hidden;text-overflow:ellipsis;min-width:0;white-space:nowrap;max-width:100%}
+.wt-evacts{display:flex;gap:1px;flex-shrink:0;opacity:0;transition:opacity .1s;position:absolute;top:1px;right:2px}
 .wt-ev:hover .wt-evacts{opacity:1}
-.wt-inbox{display:flex;align-items:center;gap:5px;padding:5px 8px;border-bottom:1px solid var(--border2);background:var(--surface2);flex-shrink:0;flex-wrap:wrap;min-height:34px}
+.wt-inbox{display:flex;align-items:center;gap:5px;padding:5px 8px;border-bottom:1px solid var(--border);background:var(--surface2);flex-shrink:0;flex-wrap:wrap;min-height:34px}
 .wt-inbox-lbl{font-size:9px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.06em;flex-shrink:0;white-space:nowrap}
 .wt-inbox-chip{background:var(--surface);border:1.5px dashed var(--border2);border-radius:var(--rs);padding:2px 7px 2px 5px;font-size:10px;cursor:grab;user-select:none;display:flex;align-items:center;gap:4px;white-space:nowrap;transition:border-color .1s,opacity .1s}
 .wt-inbox-chip:hover{border-color:var(--accent);border-style:solid}
 .wt-inbox-chip.dragging{opacity:.3;cursor:grabbing}
-.wt-task-ev{border-left-color:var(--amber) !important;background:var(--amber-l) !important;color:var(--amber) !important}
+.wt-task-ev{border-left-color:var(--amber) !important;background:var(--amber-l) !important;color:var(--amber) !important;flex-direction:row !important;align-items:center !important;height:20px}
+.wt-proj-strip{display:flex;align-items:center;gap:5px;padding:4px 8px;border-bottom:2px solid var(--border2);background:var(--bg);flex-shrink:0;flex-wrap:wrap;min-height:30px}
+.wt-proj-chip{display:flex;align-items:center;gap:4px;padding:2px 8px 2px 5px;border-radius:var(--rs);border:1px solid var(--border);background:var(--surface);font-size:10px;cursor:pointer;white-space:nowrap;transition:border-color .1s,background .1s}
+.wt-proj-chip:hover{border-color:var(--accent);background:var(--accent-l);color:var(--accent)}
 
 /* ── MONTH ── */
 .dow-row{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:3px}
@@ -825,6 +828,14 @@ function renderWeek(){
     html+=`<span style="font-size:10px;color:var(--text3)">Sin tareas pendientes sin fecha</span>`;
   }
   html+=`<button class="wt-add-btn" style="margin-left:4px;opacity:.7;white-space:nowrap" onclick="openM('todo')"><i class="ti ti-plus"></i> Nueva tarea</button></div>`;
+  // ── Projects strip ──
+  html+=`<div class="wt-proj-strip"><span class="wt-inbox-lbl">Proyectos</span>`;
+  if(D.projects.length){
+    html+=D.projects.map(p=>`<div class="wt-proj-chip" onclick="openTodoForProject(${p.id})" title="Nueva tarea para ${p.name}"><div style="width:7px;height:7px;border-radius:50%;background:${p.color};flex-shrink:0"></div>${p.name}<i class="ti ti-plus" style="font-size:8px;margin-left:2px;opacity:.6"></i></div>`).join('');
+  }else{
+    html+=`<span style="font-size:10px;color:var(--text3)">Sin proyectos — crea uno en la pestaña Proyectos</span>`;
+  }
+  html+=`</div>`;
   // ── Header ──
   html+=`<div class="wt-head"><div class="wt-gutter"></div>`;
   for(let i=0;i<7;i++){
@@ -847,13 +858,15 @@ function renderWeek(){
     timedEvs.forEach(ev=>{
       const[eh,em]=(ev.time||'00:00').split(':').map(Number);
       const top=Math.max(0,(eh+em/60-HS)*SH);
+      const dur=ev.endTime?timeDiff(ev.time,ev.endTime):null;
+      const evH=dur?Math.max(22,Math.round(dur*SH)):22;
       const c=ev.color||(ev.type==='meeting'?'var(--green)':ev.source?'var(--blue)':'var(--accent)');
       const isExt=!!ev.source;
       const drag=!isExt?` draggable="true" ondragstart="startTimeDrag(event,'ev',${ev.id})" ondragend="this.style.opacity='';_timeDrag={kind:null,id:null}"`:'' ;
       const click=!isExt?` onclick="openEdit('event',${ev.id})"`:'' ;
       const del=!isExt?`<button class="btn-del" onclick="event.stopPropagation();delEvent(${ev.id})" style="font-size:9px;padding:0 1px"><i class="ti ti-x"></i></button>`:'';
       const tLabel=ev.endTime?`${ev.time}–${ev.endTime}`:ev.time;
-      html+=`<div class="wt-ev"${drag}${click} style="top:${top}px;border-left-color:${c};background:${c}18;color:${c}"><span class="wt-evtime">${tLabel}${ev.source?' · '+ev.source:''}</span><span class="wt-evtitle">${ev.title}</span><div class="wt-evacts">${del}</div></div>`;
+      html+=`<div class="wt-ev"${drag}${click} style="top:${top}px;height:${evH}px;border-left-color:${c};background:${c}18;color:${c}"><span class="wt-evtime">${tLabel}${ev.source?' · '+ev.source:''}</span><span class="wt-evtitle">${ev.title}</span><div class="wt-evacts">${del}</div></div>`;
     });
     timedTasks.forEach(t=>{
       const[th,tm]=(t.time||'00:00').split(':').map(Number);
@@ -1072,7 +1085,7 @@ function renderProjects(){
     const manualH=Math.round(manualEntries.reduce((s,e)=>s+e.hours,0)*10)/10;
     const tbEntries=D.timeblocks.filter(tb=>tb.projectId===p.id&&tb.date.startsWith(monthPfx));
     const tbH=Math.round(tbEntries.reduce((s,tb)=>s+(tb.duration||0),0)*10)/10;
-    const evEntries=D.events.filter(e=>e.projectId===p.id&&e.duration&&e.date.startsWith(monthPfx));
+    const evEntries=D.events.filter(e=>e.projectId===p.id&&e.date.startsWith(monthPfx));
     const evH=Math.round(evEntries.reduce((s,e)=>s+(e.duration||0),0)*10)/10;
     const totalH=Math.round((taskH+manualH+tbH+evH)*10)/10;
     const pct=goal>0?Math.min(100,Math.round(totalH/goal*100)):0;
@@ -1118,8 +1131,8 @@ function renderProjects(){
       ${taskRows}${manualRows}${tbRows}${evEntries.length?`<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:7px">
       <div style="font-size:9px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">Eventos</div>
       ${evEntries.map(e=>`<div style="font-size:10px;color:var(--text2);display:flex;align-items:center;gap:4px;padding:1px 0">
-        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.time?e.time+' ':''}${e.title}</span>
-        <span style="flex-shrink:0;color:var(--text3)">${e.duration}h</span>
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.date}${e.time?' · '+e.time+(e.endTime?'–'+e.endTime:''):''} · ${e.title}</span>
+        <span style="flex-shrink:0;color:var(--text3)">${e.duration?e.duration+'h':''}</span>
         <button class="btn-del" onclick="unassignEvent(${e.id})" title="Desasignar" style="font-size:10px;padding:1px 2px"><i class="ti ti-x"></i></button>
       </div>`).join('')}
     </div>`:''}
@@ -1229,6 +1242,10 @@ function openIdeaForTopic(topicId){
   S.mType='idea';S.mDay=null;S.editId=null;buildM();
   const sel=document.getElementById('m-topic');if(sel)sel.value=String(topicId);
 }
+function openTodoForProject(projId){
+  S.mType='todo';S.mDay=null;S.editId=null;buildM();
+  const sel=document.getElementById('m-proj');if(sel)sel.value=String(projId);
+}
 
 // ── MODAL ──────────────────────────────────────────────────────────────────
 function openM(type){S.mType=type;S.mDay=null;S.editId=null;buildM()}
@@ -1275,7 +1292,8 @@ function buildM(){
   if(type==='todo')b=`
     <div class="ff"><label>Tarea</label><input id="m-t" placeholder="¿Qué hay que hacer?"/></div>
     <div class="ff"><label>Fecha <span style="font-size:10px;color:var(--text3);font-weight:400">(opcional — puedes arrastrarla al día después)</span></label><input id="m-d" type="date" value="${day}"/></div>
-    <div class="ff"><label>Urgencia</label><select id="m-u"><option value="high">Urgente</option><option value="med" selected>Normal</option><option value="low">Baja</option></select></div>`;
+    <div class="ff"><label>Urgencia</label><select id="m-u"><option value="high">Urgente</option><option value="med" selected>Normal</option><option value="low">Baja</option></select></div>
+    <div class="ff"><label>Proyecto (opcional)</label><select id="m-proj">${projOpts}</select></div>`;
   else if(type==='event')b=`
     <div class="ff"><label>Título</label><input id="m-t" placeholder="Nombre del evento"/></div>
     <div class="ff"><label>Fecha</label><input id="m-d" type="date" value="${day}"/></div>
@@ -1318,7 +1336,8 @@ function gv(id){const el=document.getElementById(id);return el?el.value:''}
 function todoFromForm(id){
   const t=gv('m-t').trim();if(!t)return null;
   const date=gv('m-d')||null;
-  return{id,title:t,date,urgency:gv('m-u'),done:false};
+  const pid=parseInt(gv('m-proj'))||null;
+  return{id,title:t,date,urgency:gv('m-u'),done:false,...(pid?{projectId:pid}:{})};
 }
 function saveM(){
   const type=S.mType,eid=S.editId;
