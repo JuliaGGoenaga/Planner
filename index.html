@@ -823,19 +823,21 @@ async function fetchIcs(cal){
   }
   throw new Error('All proxies failed');
 }
-// Convert a date+time expressed in a named IANA timezone to a local Date object
+// Convert a date+time expressed in a named IANA timezone to the correct UTC Date
 function icsZoneToUtc(dateStr,timeStr,tzid){
   try{
-    // Treat the datetime as UTC to get a Date object, then measure how far off
-    // that UTC moment is from what the same wall-clock reads in the target tz.
+    // naiveUtc: treat the wall-clock digits as if they were UTC (they are not)
     const naiveUtc=new Date(`${dateStr}T${timeStr}:00Z`);
-    const inTz=new Intl.DateTimeFormat('sv-SE',{
+    // Ask the browser: what does this UTC instant look like in the source timezone?
+    const parts=new Intl.DateTimeFormat('en-CA',{
       timeZone:tzid,year:'numeric',month:'2-digit',day:'2-digit',
       hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false
-    }).format(naiveUtc);
-    const tzAsUtc=new Date(inTz.replace(' ','T')+'Z');
-    // offset = how many ms we need to shift to go from tz-local → true UTC
-    return new Date(naiveUtc.getTime()+(naiveUtc-tzAsUtc));
+    }).formatToParts(naiveUtc);
+    const get=t=>(parts.find(p=>p.type===t)||{value:'00'}).value;
+    let h=get('hour');if(h==='24')h='00'; // some browsers return 24 for midnight
+    const tzLocal=new Date(`${get('year')}-${get('month')}-${get('day')}T${h}:${get('minute')}:${get('second')}Z`);
+    // Shift: naiveUtc + (naiveUtc - tzLocal) = correct UTC timestamp
+    return new Date(naiveUtc.getTime()+(naiveUtc-tzLocal));
   }catch(e){
     return new Date(`${dateStr}T${timeStr}:00`); // fallback: treat as local
   }
@@ -853,7 +855,7 @@ function icsRawToDate(keyPart,val){
   if(hasZ)             d=new Date(`${dateStr}T${timeStr}:00Z`);
   else if(tzid)        d=icsZoneToUtc(dateStr,timeStr,tzid);
   else                 d=new Date(`${dateStr}T${timeStr}:00`); // floating → local
-  const localDate=d.toLocaleDateString('sv'); // YYYY-MM-DD in local tz
+  const localDate=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   const localTime=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
   return{dateStr:localDate,timeStr:localTime,allDay:false};
 }
