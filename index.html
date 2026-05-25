@@ -504,7 +504,7 @@ html.dark .cpick{box-shadow:0 0 0 1px rgba(255,255,255,0.2)}
             </ol>
             <div class="cal-list" id="cal-list"></div>
             <div class="sf"><label>Calendar name</label><input type="text" id="ics-name" placeholder="Work, Personal…"/></div>
-            <div class="sf"><label>ICS URL</label><input type="url" id="ics-url" placeholder="https://calendar.google.com/calendar/ical/…"/><div class="snote">Uses public CORS proxies to fetch your calendar. If one fails, others are tried automatically.</div></div>
+            <div class="sf"><label>ICS URL</label><input type="url" id="ics-url" placeholder="https://calendar.google.com/calendar/ical/…"/><div class="snote">Tries direct fetch + 5 free public proxies automatically. No login required.</div></div>
             <div class="bg">
               <button class="btn btn-p" onclick="addCal()"><i class="ti ti-plus"></i> Add</button>
               <button class="btn" onclick="refreshIcs()"><i class="ti ti-refresh"></i> Refresh all</button>
@@ -517,7 +517,22 @@ html.dark .cpick{box-shadow:0 0 0 1px rgba(255,255,255,0.2)}
           </div>
           <div class="scard">
             <h3><i class="ti ti-info-circle" style="color:var(--text2)"></i> ICS & CORS note</h3>
-            <p>Browsers block direct ICS fetches. The app tries three public proxies automatically. Your ICS URLs are secret links — not credentials. If all proxies fail, the sync status bar will show an error.</p>
+            <p>Browsers block direct ICS fetches. The app first tries a direct request (works with self-hosted or CORS-enabled calendars), then falls back through 5 free public proxies automatically. No login needed. If all fail, deploy the Netlify proxy below.</p>
+          </div>
+          <div class="scard" style="grid-column:1/-1">
+            <h3><i class="ti ti-brand-netlify" style="color:#00AD9F"></i> CORS Proxy — Netlify Function</h3>
+            <p>Deploy a personal proxy on Netlify's free tier (125k req/month). The app creates the site and uploads the function automatically — no CLI, no credit card required. The function code is also saved to your Gist as <code>proxy.js</code>.</p>
+            <ol class="steps">
+              <li>Go to <a href="https://app.netlify.com/user/applications#personal-access-tokens" target="_blank">app.netlify.com → User settings → Personal access tokens</a> → <strong>New access token</strong>.</li>
+              <li>Paste the token below and click <em>Deploy proxy</em>. The app will create a Netlify site and deploy the function in one click.</li>
+            </ol>
+            <div id="proxy-url-display" style="display:none;font-size:11px;background:var(--surface2);border-radius:var(--rs);padding:6px 10px;font-family:monospace;margin-bottom:8px;color:var(--text2);word-break:break-all"></div>
+            <div class="sf"><label>Netlify Personal Access Token</label><input type="password" id="netlify-token" placeholder="…"/><div class="snote">Stored in this browser only — never uploaded to your Gist.</div></div>
+            <div class="bg">
+              <button class="btn btn-p" onclick="deployProxy()"><i class="ti ti-rocket"></i> Deploy proxy</button>
+              <button class="btn" onclick="clearProxy()"><i class="ti ti-x"></i> Remove proxy</button>
+            </div>
+            <div class="smsg" id="proxy-msg"></div>
           </div>
         </div>
       </div>
@@ -564,13 +579,50 @@ const PCOLS=['#534AB7','#0F6E56','#D85A30','#D4537E','#185FA5','#BA7517','#63992
 const TICOS=['ti-bulb','ti-briefcase','ti-plane','ti-heart','ti-home','ti-book','ti-music','ti-star','ti-rocket','ti-camera'];
 const isMobile=()=>window.innerWidth<=700;
 
+// ── NETLIFY FUNCTION SCRIPT ────────────────────────────────────────────────
+const NETLIFY_FUNC_SCRIPT=`exports.handler = async function(event) {
+  const url = event.queryStringParameters && event.queryStringParameters.url;
+  if (!url) return { statusCode: 400, headers: {'Access-Control-Allow-Origin': '*'}, body: 'Missing url param' };
+  try {
+    const res = await fetch(url);
+    const body = await res.text();
+    return { statusCode: 200, headers: {'Access-Control-Allow-Origin': '*', 'Content-Type': 'text/calendar; charset=utf-8'}, body };
+  } catch(e) {
+    return { statusCode: 502, headers: {'Access-Control-Allow-Origin': '*'}, body: 'Fetch error: ' + e.message };
+  }
+};`;
+
+// Build a minimal ZIP (stored, no compression) for a single text file
+function buildZip(fileName,content){
+  function u16(n){return[n&0xFF,(n>>8)&0xFF]}
+  function u32(n){return[n>>>0&0xFF,(n>>>8)&0xFF,(n>>>16)&0xFF,(n>>>24)&0xFF]}
+  function crc32(buf){
+    if(!crc32._t){crc32._t=new Uint32Array(256);for(let i=0;i<256;i++){let c=i;for(let j=0;j<8;j++)c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1);crc32._t[i]=c;}}
+    let c=0xFFFFFFFF;for(const b of buf)c=(c>>>8)^crc32._t[(c^b)&0xFF];return(c^0xFFFFFFFF)>>>0;
+  }
+  const enc=new TextEncoder(),nameB=enc.encode(fileName),dataB=enc.encode(content);
+  const crc=crc32(dataB),sz=dataB.length;
+  const lh=[0x50,0x4B,0x03,0x04,0x14,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,...u32(crc),...u32(sz),...u32(sz),...u16(nameB.length),0x00,0x00];
+  const cdOff=lh.length+nameB.length+sz;
+  const cd=[0x50,0x4B,0x01,0x02,0x14,0x00,0x14,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,...u32(crc),...u32(sz),...u32(sz),...u16(nameB.length),0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,...u32(cdOff)];
+  const cdSz=cd.length+nameB.length;
+  const eocd=[0x50,0x4B,0x05,0x06,0x00,0x00,0x00,0x00,0x01,0x00,0x01,0x00,...u32(cdSz),...u32(cdOff),0x00,0x00];
+  const out=new Uint8Array(lh.length+nameB.length+sz+cd.length+nameB.length+eocd.length);
+  let p=0;[lh,nameB,dataB,cd,nameB,eocd].forEach(a=>{out.set(a,p);p+=a.length;});
+  return out;
+}
+async function sha1Hex(data){
+  const h=await crypto.subtle.digest('SHA-1',data);
+  return Array.from(new Uint8Array(h)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
 // ── STATE ──────────────────────────────────────────────────────────────────
 let S={weekStart:getMonday(new Date()),monthDate:new Date(),filter:'all',mType:null,mDay:null,editId:null,mProjId:null,nextId:Date.now(),sidebarCollapsed:false};
 let D={events:[],todos:[],projects:[],timeblocks:[],topics:[
   {id:1,name:'Work',icon:'ti-briefcase'},
   {id:2,name:'Personal',icon:'ti-heart'},
   {id:3,name:'Ideas',icon:'ti-bulb'}
-],ideas:[],calendars:[],vacationDays:[],customHolidays:[]};
+],ideas:[],calendars:[],vacationDays:[],customHolidays:[],proxyUrl:''};
 let EXT=[];
 // Read credentials: hash params take priority, then localStorage
 function readCFG(){
@@ -663,6 +715,7 @@ async function loadGist(){
           D.ideas=p.ideas||D.ideas;D.calendars=p.calendars||D.calendars;
           D.vacationDays=p.vacationDays||D.vacationDays;
           D.customHolidays=p.customHolidays||D.customHolidays;
+          D.proxyUrl=p.proxyUrl||'';
           if(p.nextId)S.nextId=p.nextId;
         }
       }catch(e){setSS('err','Corrupt data in Gist');return}
@@ -676,7 +729,7 @@ async function saveGistNow(){
   if(!CFG.token||!CFG.gistId){setSS('','Not configured');return}
   setSS('saving','Saving…');
   try{
-    const files={'planner.json':{content:JSON.stringify({...D,nextId:S.nextId},null,2)}};
+    const files={'planner.json':{content:JSON.stringify({...D,nextId:S.nextId},null,2)},'proxy.js':{content:NETLIFY_FUNC_SCRIPT}};
     const r=await fetch(`https://api.github.com/gists/${CFG.gistId}`,{method:'PATCH',headers:{Authorization:`token ${CFG.token}`,Accept:'application/vnd.github.v3+json','Content-Type':'application/json'},body:JSON.stringify({files})});
     if(!r.ok)throw new Error(r.status);
     setSS('ok','Saved ✓');
@@ -735,11 +788,19 @@ async function refreshIcs(){
 }
 const PROXIES=[
   'https://corsproxy.io/?',
+  'https://corsproxy.org/?',
   'https://api.allorigins.win/raw?url=',
+  'https://api.codetabs.com/v1/proxy?quest=',
   'https://thingproxy.freeboard.io/fetch/'
 ];
 async function fetchIcs(cal){
-  for(const proxy of PROXIES){
+  const allProxies=D.proxyUrl?[D.proxyUrl,...PROXIES]:PROXIES;
+  // Try direct first (works if the calendar server sends CORS headers)
+  try{
+    const r=await fetch(cal.url,{signal:AbortSignal.timeout(6000)});
+    if(r.ok){const text=await r.text();if(text.includes('BEGIN:VCALENDAR'))return parseIcs(text,cal);}
+  }catch(e){}
+  for(const proxy of allProxies){
     try{
       const r=await fetch(proxy+encodeURIComponent(cal.url),{signal:AbortSignal.timeout(8000)});
       if(r.ok){
@@ -777,6 +838,55 @@ function doRollover(){
   const today=todayStr();let changed=false;
   D.todos.forEach(t=>{if(!t.done&&t.date&&t.date<today){if(!t.rolledFrom)t.rolledFrom=t.date;t.date=today;changed=true;}});
   if(changed)sched();
+}
+
+// ── NETLIFY PROXY ──────────────────────────────────────────────────────────
+async function deployProxy(){
+  const token=document.getElementById('netlify-token').value.trim();
+  if(!token){showMsg('proxy-msg','err','Enter your Netlify Personal Access Token.');return}
+  showMsg('proxy-msg','info','Creating Netlify site…');
+  try{
+    let siteId=ls('netlify_site'),siteName=ls('netlify_name');
+    if(!siteId){
+      const suffix=Math.random().toString(36).slice(2,7);
+      const siteR=await fetch('https://api.netlify.com/api/v1/sites',{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({name:`planner-proxy-${suffix}`})});
+      if(!siteR.ok){const e=await siteR.json().catch(()=>({}));throw new Error(e.message||`Site creation failed (${siteR.status})`);}
+      const site=await siteR.json();
+      siteId=site.id;siteName=site.name;
+      lss('netlify_site',siteId);lss('netlify_name',siteName);
+    }
+    showMsg('proxy-msg','info','Deploying function…');
+    const funcZip=buildZip('proxy.js',NETLIFY_FUNC_SCRIPT);
+    const funcHash=await sha1Hex(funcZip);
+    const depR=await fetch(`https://api.netlify.com/api/v1/sites/${siteId}/deploys`,{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({files:{},functions:{proxy:funcHash},async:false})});
+    if(!depR.ok){const e=await depR.json().catch(()=>({}));throw new Error(e.message||`Deploy failed (${depR.status})`);}
+    const dep=await depR.json();
+    if(!dep.required_functions||dep.required_functions.includes(funcHash)){
+      const upR=await fetch(`https://api.netlify.com/api/v1/deploys/${dep.id}/functions/proxy`,{method:'PUT',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/zip'},body:funcZip});
+      if(!upR.ok)throw new Error(`Function upload failed (${upR.status})`);
+    }
+    showMsg('proxy-msg','info','Waiting for deploy to go live…');
+    let ready=dep.state==='ready';
+    for(let i=0;i<20&&!ready;i++){
+      await new Promise(r=>setTimeout(r,3000));
+      const st=await(await fetch(`https://api.netlify.com/api/v1/deploys/${dep.id}`,{headers:{Authorization:`Bearer ${token}`}})).json();
+      if(st.state==='ready')ready=true;
+      else if(st.state==='error')throw new Error('Deploy failed on Netlify side — check your dashboard');
+    }
+    if(!ready)throw new Error('Deploy timed out — check app.netlify.com');
+    D.proxyUrl=`https://${siteName}.netlify.app/.netlify/functions/proxy?url=`;
+    sched();
+    lss('netlify_token',token);
+    renderProxyStatus();
+    showMsg('proxy-msg','ok',`Deployed ✓ → ${siteName}.netlify.app`);
+    if(D.calendars.length)refreshIcs();
+  }catch(e){showMsg('proxy-msg','err',e.message);console.error(e);}
+}
+function clearProxy(){D.proxyUrl='';lss('netlify_site','');lss('netlify_name','');sched();renderProxyStatus();showMsg('proxy-msg','info','Proxy removed — falling back to public proxies.');}
+function renderProxyStatus(){
+  const el=document.getElementById('proxy-url-display');if(!el)return;
+  if(D.proxyUrl){el.textContent='Active: '+D.proxyUrl.replace('?url=','');el.style.display='block';}
+  else{el.style.display='none';}
 }
 
 // ── UTILS ──────────────────────────────────────────────────────────────────
@@ -836,7 +946,8 @@ function go(name){
   else if(name==='setup'){
     document.getElementById('s-token').value=CFG.token;
     document.getElementById('s-gist').value=CFG.gistId;
-    renderCalList();
+    document.getElementById('netlify-token').value=ls('netlify_token')||'';
+    renderCalList();renderProxyStatus();
     if(CFG.token&&CFG.gistId){showMsg('gist-msg','ok','✓ Connected — credentials saved in this browser.');}
   }
 }
