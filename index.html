@@ -1900,10 +1900,6 @@ async function checkAutoExport(){
   if(saved){lss(key,'1');setSS('ok',`Reporte ${MFULL[m-1]} guardado automáticamente en GitHub`);}
 }
 
-  const saved=await saveReportToGist(y,m,csv);
-  if(saved){lss(key,'1');setSS('ok',`Reporte ${MFULL[m-1]} guardado automáticamente en GitHub`);}
-}
-
 // ── TODAY PANEL (Month view right column) ─────────────────────────────────
 function renderTodayPanel(){
   const el=document.getElementById('month-today');if(!el)return;
