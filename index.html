@@ -827,6 +827,40 @@ async function fetchIcs(cal){
   }
   throw new Error('All proxies failed');
 }
+// Convert a date+time expressed in a named IANA timezone to a local Date object
+function icsZoneToUtc(dateStr,timeStr,tzid){
+  try{
+    // Treat the datetime as UTC to get a Date object, then measure how far off
+    // that UTC moment is from what the same wall-clock reads in the target tz.
+    const naiveUtc=new Date(`${dateStr}T${timeStr}:00Z`);
+    const inTz=new Intl.DateTimeFormat('sv-SE',{
+      timeZone:tzid,year:'numeric',month:'2-digit',day:'2-digit',
+      hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false
+    }).format(naiveUtc);
+    const tzAsUtc=new Date(inTz.replace(' ','T')+'Z');
+    // offset = how many ms we need to shift to go from tz-local → true UTC
+    return new Date(naiveUtc.getTime()+(naiveUtc-tzAsUtc));
+  }catch(e){
+    return new Date(`${dateStr}T${timeStr}:00`); // fallback: treat as local
+  }
+}
+function icsRawToDate(keyPart,val){
+  const hasZ=val.endsWith('Z');
+  const raw=val.replace(/Z$/,'');
+  const dateStr=`${raw.slice(0,4)}-${raw.slice(4,6)}-${raw.slice(6,8)}`;
+  if(raw.length===8)return{dateStr,timeStr:'',allDay:true}; // all-day
+  if(raw.length<15)return null;
+  const timeStr=`${raw.slice(9,11)}:${raw.slice(11,13)}`;
+  const tzidM=keyPart.match(/TZID=([^;:]+)/i);
+  const tzid=tzidM?tzidM[1].trim():null;
+  let d;
+  if(hasZ)             d=new Date(`${dateStr}T${timeStr}:00Z`);
+  else if(tzid)        d=icsZoneToUtc(dateStr,timeStr,tzid);
+  else                 d=new Date(`${dateStr}T${timeStr}:00`); // floating → local
+  const localDate=d.toLocaleDateString('sv'); // YYYY-MM-DD in local tz
+  const localTime=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+  return{dateStr:localDate,timeStr:localTime,allDay:false};
+}
 function parseIcs(text,cal){
   const evs=[];
   const lines=text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').replace(/\n[ \t]/g,'').split('\n');
@@ -836,18 +870,18 @@ function parseIcs(text,cal){
     if(line==='END:VEVENT'){if(ev&&ev.date)evs.push({id:'ics_'+cal.id+'_'+(ev.uid||Math.random()),title:ev.summary||'(no title)',date:ev.date,time:ev.time||'',endTime:ev.endTime||'',type:'ical',source:cal.name,calId:cal.id,color:cal.color});ev=null;continue}
     if(!ev)continue;
     const ci=line.indexOf(':');if(ci<0)continue;
-    const key=line.slice(0,ci).split(';')[0].toUpperCase();
+    const keyPart=line.slice(0,ci);
+    const key=keyPart.split(';')[0].toUpperCase();
     const val=line.slice(ci+1).trim();
     if(key==='SUMMARY')ev.summary=val.replace(/\\,/g,',').replace(/\\n/g,' ');
     if(key==='UID')ev.uid=val;
     if(key==='DTSTART'){
-      const raw=val.replace(/Z$/,'');
-      if(raw.length===8){ev.date=`${raw.slice(0,4)}-${raw.slice(4,6)}-${raw.slice(6,8)}`;ev.time='';}
-      else if(raw.length>=15){ev.date=`${raw.slice(0,4)}-${raw.slice(4,6)}-${raw.slice(6,8)}`;ev.time=`${raw.slice(9,11)}:${raw.slice(11,13)}`;}
+      const r=icsRawToDate(keyPart,val);
+      if(r){ev.date=r.dateStr;ev.time=r.allDay?'':r.timeStr;}
     }
     if(key==='DTEND'){
-      const raw=val.replace(/Z$/,'');
-      if(raw.length>=15){ev.endTime=`${raw.slice(9,11)}:${raw.slice(11,13)}`;}
+      const r=icsRawToDate(keyPart,val);
+      if(r&&!r.allDay)ev.endTime=r.timeStr;
     }
   }
   return evs;
