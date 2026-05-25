@@ -779,12 +779,8 @@ function promoteIcsEvent(icsId){
   document.getElementById('mtitle').textContent='Registrar en proyecto';
   document.getElementById('mbody').innerHTML=`
     <div class="ff"><label>Título</label><input type="text" id="m-ics-title" value="${safeTitle}"/></div>
-    <div class="ff" style="display:flex;gap:8px">
-      <div style="flex:1"><label>Horas</label><input type="number" id="m-ics-hours" step="0.25" min="0.25" value="${dur?Math.round(dur*4)/4:''}" placeholder="ej: 1.5"/></div>
-      <div style="flex:1"><label>Urgencia</label><select id="m-ics-urg"><option value="low">Baja</option><option value="med" selected>Media</option><option value="high">Alta</option></select></div>
-    </div>
-    <div class="ff"><label>Proyecto</label><select id="m-ics-proj"><option value="">— Sin proyecto —</option>${D.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('')}</select></div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px">${ev.date}${ev.time?' · '+ev.time+(ev.endTime?' – '+ev.endTime:''):''} · ${ev.source}</div>`;
+    <div style="font-size:10px;color:var(--text3);margin-top:4px">${ev.date}${ev.time?' · '+ev.time+(ev.endTime?' – '+ev.endTime:''):''} · ${ev.source}</div>
+    <div style="font-size:10px;color:var(--blue);margin-top:6px"><i class="ti ti-info-circle"></i> Se añadirá al panel de proyectos para asignar con horas arrastrando</div>`;
   document.getElementById('mo').classList.add('open');
 }
 async function refreshIcs(){
@@ -1036,7 +1032,7 @@ function renderWeek(){
   html+=`</div>`;
   for(let i=0;i<7;i++){
     const d=addDays(s,i),ds=dStr(d),isT=ds===today;
-    const timedEvs=[...D.events.filter(e=>e.date===ds&&e.time),...EXT.filter(e=>e.date===ds&&e.time)];
+    const timedEvs=[...D.events.filter(e=>e.date===ds&&e.time&&!e.fromIcs),...EXT.filter(e=>e.date===ds&&e.time)];
     const timedTasks=D.todos.filter(t=>t.date===ds&&t.time&&!t.fromIcs);
     html+=`<div class="wt-daycol${isT?' wt-today-col':''}" ondragover="event.preventDefault();event.dataTransfer.dropEffect='move'" ondrop="dropOnTime(event,'${ds}')">`;
     for(let h=HS;h<HE;h++) html+=`<div class="wt-slot" onclick="openMDTime('event','${ds}','${String(h).padStart(2,'0')}:00')"></div>`;
@@ -1048,7 +1044,7 @@ function renderWeek(){
       const hPct=dur?Math.max(100/numH*0.4,dur/numH*100):(100/numH*0.4);
       const c=ev.color||(ev.type==='meeting'?'var(--green)':ev.source?'var(--blue)':'var(--accent)');
       const isExt=!!ev.source;
-      const isPromoted=isExt&&D.todos.some(t=>t.icsRef===ev.id);
+      const isPromoted=isExt&&D.events.some(e=>e.icsRef===ev.id);
       const drag=!isExt?` draggable="true" ondragstart="startTimeDrag(event,'ev',${ev.id})" ondragend="this.style.opacity='';_timeDrag={kind:null,id:null}"`:'' ;
       const eid=JSON.stringify(ev.id).replace(/"/g,'&quot;');
       const click=isExt?` onclick="promoteIcsEvent(${eid})"`:` onclick="openEdit('event',${ev.id})"`;
@@ -1664,10 +1660,8 @@ function saveM(){
     else if(type==='ics-promote'){
       const ev=S._icsEv;if(!ev)return;
       const title=document.getElementById('m-ics-title').value.trim()||ev.title;
-      const hours=parseFloat(document.getElementById('m-ics-hours').value)||null;
-      const projectId=parseInt(document.getElementById('m-ics-proj').value)||null;
-      const urgency=document.getElementById('m-ics-urg').value;
-      D.todos.push({id,title,date:ev.date,time:ev.time,hours,projectId,urgency,done:false,fromIcs:true,icsRef:ev.id});
+      const dur=ev.endTime&&ev.time?timeDiff(ev.time,ev.endTime):null;
+      D.events.push({id,title,date:ev.date,time:ev.time||'',endTime:ev.endTime||'',duration:dur||null,type:'ical',fromIcs:true,icsRef:ev.id});
       S._icsEv=null;
     }
   }
