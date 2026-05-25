@@ -771,6 +771,22 @@ function renderCalList(){
     <button class="btn-del" onclick="delCal(${c.id})"><i class="ti ti-x" style="font-size:12px"></i></button>
   </div>`).join('');
 }
+function promoteIcsEvent(icsId){
+  const ev=EXT.find(e=>e.id===icsId);if(!ev)return;
+  const dur=ev.endTime&&ev.time?timeDiff(ev.time,ev.endTime):null;
+  const safeTitle=ev.title.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  S.mType='ics-promote';S.editId=null;S._icsEv=ev;
+  document.getElementById('mtitle').textContent='Registrar en proyecto';
+  document.getElementById('mbody').innerHTML=`
+    <div class="ff"><label>Título</label><input type="text" id="m-ics-title" value="${safeTitle}"/></div>
+    <div class="ff" style="display:flex;gap:8px">
+      <div style="flex:1"><label>Horas</label><input type="number" id="m-ics-hours" step="0.25" min="0.25" value="${dur?Math.round(dur*4)/4:''}" placeholder="ej: 1.5"/></div>
+      <div style="flex:1"><label>Urgencia</label><select id="m-ics-urg"><option value="low">Baja</option><option value="med" selected>Media</option><option value="high">Alta</option></select></div>
+    </div>
+    <div class="ff"><label>Proyecto</label><select id="m-ics-proj"><option value="">— Sin proyecto —</option>${D.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('')}</select></div>
+    <div style="font-size:10px;color:var(--text3);margin-top:4px">${ev.date}${ev.time?' · '+ev.time+(ev.endTime?' – '+ev.endTime:''):''} · ${ev.source}</div>`;
+  document.getElementById('mo').classList.add('open');
+}
 async function refreshIcs(){
   if(!D.calendars.length)return;
   setSS('saving','Syncing calendars…');
@@ -817,7 +833,7 @@ function parseIcs(text,cal){
   let ev=null;
   for(const line of lines){
     if(line==='BEGIN:VEVENT'){ev={};continue}
-    if(line==='END:VEVENT'){if(ev&&ev.date)evs.push({id:'ics_'+cal.id+'_'+(ev.uid||Math.random()),title:ev.summary||'(no title)',date:ev.date,time:ev.time||'',type:'ical',source:cal.name,calId:cal.id,color:cal.color});ev=null;continue}
+    if(line==='END:VEVENT'){if(ev&&ev.date)evs.push({id:'ics_'+cal.id+'_'+(ev.uid||Math.random()),title:ev.summary||'(no title)',date:ev.date,time:ev.time||'',endTime:ev.endTime||'',type:'ical',source:cal.name,calId:cal.id,color:cal.color});ev=null;continue}
     if(!ev)continue;
     const ci=line.indexOf(':');if(ci<0)continue;
     const key=line.slice(0,ci).split(';')[0].toUpperCase();
@@ -828,6 +844,10 @@ function parseIcs(text,cal){
       const raw=val.replace(/Z$/,'');
       if(raw.length===8){ev.date=`${raw.slice(0,4)}-${raw.slice(4,6)}-${raw.slice(6,8)}`;ev.time='';}
       else if(raw.length>=15){ev.date=`${raw.slice(0,4)}-${raw.slice(4,6)}-${raw.slice(6,8)}`;ev.time=`${raw.slice(9,11)}:${raw.slice(11,13)}`;}
+    }
+    if(key==='DTEND'){
+      const raw=val.replace(/Z$/,'');
+      if(raw.length>=15){ev.endTime=`${raw.slice(9,11)}:${raw.slice(11,13)}`;}
     }
   }
   return evs;
@@ -962,8 +982,9 @@ function renderWeek(){
   const HS=8,HE=21,numH=HE-HS;
   // helper: render a task chip for the right column
   function rtask(t){
-    const badge=t.date?(t.time?t.time:t.date.slice(5)):'';
-    return`<div class="wt-rtask" draggable="true" ondragstart="startTimeDrag(event,'task',${t.id});this.classList.add('dragging')" ondragend="this.classList.remove('dragging');this.style.opacity='';_timeDrag={kind:null,id:null}" onclick="openEdit('todo',${t.id})"><div class="udot u-${t.urgency}" style="flex-shrink:0"></div><span class="wt-rtask-title">${t.title}</span>${badge?`<span class="wt-rtask-badge">${badge}</span>`:''}</div>`;
+    const badge=t.fromIcs&&t.hours?`${t.hours}h`:t.date?(t.time?t.time:t.date.slice(5)):'';
+    const dot=t.fromIcs?`<i class="ti ti-calendar-event" style="font-size:10px;color:var(--blue);flex-shrink:0"></i>`:`<div class="udot u-${t.urgency}" style="flex-shrink:0"></div>`;
+    return`<div class="wt-rtask" draggable="true" ondragstart="startTimeDrag(event,'task',${t.id});this.classList.add('dragging')" ondragend="this.classList.remove('dragging');this.style.opacity='';_timeDrag={kind:null,id:null}" onclick="openEdit('todo',${t.id})">${dot}<span class="wt-rtask-title">${t.title}</span>${badge?`<span class="wt-rtask-badge">${badge}</span>`:''}</div>`;
   }
   let html=`<div class="wt-wrap">`;
   // ── LEFT: Calendar ──────────────────────────────────────────
@@ -982,7 +1003,7 @@ function renderWeek(){
   for(let i=0;i<7;i++){
     const d=addDays(s,i),ds=dStr(d),isT=ds===today;
     const timedEvs=[...D.events.filter(e=>e.date===ds&&e.time),...EXT.filter(e=>e.date===ds&&e.time)];
-    const timedTasks=D.todos.filter(t=>t.date===ds&&t.time);
+    const timedTasks=D.todos.filter(t=>t.date===ds&&t.time&&!t.fromIcs);
     html+=`<div class="wt-daycol${isT?' wt-today-col':''}" ondragover="event.preventDefault();event.dataTransfer.dropEffect='move'" ondrop="dropOnTime(event,'${ds}')">`;
     for(let h=HS;h<HE;h++) html+=`<div class="wt-slot" onclick="openMDTime('event','${ds}','${String(h).padStart(2,'0')}:00')"></div>`;
     html+=`<div class="wt-evlayer">`;
@@ -993,11 +1014,13 @@ function renderWeek(){
       const hPct=dur?Math.max(100/numH*0.4,dur/numH*100):(100/numH*0.4);
       const c=ev.color||(ev.type==='meeting'?'var(--green)':ev.source?'var(--blue)':'var(--accent)');
       const isExt=!!ev.source;
+      const isPromoted=isExt&&D.todos.some(t=>t.icsRef===ev.id);
       const drag=!isExt?` draggable="true" ondragstart="startTimeDrag(event,'ev',${ev.id})" ondragend="this.style.opacity='';_timeDrag={kind:null,id:null}"`:'' ;
-      const click=!isExt?` onclick="openEdit('event',${ev.id})"`:'' ;
-      const del=!isExt?`<button class="btn-del" onclick="event.stopPropagation();delEvent(${ev.id})" style="font-size:9px;padding:0 1px"><i class="ti ti-x"></i></button>`:'';
+      const click=isExt?` onclick="promoteIcsEvent(${JSON.stringify(ev.id)})"`:` onclick="openEdit('event',${ev.id})"`;
+      const del=!isExt?`<button class="btn-del" onclick="event.stopPropagation();delEvent(${ev.id})" style="font-size:9px;padding:0 1px"><i class="ti ti-x"></i></button>`:isPromoted?`<i class="ti ti-bookmark-filled" style="font-size:9px;opacity:.8;padding:0 2px" title="Registrado en proyecto"></i>`:`<button class="btn-del" onclick="event.stopPropagation();promoteIcsEvent(${JSON.stringify(ev.id)})" style="font-size:9px;padding:0 1px" title="Añadir a proyecto"><i class="ti ti-tag"></i></button>`;
       const tLabel=ev.endTime?`${ev.time}–${ev.endTime}`:ev.time;
-      html+=`<div class="wt-ev"${drag}${click} style="top:${topPct.toFixed(2)}%;height:${hPct.toFixed(2)}%;border-left-color:${c};background:${c}18;color:${c}"><span class="wt-evtime">${tLabel}${ev.source?' · '+ev.source:''}</span><span class="wt-evtitle">${ev.title}</span><div class="wt-evacts">${del}</div></div>`;
+      const cursorStyle=isExt?'cursor:pointer;':'';
+      html+=`<div class="wt-ev"${drag}${click} style="${cursorStyle}top:${topPct.toFixed(2)}%;height:${hPct.toFixed(2)}%;border-left-color:${c};background:${c}18;color:${c}"><span class="wt-evtime">${tLabel}${ev.source?' · '+ev.source:''}</span><span class="wt-evtitle">${ev.title}</span><div class="wt-evacts">${del}</div></div>`;
     });
     timedTasks.forEach(t=>{
       const[th,tm]=(t.time||'00:00').split(':').map(Number);
@@ -1603,6 +1626,15 @@ function saveM(){
     else if(type==='timeblock'){const pid=parseInt(gv('m-proj'));const dur=parseFloat(gv('m-dur'))||1;D.timeblocks.push({id,date:gv('m-d'),startTime:gv('m-time'),duration:dur,projectId:pid});const p=D.projects.find(p=>p.id===pid);if(p)p.hoursUsed=Math.round((p.hoursUsed+dur)*10)/10;}
     else if(type==='topic'){const n=gv('m-t').trim();if(!n)return;D.topics.push({id,name:n,icon:gv('m-icon')})}
     else if(type==='idea'){const t=gv('m-tx').trim();if(!t)return;D.ideas.push({id,topicId:parseInt(gv('m-topic')),text:t})}
+    else if(type==='ics-promote'){
+      const ev=S._icsEv;if(!ev)return;
+      const title=document.getElementById('m-ics-title').value.trim()||ev.title;
+      const hours=parseFloat(document.getElementById('m-ics-hours').value)||null;
+      const projectId=parseInt(document.getElementById('m-ics-proj').value)||null;
+      const urgency=document.getElementById('m-ics-urg').value;
+      D.todos.push({id,title,date:ev.date,time:ev.time,hours,projectId,urgency,done:false,fromIcs:true,icsRef:ev.id});
+      S._icsEv=null;
+    }
   }
   closeM();sched();refreshPage();
 }
