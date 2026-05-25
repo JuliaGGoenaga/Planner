@@ -1016,8 +1016,9 @@ function renderWeek(){
       const isExt=!!ev.source;
       const isPromoted=isExt&&D.todos.some(t=>t.icsRef===ev.id);
       const drag=!isExt?` draggable="true" ondragstart="startTimeDrag(event,'ev',${ev.id})" ondragend="this.style.opacity='';_timeDrag={kind:null,id:null}"`:'' ;
-      const click=isExt?` onclick="promoteIcsEvent(${JSON.stringify(ev.id)})"`:` onclick="openEdit('event',${ev.id})"`;
-      const del=!isExt?`<button class="btn-del" onclick="event.stopPropagation();delEvent(${ev.id})" style="font-size:9px;padding:0 1px"><i class="ti ti-x"></i></button>`:isPromoted?`<i class="ti ti-bookmark-filled" style="font-size:9px;opacity:.8;padding:0 2px" title="Registrado en proyecto"></i>`:`<button class="btn-del" onclick="event.stopPropagation();promoteIcsEvent(${JSON.stringify(ev.id)})" style="font-size:9px;padding:0 1px" title="Añadir a proyecto"><i class="ti ti-tag"></i></button>`;
+      const eid=JSON.stringify(ev.id).replace(/"/g,'&quot;');
+      const click=isExt?` onclick="promoteIcsEvent(${eid})"`:` onclick="openEdit('event',${ev.id})"`;
+      const del=!isExt?`<button class="btn-del" onclick="event.stopPropagation();delEvent(${ev.id})" style="font-size:9px;padding:0 1px"><i class="ti ti-x"></i></button>`:isPromoted?`<i class="ti ti-bookmark-filled" style="font-size:9px;opacity:.8;padding:0 2px" title="Registrado en proyecto"></i>`:`<button class="btn-del" onclick="event.stopPropagation();promoteIcsEvent(${eid})" style="font-size:9px;padding:0 1px" title="Añadir a proyecto"><i class="ti ti-tag"></i></button>`;
       const tLabel=ev.endTime?`${ev.time}–${ev.endTime}`:ev.time;
       const cursorStyle=isExt?'cursor:pointer;':'';
       html+=`<div class="wt-ev"${drag}${click} style="${cursorStyle}top:${topPct.toFixed(2)}%;height:${hPct.toFixed(2)}%;border-left-color:${c};background:${c}18;color:${c}"><span class="wt-evtime">${tLabel}${ev.source?' · '+ev.source:''}</span><span class="wt-evtitle">${ev.title}</span><div class="wt-evacts">${del}</div></div>`;
