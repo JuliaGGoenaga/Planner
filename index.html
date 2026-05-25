@@ -823,14 +823,46 @@ async function fetchIcs(cal){
   }
   throw new Error('All proxies failed');
 }
+// Windows timezone name → IANA mapping (Outlook/Exchange meeting invites use these)
+const WIN_TZ={
+  'Eastern Standard Time':'America/New_York','Eastern Daylight Time':'America/New_York',
+  'Central Standard Time':'America/Chicago','Central Daylight Time':'America/Chicago',
+  'Mountain Standard Time':'America/Denver','Mountain Daylight Time':'America/Denver',
+  'US Mountain Standard Time':'America/Phoenix',
+  'Pacific Standard Time':'America/Los_Angeles','Pacific Daylight Time':'America/Los_Angeles',
+  'Alaska Standard Time':'America/Anchorage',
+  'Hawaii Standard Time':'Pacific/Honolulu',
+  'Atlantic Standard Time':'America/Halifax',
+  'Canada Central Standard Time':'America/Regina',
+  'SA Eastern Standard Time':'America/Sao_Paulo',
+  'E. South America Standard Time':'America/Sao_Paulo',
+  'Argentina Standard Time':'America/Argentina/Buenos_Aires',
+  'GMT Standard Time':'Europe/London','Greenwich Standard Time':'Atlantic/Reykjavik',
+  'W. Europe Standard Time':'Europe/Berlin','Central Europe Standard Time':'Europe/Budapest',
+  'Central European Standard Time':'Europe/Warsaw','Romance Standard Time':'Europe/Paris',
+  'E. Europe Standard Time':'Asia/Nicosia',
+  'FLE Standard Time':'Europe/Helsinki','GTB Standard Time':'Europe/Bucharest',
+  'Turkey Standard Time':'Europe/Istanbul',
+  'Russian Standard Time':'Europe/Moscow',
+  'Arab Standard Time':'Asia/Riyadh','Arabian Standard Time':'Asia/Dubai',
+  'India Standard Time':'Asia/Calcutta',
+  'SE Asia Standard Time':'Asia/Bangkok',
+  'China Standard Time':'Asia/Shanghai','Singapore Standard Time':'Asia/Singapore',
+  'Tokyo Standard Time':'Asia/Tokyo','Korea Standard Time':'Asia/Seoul',
+  'AUS Eastern Standard Time':'Australia/Sydney','E. Australia Standard Time':'Australia/Brisbane',
+  'New Zealand Standard Time':'Pacific/Auckland',
+  'UTC':'UTC','UTC+12':'Etc/GMT-12','UTC-02':'Etc/GMT+2','UTC-11':'Etc/GMT+11',
+  'Dateline Standard Time':'Etc/GMT+12',
+};
 // Convert a date+time expressed in a named IANA timezone to the correct UTC Date
 function icsZoneToUtc(dateStr,timeStr,tzid){
+  const ianaId=WIN_TZ[tzid]||tzid; // normalise Windows tz names to IANA
   try{
     // naiveUtc: treat the wall-clock digits as if they were UTC (they are not)
     const naiveUtc=new Date(`${dateStr}T${timeStr}:00Z`);
     // Ask the browser: what does this UTC instant look like in the source timezone?
     const parts=new Intl.DateTimeFormat('en-CA',{
-      timeZone:tzid,year:'numeric',month:'2-digit',day:'2-digit',
+      timeZone:ianaId,year:'numeric',month:'2-digit',day:'2-digit',
       hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false
     }).formatToParts(naiveUtc);
     const get=t=>(parts.find(p=>p.type===t)||{value:'00'}).value;
