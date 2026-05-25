@@ -22,11 +22,11 @@
   --sidebar-w:198px;
   --bottomnav:56px;
 }
-@media(prefers-color-scheme:dark){:root{
+html.dark:root{
   --bg:#1a1917;--surface:#242320;--surface2:#2e2d29;--border:rgba(255,255,255,0.09);--border2:rgba(255,255,255,0.16);
   --text:#f0efe9;--text2:#9e9d97;--text3:#5e5d58;
   --accent-l:#2a2660;--green-l:#0a2e25;--amber-l:#2e1f05;--red-l:#2e0f0f;--blue-l:#0c2340
-}}
+}
 html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);font-size:14px;overflow:hidden}
 
 /* ── APP SHELL ── */
@@ -163,7 +163,7 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 .wt-daycol{position:relative;border-left:1px solid var(--border);background:var(--surface);display:flex;flex-direction:column}
 /* today column: subtle gray, NOT accent */
 .wt-today-col{background:rgba(0,0,0,0.028) !important;border-left:1px solid var(--border2) !important}
-@media(prefers-color-scheme:dark){.wt-today-col{background:rgba(255,255,255,0.05) !important}}
+html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
 .wt-slot{flex:1;min-height:0;border-top:1px solid var(--border);cursor:pointer;box-sizing:border-box}
 .wt-slot:hover{background:var(--accent-l)}
 .wt-evlayer{position:absolute;top:0;left:0;right:0;bottom:0;pointer-events:none}
@@ -337,7 +337,7 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 .cpick{width:26px;height:26px;border-radius:50%;cursor:pointer;border:3px solid transparent;box-shadow:0 0 0 1px rgba(0,0,0,0.18);transition:transform .1s,border-color .1s;flex-shrink:0}
 .cpick:hover{transform:scale(1.15)}
 .cpick.cpick-sel{border-color:var(--text) !important;transform:scale(1.1);box-shadow:0 0 0 2px var(--text)}
-@media(prefers-color-scheme:dark){.cpick{box-shadow:0 0 0 1px rgba(255,255,255,0.2)}}
+html.dark .cpick{box-shadow:0 0 0 1px rgba(255,255,255,0.2)}
 
 /* ── MODAL ── */
 .mo{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.38);z-index:200;align-items:center;justify-content:center;padding:16px}
@@ -552,6 +552,11 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 </div>
 
 <script>
+// ── TIME-BASED THEME ───────────────────────────────────────────────────────
+function applyTimeTheme(){const h=new Date().getHours();document.documentElement.classList.toggle('dark',h<7||h>=21)}
+applyTimeTheme();
+setInterval(applyTimeTheme,60000);
+
 // ── CONSTANTS ──────────────────────────────────────────────────────────────
 const DAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const MFULL=['January','February','March','April','May','June','July','August','September','October','November','December'];
