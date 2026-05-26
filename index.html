@@ -126,6 +126,13 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
   #page-week.active{flex:1;min-height:0;display:flex;flex-direction:column}
   #page-week.active .ph{flex-shrink:0;margin-bottom:8px}
   #page-week.active #week-grid{flex:1;min-height:0;overflow:hidden}
+  /* month continuous scroll */
+  .page-area:has(#page-month.active){overflow:hidden;display:flex;flex-direction:column;padding-bottom:8px}
+  #page-month.active{flex:1;min-height:0;display:flex;flex-direction:column}
+  #page-month.active .ph{flex-shrink:0;margin-bottom:8px}
+  #page-month.active .month-layout{flex:1;min-height:0;overflow:hidden;align-items:stretch}
+  #page-month.active #month-grid{overflow-y:auto;min-height:0}
+  #page-month.active .month-today-panel{position:static;max-height:none;overflow-y:auto}
 }
 /* outer: row — calendar left, project column right */
 .wt-wrap{display:flex;flex-direction:row;border:1px solid var(--border);border-radius:var(--r);overflow:hidden;height:100%}
@@ -306,6 +313,9 @@ html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
 
 /* ── MONTH TODAY PANEL ── */
 .month-layout{display:flex;gap:12px;align-items:flex-start}
+.month-scroll-dow{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;position:sticky;top:0;z-index:3;background:var(--bg);padding:3px 0 5px;border-bottom:1px solid var(--border);margin-bottom:3px}
+.month-section{margin-bottom:6px}
+.month-section-label{font-size:11px;font-weight:700;color:var(--text2);padding:6px 4px 5px;position:sticky;top:26px;z-index:2;background:var(--bg);display:flex;align-items:center;gap:5px;border-bottom:1px solid var(--border);margin-bottom:3px}
 .month-today-panel{width:270px;flex-shrink:0;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px;position:sticky;top:0;max-height:calc(100dvh - 100px);overflow-y:auto}
 .mtp-head{font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:5px}
 .mtp-item{display:flex;align-items:flex-start;gap:6px;padding:5px 0;border-bottom:1px solid var(--border);min-width:0}
@@ -1383,7 +1393,15 @@ function toggleDayState(ds){
   else{D.vacationDays.push(ds);}                        // nada → vacaciones
   sched();renderMonth();
 }
-function changeMonth(d){const dt=S.monthDate;S.monthDate=new Date(dt.getFullYear(),dt.getMonth()+d,1);renderMonth()}
+function changeMonth(d){
+  const dt=S.monthDate;
+  const nd=new Date(dt.getFullYear(),dt.getMonth()+d,1);
+  S.monthDate=nd;
+  const grid=document.getElementById('month-grid');if(!grid)return;
+  const sec=grid.querySelector(`#msec-${nd.getFullYear()}-${nd.getMonth()}`);
+  if(sec){sec.scrollIntoView({behavior:'smooth',block:'start'});document.getElementById('mlabel').textContent=`${MFULL[nd.getMonth()]} ${nd.getFullYear()}`;}
+  else{renderMonth();}
+}
 
 // ── TODOS ──────────────────────────────────────────────────────────────────
 function setF(f,btn){S.filter=f;document.querySelectorAll('.fb').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderTodos()}
