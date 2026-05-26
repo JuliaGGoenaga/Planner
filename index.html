@@ -407,6 +407,7 @@ html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
   .mo{padding:8px}
   .mbox{padding:10px 12px;max-height:97dvh !important}
   .mn-editor{min-height:80px;max-height:150px}
+  .plan-bubble{font-size:7px;line-height:1;padding:0 3px;margin-top:1px;cursor:default}
 }
 
 /* ── COLOR PICKER ── */
@@ -1376,7 +1377,7 @@ function renderMonth(){
   const MON_DAYS=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 
   // ── helper: render one cell ──────────────────────────────────────────────
-  function cellHtml(cur,om){
+  function cellHtml(cur,om,isMob){
     const ds=dStr(cur);const isT=ds===today;
     const hols=getMadridHolidays(cur.getFullYear());
     const isHol=!om&&!!hols[ds];const isVac=!om&&vacSet.has(ds);const isCus=!om&&cusSet.has(ds);
@@ -1390,7 +1391,7 @@ function renderMonth(){
     const isWeekend=cur.getDay()===0||cur.getDay()===6;
     const cellCls=`mcell${isT?' today-cell':''}${om?' other':''}${(!om&&isWeekend)?' weekend':''}${(isHol||isCus)?' hol-cell':''}${isVac?' vac-cell':''}`;
     const cellPlans=om?[]:(D.plans||[]).filter(p=>p.days&&p.days.includes(ds));
-    const planBubbles=cellPlans.map(p=>`<div class="plan-bubble" style="background:${p.color}" onclick="event.stopPropagation();removePlanFromDay(${p.id},'${ds}')" title="${(p.title||'').replace(/"/g,'&quot;')}">${(p.title||'').replace(/</g,'&lt;')}</div>`).join('');
+    const planBubbles=cellPlans.map(p=>`<div class="plan-bubble" style="background:${p.color}" ${isMob?'':` onclick="event.stopPropagation();removePlanFromDay(${p.id},'${ds}')"`} title="${(p.title||'').replace(/"/g,'&quot;')}">${(p.title||'').replace(/</g,'&lt;')}</div>`).join('');
     const dragHandlers=`ondragover="event.preventDefault();this.classList.add('plan-drop-hover')" ondragleave="if(!this.contains(event.relatedTarget))this.classList.remove('plan-drop-hover')" ondrop="dropPlanOnDay(event,'${ds}')"`;
     return`<div class="${cellCls}" ${clickAttr} ${dragHandlers}><div class="mc-n${isT?' tn':''}">${cur.getDate()}</div><div class="mcdots">${dots}</div>${holBadge}${cusBadge}${vacBadge}${planBubbles}</div>`;
   }
@@ -1406,7 +1407,7 @@ function renderMonth(){
     let safe=0;
     while(cur<=last&&safe++<8){
       html+=`<div class="mweek">`;
-      for(let i=0;i<7;i++){html+=cellHtml(cur,cur.getMonth()!==m0);cur.setDate(cur.getDate()+1);}
+      for(let i=0;i<7;i++){html+=cellHtml(cur,cur.getMonth()!==m0,true);cur.setDate(cur.getDate()+1);}
       html+=`</div>`;
     }
     grid.innerHTML=html;
