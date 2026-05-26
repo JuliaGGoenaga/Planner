@@ -183,7 +183,7 @@ html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
 .dow-row{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:3px}
 .dlabel{font-size:10px;color:var(--text3);text-align:center;text-transform:uppercase;letter-spacing:.05em;padding:2px 0}
 .mweek{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:3px}
-.mcell{background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);min-height:72px;padding:4px 5px;overflow:hidden;min-width:0}
+.mcell{background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);min-height:120px;padding:4px 5px;overflow:hidden;min-width:0}
 .mcell.weekend{background:var(--bg)}
 .mcell.today-cell{border-color:var(--accent)}
 .mcell.other{opacity:.4}
@@ -191,7 +191,7 @@ html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
 .mc-n.tn{color:var(--accent)}
 .mcdots{display:flex;flex-wrap:wrap;gap:2px;margin-bottom:2px}
 .mcdot{width:5px;height:5px;border-radius:50%}
-.mc-tb{font-size:9px;padding:1px 3px;border-radius:3px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mc-tb{font-size:10px;padding:1px 3px;border-radius:3px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mcell.hol-cell{background:var(--amber-l)}
 .mcell.vac-cell{background:var(--blue-l)}
 /* ── PLANES ── */
@@ -306,7 +306,7 @@ html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
 
 /* ── MONTH TODAY PANEL ── */
 .month-layout{display:flex;gap:12px;align-items:flex-start}
-.month-today-panel{width:270px;flex-shrink:0;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px;position:sticky;top:0;max-height:calc(100dvh - 140px);overflow-y:auto}
+.month-today-panel{width:270px;flex-shrink:0;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px;position:sticky;top:0;max-height:calc(100dvh - 100px);overflow-y:auto}
 .mtp-head{font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:5px}
 .mtp-item{display:flex;align-items:flex-start;gap:6px;padding:5px 0;border-bottom:1px solid var(--border);min-width:0}
 .mtp-item:last-child{border-bottom:none}
@@ -1958,10 +1958,16 @@ function removePlanFromDay(planId,ds){
   plan.days=plan.days.filter(d=>d!==ds);
   sched();renderMonth();
 }
+function archivePlan(id){
+  const plan=(D.plans||[]).find(p=>p.id===id);
+  if(!plan)return;
+  plan.archived=true;
+  sched();renderMonth();
+}
 function deletePlan(id){
   const plan=(D.plans||[]).find(p=>p.id===id);
   const label=plan?`"${plan.title}"`:'este plan';
-  if(!confirm(`¿Eliminar el plan ${label}?\nSe quitará de todos los días.`))return;
+  if(!confirm(`¿Eliminar el plan ${label} del calendario también?\nSe borrarán las marcas de todos los días.`))return;
   D.plans=(D.plans||[]).filter(p=>p.id!==id);
   sched();renderMonth();
 }
@@ -2019,14 +2025,22 @@ function renderTodayPanel(){
   }
   // ── Plans section ──
   const plans=D.plans||[];
+  const visiblePlans=plans.filter(p=>!p.archived);
+  const archivedPlans=plans.filter(p=>p.archived);
   html+=`<div class="plan-section"><div class="plan-section-head"><i class="ti ti-map" style="font-size:11px"></i>Planes<button onclick="openM('plan')" style="margin-left:auto;background:none;border:none;cursor:pointer;color:var(--accent);font-size:18px;line-height:1;padding:0 2px" title="Nuevo plan"><i class="ti ti-plus"></i></button></div>`;
   if(!plans.length){
     html+=`<div style="font-size:10px;color:var(--text3);font-style:italic;padding:4px 0">Sin planes. Pulsa <strong>+</strong> para crear uno y arrástralo sobre los días del mes.</div>`;
   } else {
-    plans.forEach(p=>{
+    visiblePlans.forEach(p=>{
       const safeTitle=(p.title||'').replace(/</g,'&lt;');
-      html+=`<div class="plan-chip" draggable="true" ondragstart="planDragStart(event,${p.id})" ondragend="_planDrag=null"><div class="plan-chip-dot" style="background:${p.color}"></div><span class="plan-chip-title">${safeTitle}</span><span style="font-size:9px;color:var(--text3);flex-shrink:0">${(p.days||[]).length}d</span><button class="btn-del" onclick="event.stopPropagation();deletePlan(${p.id})" style="color:var(--red);padding:0 2px" title="Eliminar"><i class="ti ti-trash" style="font-size:11px"></i></button></div>`;
+      html+=`<div class="plan-chip" draggable="true" ondragstart="planDragStart(event,${p.id})" ondragend="_planDrag=null"><div class="plan-chip-dot" style="background:${p.color}"></div><span class="plan-chip-title">${safeTitle}</span><span style="font-size:9px;color:var(--text3);flex-shrink:0">${(p.days||[]).length}d</span><button class="btn-del" onclick="event.stopPropagation();archivePlan(${p.id})" style="color:var(--green);padding:0 2px" title="Quitar de la lista (mantiene marcas en el calendario)"><i class="ti ti-check" style="font-size:11px"></i></button><button class="btn-del" onclick="event.stopPropagation();deletePlan(${p.id})" style="color:var(--red);padding:0 2px" title="Eliminar completamente del calendario"><i class="ti ti-trash" style="font-size:11px"></i></button></div>`;
     });
+    if(archivedPlans.length){
+      html+=`<div style="font-size:9px;color:var(--text3);margin-top:6px;padding-top:6px;border-top:1px solid var(--border);font-style:italic">${archivedPlans.length} plan${archivedPlans.length>1?'es':''} archivado${archivedPlans.length>1?'s':''} — visible${archivedPlans.length>1?'s':''} en el calendario</div>`;
+    }
+    if(!visiblePlans.length&&!archivedPlans.length){
+      html+=`<div style="font-size:10px;color:var(--text3);font-style:italic;padding:4px 0">Todos los planes están archivados.</div>`;
+    }
   }
   html+=`</div>`;
   el.innerHTML=html;
