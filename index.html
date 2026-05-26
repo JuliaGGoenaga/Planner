@@ -127,12 +127,8 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
   #page-week.active .ph{flex-shrink:0;margin-bottom:8px}
   #page-week.active #week-grid{flex:1;min-height:0;overflow:hidden}
   /* month continuous scroll */
-  .page-area:has(#page-month.active){overflow:hidden;display:flex;flex-direction:column;padding-bottom:8px}
-  #page-month.active{flex:1;min-height:0;display:flex;flex-direction:column}
-  #page-month.active .ph{flex-shrink:0;margin-bottom:8px}
-  #page-month.active .month-layout{flex:1;min-height:0;overflow:hidden;align-items:stretch}
-  #page-month.active #month-grid{overflow-y:auto;min-height:0}
-  #page-month.active .month-today-panel{position:static;max-height:none;overflow-y:auto}
+  .page-area:has(#page-month.active){overflow:hidden}
+  #page-month.active #month-grid{height:calc(100dvh - 145px);overflow-y:auto}
 }
 /* outer: row — calendar left, project column right */
 .wt-wrap{display:flex;flex-direction:row;border:1px solid var(--border);border-radius:var(--r);overflow:hidden;height:100%}
