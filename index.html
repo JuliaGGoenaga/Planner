@@ -1372,58 +1372,95 @@ function renderMonth(){
   const y0=d.getFullYear(),m0=d.getMonth();
   const vacSet=new Set(D.vacationDays||[]);
   const cusSet=new Set(D.customHolidays||[]);
-  const holCache={};
-  function getHol(y){if(!holCache[y])holCache[y]=getMadridHolidays(y);return holCache[y];}
-  // range: 12 months before → 12 after, aligned to Mon–Sun week boundaries
-  let startDate=new Date(y0,m0-12,1);
-  let endDate=new Date(y0,m0+13,0);
-  const sdow=startDate.getDay()||7;startDate.setDate(startDate.getDate()-(sdow-1));
-  const edow=endDate.getDay()||7;if(edow!==7)endDate.setDate(endDate.getDate()+(7-edow));
-  const MON_DAYS=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-  let html=`<div class="month-scroll-dow">${MON_DAYS.map(dy=>`<div class="dlabel">${dy}</div>`).join('')}</div>`;
-  const seenMonths=new Set();
-  let cur=new Date(startDate);
-  while(cur<=endDate){
-    // place invisible anchor before the week that contains the 1st of a new month
-    for(let i=0;i<7;i++){
-      const probe=new Date(cur);probe.setDate(probe.getDate()+i);
-      if(probe.getDate()===1){
-        const key=`${probe.getFullYear()}-${probe.getMonth()}`;
-        if(!seenMonths.has(key)){
-          seenMonths.add(key);
-          html+=`<div id="msec-${probe.getFullYear()}-${probe.getMonth()}" style="height:0;overflow:hidden"></div>`;
-        }
-        break;
-      }
-    }
-    html+=`<div class="mweek">`;
-    for(let i=0;i<7;i++){
-      const ds=dStr(cur);const isT=ds===today;
-      const hols=getHol(cur.getFullYear());
-      const isHol=!!hols[ds];const isVac=vacSet.has(ds);const isCus=cusSet.has(ds);
-      const evs=allEvFor(ds);const tds=D.todos.filter(t=>t.date===ds&&!t.done);
-      let dots=evs.map(ev=>{const c=ev.color||(ev.type==='meeting'?'var(--green)':'var(--accent)');return`<div class="mcdot" style="background:${c}"></div>`;}).join('');
-      dots+=tds.map(()=>`<div class="mcdot" style="background:var(--amber)"></div>`).join('');
-      const holBadge=isHol?`<span class="mc-badge mc-hol">${hols[ds]}</span>`:'';
-      const cusBadge=isCus?`<span class="mc-badge mc-hol">Festivo</span>`:'';
-      const vacBadge=isVac?`<span class="mc-badge mc-vac">Vacaciones</span>`:'';
-      const isWeekend=cur.getDay()===0||cur.getDay()===6;
-      const cellCls=`mcell${isT?' today-cell':''}${isWeekend?' weekend':''}${(isHol||isCus)?' hol-cell':''}${isVac?' vac-cell':''}`;const cellYm=`${cur.getFullYear()}-${cur.getMonth()}`;
-      const cellPlans=(D.plans||[]).filter(p=>p.days&&p.days.includes(ds));
-      const planBubbles=cellPlans.map(p=>`<div class="plan-bubble" style="background:${p.color}" onclick="event.stopPropagation();removePlanFromDay(${p.id},'${ds}')" title="${(p.title||'').replace(/"/g,'&quot;')}">${(p.title||'').replace(/</g,'&lt;')}</div>`).join('');
-      const dragHandlers=`ondragover="event.preventDefault();this.classList.add('plan-drop-hover')" ondragleave="if(!this.contains(event.relatedTarget))this.classList.remove('plan-drop-hover')" ondrop="dropPlanOnDay(event,'${ds}')"`;
-      const clickAttr=`onclick="toggleDayState('${ds}')" title="1 clic: vacaciones · 2 clics: festivo · 3 clics: quitar"`;
-      html+=`<div class="${cellCls}" data-ym="${cellYm}" ${clickAttr} ${dragHandlers}><div class="mc-n${isT?' tn':''}">${cur.getDate()}</div><div class="mcdots">${dots}</div>${holBadge}${cusBadge}${vacBadge}${planBubbles}</div>`;
-      cur.setDate(cur.getDate()+1);
-    }
-    html+=`</div>`;
-  }
   const grid=document.getElementById('month-grid');
-  grid.innerHTML=html;
-  grid.onscroll=onMonthGridScroll;
-  updateMonthShading(y0,m0);
-  const sec=grid.querySelector(`#msec-${y0}-${m0}`);
-  if(sec)sec.scrollIntoView({block:'start',behavior:'instant'});
+  const MON_DAYS=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+
+  // ── helper: render one cell ──────────────────────────────────────────────
+  function cellHtml(cur,om){
+    const ds=dStr(cur);const isT=ds===today;
+    const hols=getMadridHolidays(cur.getFullYear());
+    const isHol=!om&&!!hols[ds];const isVac=!om&&vacSet.has(ds);const isCus=!om&&cusSet.has(ds);
+    const evs=allEvFor(ds);const tds=D.todos.filter(t=>t.date===ds&&!t.done);
+    let dots=evs.map(ev=>{const c=ev.color||(ev.type==='meeting'?'var(--green)':'var(--accent)');return`<div class="mcdot" style="background:${c}"></div>`;}).join('');
+    dots+=tds.map(()=>`<div class="mcdot" style="background:var(--amber)"></div>`).join('');
+    const holBadge=isHol?`<span class="mc-badge mc-hol">${hols[ds]}</span>`:'';
+    const cusBadge=isCus?`<span class="mc-badge mc-hol">Festivo</span>`:'';
+    const vacBadge=isVac?`<span class="mc-badge mc-vac">Vacaciones</span>`:'';
+    const clickAttr=!om?`onclick="toggleDayState('${ds}')" title="1 clic: vacaciones · 2 clics: festivo · 3 clics: quitar"`:'';
+    const isWeekend=cur.getDay()===0||cur.getDay()===6;
+    const cellCls=`mcell${isT?' today-cell':''}${om?' other':''}${(!om&&isWeekend)?' weekend':''}${(isHol||isCus)?' hol-cell':''}${isVac?' vac-cell':''}`;
+    const cellPlans=om?[]:(D.plans||[]).filter(p=>p.days&&p.days.includes(ds));
+    const planBubbles=cellPlans.map(p=>`<div class="plan-bubble" style="background:${p.color}" onclick="event.stopPropagation();removePlanFromDay(${p.id},'${ds}')" title="${(p.title||'').replace(/"/g,'&quot;')}">${(p.title||'').replace(/</g,'&lt;')}</div>`).join('');
+    const dragHandlers=`ondragover="event.preventDefault();this.classList.add('plan-drop-hover')" ondragleave="if(!this.contains(event.relatedTarget))this.classList.remove('plan-drop-hover')" ondrop="dropPlanOnDay(event,'${ds}')"`;
+    return`<div class="${cellCls}" ${clickAttr} ${dragHandlers}><div class="mc-n${isT?' tn':''}">${cur.getDate()}</div><div class="mcdots">${dots}</div>${holBadge}${cusBadge}${vacBadge}${planBubbles}</div>`;
+  }
+
+  if(window.innerWidth<701){
+    // ── MOBILE: single month, no infinite scroll ─────────────────────────
+    if(_shadeStyle)_shadeStyle.textContent='';
+    grid.onscroll=null;
+    const last=new Date(y0,m0+1,0);
+    let html=`<div class="dow-row">${MON_DAYS.map(dy=>`<div class="dlabel">${dy}</div>`).join('')}</div>`;
+    let cur=new Date(y0,m0,1);
+    const fd=cur.getDay()||7;cur.setDate(cur.getDate()-(fd-1));
+    let safe=0;
+    while(cur<=last&&safe++<8){
+      html+=`<div class="mweek">`;
+      for(let i=0;i<7;i++){html+=cellHtml(cur,cur.getMonth()!==m0);cur.setDate(cur.getDate()+1);}
+      html+=`</div>`;
+    }
+    grid.innerHTML=html;
+  } else {
+    // ── DESKTOP: continuous 25-month scroll ──────────────────────────────
+    const holCache={};
+    function getHol(y){if(!holCache[y])holCache[y]=getMadridHolidays(y);return holCache[y];}
+    let startDate=new Date(y0,m0-12,1);
+    let endDate=new Date(y0,m0+13,0);
+    const sdow=startDate.getDay()||7;startDate.setDate(startDate.getDate()-(sdow-1));
+    const edow=endDate.getDay()||7;if(edow!==7)endDate.setDate(endDate.getDate()+(7-edow));
+    let html=`<div class="month-scroll-dow">${MON_DAYS.map(dy=>`<div class="dlabel">${dy}</div>`).join('')}</div>`;
+    const seenMonths=new Set();
+    let cur=new Date(startDate);
+    while(cur<=endDate){
+      for(let i=0;i<7;i++){
+        const probe=new Date(cur);probe.setDate(probe.getDate()+i);
+        if(probe.getDate()===1){
+          const key=`${probe.getFullYear()}-${probe.getMonth()}`;
+          if(!seenMonths.has(key)){
+            seenMonths.add(key);
+            html+=`<div id="msec-${probe.getFullYear()}-${probe.getMonth()}" style="height:0;overflow:hidden"></div>`;
+          }
+          break;
+        }
+      }
+      html+=`<div class="mweek">`;
+      for(let i=0;i<7;i++){
+        const ds=dStr(cur);const isT=ds===today;
+        const hols=getHol(cur.getFullYear());
+        const isHol=!!hols[ds];const isVac=vacSet.has(ds);const isCus=cusSet.has(ds);
+        const evs=allEvFor(ds);const tds=D.todos.filter(t=>t.date===ds&&!t.done);
+        let dots=evs.map(ev=>{const c=ev.color||(ev.type==='meeting'?'var(--green)':'var(--accent)');return`<div class="mcdot" style="background:${c}"></div>`;}).join('');
+        dots+=tds.map(()=>`<div class="mcdot" style="background:var(--amber)"></div>`).join('');
+        const holBadge=isHol?`<span class="mc-badge mc-hol">${hols[ds]}</span>`:'';
+        const cusBadge=isCus?`<span class="mc-badge mc-hol">Festivo</span>`:'';
+        const vacBadge=isVac?`<span class="mc-badge mc-vac">Vacaciones</span>`:'';
+        const isWeekend=cur.getDay()===0||cur.getDay()===6;
+        const cellCls=`mcell${isT?' today-cell':''}${isWeekend?' weekend':''}${(isHol||isCus)?' hol-cell':''}${isVac?' vac-cell':''}`;const cellYm=`${cur.getFullYear()}-${cur.getMonth()}`;
+        const cellPlans=(D.plans||[]).filter(p=>p.days&&p.days.includes(ds));
+        const planBubbles=cellPlans.map(p=>`<div class="plan-bubble" style="background:${p.color}" onclick="event.stopPropagation();removePlanFromDay(${p.id},'${ds}')" title="${(p.title||'').replace(/"/g,'&quot;')}">${(p.title||'').replace(/</g,'&lt;')}</div>`).join('');
+        const dragHandlers=`ondragover="event.preventDefault();this.classList.add('plan-drop-hover')" ondragleave="if(!this.contains(event.relatedTarget))this.classList.remove('plan-drop-hover')" ondrop="dropPlanOnDay(event,'${ds}')"`;
+        const clickAttr=`onclick="toggleDayState('${ds}')" title="1 clic: vacaciones · 2 clics: festivo · 3 clics: quitar"`;
+        html+=`<div class="${cellCls}" data-ym="${cellYm}" ${clickAttr} ${dragHandlers}><div class="mc-n${isT?' tn':''}">${cur.getDate()}</div><div class="mcdots">${dots}</div>${holBadge}${cusBadge}${vacBadge}${planBubbles}</div>`;
+        cur.setDate(cur.getDate()+1);
+      }
+      html+=`</div>`;
+    }
+    grid.innerHTML=html;
+    grid.onscroll=onMonthGridScroll;
+    updateMonthShading(y0,m0);
+    const sec=grid.querySelector(`#msec-${y0}-${m0}`);
+    if(sec)sec.scrollIntoView({block:'start',behavior:'instant'});
+  }
   renderTodayPanel();
 }
 function toggleDayState(ds){
