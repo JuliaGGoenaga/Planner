@@ -1357,9 +1357,11 @@ function onMonthGridScroll(){
     if(best){
       const p=best.id.split('-');
       const y=parseInt(p[1]),m=parseInt(p[2]);
+      const prevY=S.monthDate.getFullYear();
       S.monthDate=new Date(y,m,1);
       document.getElementById('mlabel').textContent=`${MFULL[m]} ${y}`;
       updateMonthShading(y,m);
+      if(y!==prevY)renderTodayPanel();
     }
   });
 }
@@ -2101,6 +2103,19 @@ function renderTodayPanel(){
     }
   }
   html+=`</div>`;
+  // ── Vacation counter ──
+  const vacYear=S.monthDate.getFullYear();
+  const vacYearPfx=`${vacYear}-`;
+  const vacCount=(D.vacationDays||[]).filter(v=>v.startsWith(vacYearPfx)).length;
+  html+=`<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
+    <div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;margin-bottom:6px;display:flex;align-items:center;gap:5px"><i class="ti ti-beach" style="font-size:11px;color:var(--blue)"></i>Vacaciones ${vacYear}</div>
+    <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:6px">${vacCount} día${vacCount!==1?'s':''}</div>
+    <div style="font-size:10px;color:var(--text3);line-height:1.6">
+      <span style="display:inline-flex;align-items:center;gap:3px;margin-bottom:2px"><span style="width:8px;height:8px;border-radius:2px;background:var(--blue-l);border:1px solid var(--blue);display:inline-block"></span>1 clic → vacaciones</span><br>
+      <span style="display:inline-flex;align-items:center;gap:3px;margin-bottom:2px"><span style="width:8px;height:8px;border-radius:2px;background:var(--amber-l);border:1px solid var(--amber);display:inline-block"></span>2 clics → festivo</span><br>
+      <span style="display:inline-flex;align-items:center;gap:3px"><span style="width:8px;height:8px;border-radius:2px;background:var(--border2);display:inline-block"></span>3 clics → quitar</span>
+    </div>
+  </div>`;
   el.innerHTML=html;
 }
 
@@ -2136,6 +2151,12 @@ function renderYear(){
     }
     html+=`</div></div>`;
   }
+  const vacYearCount=(D.vacationDays||[]).filter(v=>v.startsWith(`${y}-`)).length;
+  html+=`<div class="mvac-row" style="grid-column:1/-1;margin-top:4px;flex-wrap:wrap;gap:4px 12px">
+    <i class="ti ti-beach" style="color:var(--blue)"></i>
+    <strong>Vacaciones ${y}: ${vacYearCount} día${vacYearCount!==1?'s':''}</strong>
+    <span style="color:var(--text3)">·&nbsp;1 clic vacaciones&nbsp;·&nbsp;2 clics festivo&nbsp;·&nbsp;3 quitar</span>
+  </div>`;
   document.getElementById('year-grid').innerHTML=html;
 }
 function changeYear(delta){S.yearDate=new Date(S.yearDate.getFullYear()+delta,0,1);renderYear()}
