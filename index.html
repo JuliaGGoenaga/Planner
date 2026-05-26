@@ -194,6 +194,15 @@ html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
 .mc-tb{font-size:9px;padding:1px 3px;border-radius:3px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mcell.hol-cell{background:var(--amber-l)}
 .mcell.vac-cell{background:var(--blue-l)}
+/* ── PLANES ── */
+.plan-section{margin-top:12px;padding-top:10px;border-top:1px solid var(--border)}
+.plan-section-head{font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.plan-chip{display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:6px;font-size:11px;cursor:grab;user-select:none;margin-bottom:3px;background:var(--surface2);border:1px solid var(--border)}
+.plan-chip:hover{border-color:var(--border2)}.plan-chip-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.plan-chip-title{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
+.plan-bubble{font-size:9px;line-height:1.3;padding:2px 5px;border-radius:3px;color:#fff;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;display:block}
+.plan-bubble:hover{filter:brightness(1.12)}
+.mcell.plan-drop-hover{outline:2px dashed var(--accent)!important;outline-offset:-2px}
 .mc-badge{font-size:8px;padding:1px 3px;border-radius:3px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
 .mc-hol{color:var(--amber)}
 .mc-vac{color:var(--blue);font-weight:600}
@@ -715,7 +724,7 @@ let D={events:[],todos:[],projects:[],timeblocks:[],meetingNotes:[],topics:[
   {id:1,name:'Work',icon:'ti-briefcase'},
   {id:2,name:'Personal',icon:'ti-heart'},
   {id:3,name:'Ideas',icon:'ti-bulb'}
-],ideas:[],calendars:[],vacationDays:[],customHolidays:[],proxyUrl:''};
+],ideas:[],calendars:[],vacationDays:[],customHolidays:[],plans:[],proxyUrl:''};
 let EXT=[];
 // Read credentials: hash params take priority, then localStorage
 function readCFG(){
@@ -810,6 +819,7 @@ async function loadGist(){
           D.customHolidays=p.customHolidays||D.customHolidays;
           D.proxyUrl=p.proxyUrl||'';
           D.meetingNotes=p.meetingNotes||D.meetingNotes;
+          D.plans=p.plans||D.plans;
           if(p.nextId)S.nextId=p.nextId;
         }
       }catch(e){setSS('err','Corrupt data in Gist');return}
@@ -1352,7 +1362,10 @@ function renderMonth(){
       const clickAttr=!om?`onclick="toggleDayState('${ds}')" title="1 clic: vacaciones · 2 clics: festivo · 3 clics: quitar"`:'';
       const isWeekend=cur.getDay()===0||cur.getDay()===6;
       const cellCls=`mcell${isT?' today-cell':''}${om?' other':''}${(!om&&isWeekend)?' weekend':''}${(isHol||isCus)?' hol-cell':''}${isVac?' vac-cell':''}`;
-      html+=`<div class="${cellCls}" ${clickAttr}><div class="mc-n${isT?' tn':''}">${cur.getDate()}</div><div class="mcdots">${dots}</div>${holBadge}${cusBadge}${vacBadge}</div>`;
+      const cellPlans=om?[]:(D.plans||[]).filter(p=>p.days&&p.days.includes(ds));
+      const planBubbles=cellPlans.map(p=>`<div class="plan-bubble" style="background:${p.color}" onclick="event.stopPropagation();removePlanFromDay(${p.id},'${ds}')" title="${(p.title||'').replace(/"/g,'&quot;')}">${(p.title||'').replace(/</g,'&lt;')}</div>`).join('');
+      const dragHandlers=`ondragover="event.preventDefault();this.classList.add('plan-drop-hover')" ondragleave="if(!this.contains(event.relatedTarget))this.classList.remove('plan-drop-hover')" ondrop="dropPlanOnDay(event,'${ds}')"` ;
+      html+=`<div class="${cellCls}" ${clickAttr} ${dragHandlers}><div class="mc-n${isT?' tn':''}">${cur.getDate()}</div><div class="mcdots">${dots}</div>${holBadge}${cusBadge}${vacBadge}${planBubbles}</div>`;
       cur.setDate(cur.getDate()+1);
     }
     html+=`</div>`;
@@ -1695,7 +1708,7 @@ function openEdit(type,id){
 }
 function buildM(){
   const type=S.mType,day=S.mDay||(type==='todo'?'':todayStr()),ed=S.editId;
-  const addT={todo:'Add to-do',event:'Add event',project:'New project',timeblock:'Add time block',topic:'New topic',idea:'New idea',assigntask:'Asignar tarea al proyecto',loghours:'Registrar horas manuales'};
+  const addT={todo:'Add to-do',event:'Add event',project:'New project',timeblock:'Add time block',topic:'New topic',idea:'New idea',plan:'Nuevo plan',assigntask:'Asignar tarea al proyecto',loghours:'Registrar horas manuales'};
   const edtT={todo:'Edit to-do',event:'Edit event',project:'Edit project',topic:'Edit topic',idea:'Edit idea'};
   document.getElementById('mtitle').textContent=(ed?edtT[type]:addT[type])||'Add';
   const projOpts='<option value="">— None —</option>'+D.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
@@ -1740,6 +1753,13 @@ function buildM(){
   else if(type==='idea'){const to=D.topics.map(t=>`<option value="${t.id}">${t.name}</option>`).join('');b=`
     <div class="ff"><label>Your idea</label><textarea id="m-tx" placeholder="Capture it while it's fresh…"></textarea></div>
     <div class="ff"><label>Topic</label><select id="m-topic">${to||'<option>Add a topic first</option>'}</select></div>`;}
+  else if(type==='plan')b=`
+    <div class="ff"><label>Nombre del plan</label><input id="m-t" placeholder="Ej. Viaje a París, Sprint de diseño…"/></div>
+    <div class="ff"><label>Color</label>
+      <div class="color-picker">${PCOLS.map((c,i)=>`<div class="cpick${i===0?' cpick-sel':''}" data-color="${c}" style="background:${c}" onclick="pickColor(this,'${c}')"></div>`).join('')}</div>
+      <input type="hidden" id="m-c" value="${PCOLS[0]}">
+    </div>
+    <div style="font-size:10px;color:var(--text3);margin-top:6px;line-height:1.5">Tras crearlo, arrástralo desde el panel lateral sobre los días del mes donde aplica. Clic sobre el bubble en el día para quitarlo de ese día.</div>`;
   document.getElementById('mbody').innerHTML=b;
   document.getElementById('mo').classList.add('open');
   setTimeout(()=>{const f=document.querySelector('#mbody input,#mbody textarea');if(f)f.focus()},80);
@@ -1806,6 +1826,7 @@ function saveM(){
     else if(type==='timeblock'){const pid=parseInt(gv('m-proj'));const dur=parseFloat(gv('m-dur'))||1;D.timeblocks.push({id,date:gv('m-d'),startTime:gv('m-time'),duration:dur,projectId:pid});const p=D.projects.find(p=>p.id===pid);if(p)p.hoursUsed=Math.round((p.hoursUsed+dur)*10)/10;}
     else if(type==='topic'){const n=gv('m-t').trim();if(!n)return;D.topics.push({id,name:n,icon:gv('m-icon')})}
     else if(type==='idea'){const t=gv('m-tx').trim();if(!t)return;D.ideas.push({id,topicId:parseInt(gv('m-topic')),text:t})}
+    else if(type==='plan'){const t=gv('m-t').trim();if(!t)return;D.plans.push({id,title:t,color:gv('m-c'),days:[]});}
     else if(type==='ics-promote'){
       const ev=S._icsEv;if(!ev)return;
       const title=document.getElementById('m-ics-title').value.trim()||ev.title;
@@ -1919,6 +1940,31 @@ async function checkAutoExport(){
 }
 
 // ── TODAY PANEL (Month view right column) ─────────────────────────────────
+// ── PLANS ───────────────────────────────────────────────────────────────────────────
+let _planDrag=null;
+function planDragStart(e,planId){_planDrag=planId;e.dataTransfer.effectAllowed='copy';e.dataTransfer.setData('text/plain','plan:'+planId);}
+function dropPlanOnDay(e,ds){
+  e.preventDefault();
+  e.currentTarget.classList.remove('plan-drop-hover');
+  if(_planDrag===null)return;
+  const plan=(D.plans||[]).find(p=>p.id===_planDrag);
+  if(plan&&!plan.days.includes(ds))plan.days.push(ds);
+  _planDrag=null;
+  sched();renderMonth();
+}
+function removePlanFromDay(planId,ds){
+  const plan=(D.plans||[]).find(p=>p.id===planId);
+  if(!plan)return;
+  plan.days=plan.days.filter(d=>d!==ds);
+  sched();renderMonth();
+}
+function deletePlan(id){
+  const plan=(D.plans||[]).find(p=>p.id===id);
+  const label=plan?`"${plan.title}"`:'este plan';
+  if(!confirm(`¿Eliminar el plan ${label}?\nSe quitará de todos los días.`))return;
+  D.plans=(D.plans||[]).filter(p=>p.id!==id);
+  sched();renderMonth();
+}
 function renderTodayPanel(){
   const el=document.getElementById('month-today');if(!el)return;
   const today=todayStr();
@@ -1971,6 +2017,18 @@ function renderTodayPanel(){
       </div>`;
     });
   }
+  // ── Plans section ──
+  const plans=D.plans||[];
+  html+=`<div class="plan-section"><div class="plan-section-head"><i class="ti ti-map" style="font-size:11px"></i>Planes<button onclick="openM('plan')" style="margin-left:auto;background:none;border:none;cursor:pointer;color:var(--accent);font-size:18px;line-height:1;padding:0 2px" title="Nuevo plan"><i class="ti ti-plus"></i></button></div>`;
+  if(!plans.length){
+    html+=`<div style="font-size:10px;color:var(--text3);font-style:italic;padding:4px 0">Sin planes. Pulsa <strong>+</strong> para crear uno y arrástralo sobre los días del mes.</div>`;
+  } else {
+    plans.forEach(p=>{
+      const safeTitle=(p.title||'').replace(/</g,'&lt;');
+      html+=`<div class="plan-chip" draggable="true" ondragstart="planDragStart(event,${p.id})" ondragend="_planDrag=null"><div class="plan-chip-dot" style="background:${p.color}"></div><span class="plan-chip-title">${safeTitle}</span><span style="font-size:9px;color:var(--text3);flex-shrink:0">${(p.days||[]).length}d</span><button class="btn-del" onclick="event.stopPropagation();deletePlan(${p.id})" style="color:var(--red);padding:0 2px" title="Eliminar"><i class="ti ti-trash" style="font-size:11px"></i></button></div>`;
+    });
+  }
+  html+=`</div>`;
   el.innerHTML=html;
 }
 
