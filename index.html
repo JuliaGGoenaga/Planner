@@ -1265,10 +1265,13 @@ function renderWeekMobile(){
     html+=`<div class="dcol${isT?' today-col':''}">
       <div class="dhead"><div class="dname">${DAYS[d.getDay()]}</div><div class="dnum${isT?' today':''}">${d.getDate()}</div></div>
       <div class="dbody">
-        ${evs.map(ev=>ev.source
-          ?`<div class="ev ical" style="${ev.color?`border-left-color:${ev.color};color:${ev.color};background:${ev.color}18`:''}"><span class="ev-time">${ev.time||'all-day'} · ${ev.source}</span>${ev.title}</div>`
-          :`<div class="ev" style="display:flex;align-items:flex-start;gap:3px"><div style="flex:1"><span class="ev-time">${ev.time||'all-day'}</span>${ev.title}</div><button class="btn-del" onclick="openEdit('event',${ev.id})" style="font-size:10px;padding:1px 2px"><i class="ti ti-pencil"></i></button><button class="btn-del" onclick="delEvent(${ev.id})" style="font-size:10px;padding:1px 2px"><i class="ti ti-x"></i></button></div>`
-        ).join('')}
+        ${evs.map(ev=>{
+          const hasMN=D.meetingNotes&&D.meetingNotes.some(n=>n.eventRef===ev.id);
+          const mnBtn=`<button class="btn-del" onclick="event.stopPropagation();openMeetingNotes(${ev.id})" style="font-size:10px;padding:1px 2px;color:${hasMN?'var(--blue)':'var(--text3)'}" title="Meeting notes"><i class="ti ti-notebook"></i></button>`;
+          return ev.source
+            ?`<div class="ev ical" style="${ev.color?`border-left-color:${ev.color};color:${ev.color};background:${ev.color}18`:''}"><div style="display:flex;align-items:flex-start;gap:2px"><div style="flex:1"><span class="ev-time">${ev.time||'all-day'} · ${ev.source}</span>${ev.title}</div>${mnBtn}</div></div>`
+            :`<div class="ev" style="display:flex;align-items:flex-start;gap:3px"><div style="flex:1"><span class="ev-time">${ev.time||'all-day'}</span>${ev.title}</div>${mnBtn}<button class="btn-del" onclick="openEdit('event',${ev.id})" style="font-size:10px;padding:1px 2px"><i class="ti ti-pencil"></i></button><button class="btn-del" onclick="delEvent(${ev.id})" style="font-size:10px;padding:1px 2px"><i class="ti ti-x"></i></button></div>`;
+        }).join('')}
         ${tbs.map(tb=>{const p=D.projects.find(p=>p.id===tb.projectId);const c=p?p.color:'var(--accent)';return`<div class="ev" style="border-left-color:${c};background:${c}18;color:${c};display:flex;align-items:flex-start;gap:3px"><div style="flex:1"><span class="ev-time">${tb.startTime} · ${tb.duration}h</span>${p?p.name:'Bloque'}</div><button class="btn-del" onclick="delTimeblock(${tb.id})" style="font-size:10px;padding:1px 2px;color:${c}"><i class="ti ti-x"></i></button></div>`;}).join('')}
         ${tds.map(t=>`<div class="tr"><div class="chk${t.done?' on':''}" onclick="toggleTodo(${t.id})"></div><div class="udot u-${t.urgency}"></div><div class="tl${t.done?' done':''}" style="flex:1">${t.title}${t.rolledFrom?'<span class="rolled">↩</span>':''}</div><button class="btn-del" onclick="openEdit('todo',${t.id})" style="font-size:9px;padding:1px 2px"><i class="ti ti-pencil"></i></button></div>`).join('')}
         <div class="day-adds">
