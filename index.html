@@ -346,6 +346,7 @@ html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
 .mn-editor{min-height:110px;max-height:260px;overflow-y:auto;border:1px solid var(--border2);border-radius:var(--rs);padding:5px 7px;background:var(--surface2);color:var(--text);font-size:13px;line-height:1.5;outline:none}
 .mn-editor:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:transparent}
 .mn-editor b,.mn-editor strong{font-weight:700}.mn-editor i,.mn-editor em{font-style:italic}
+.mn-editor[data-ph]:empty:before{content:attr(data-ph);color:var(--text3);pointer-events:none}
 .mn-badge{display:inline-flex;align-items:center;gap:3px;background:var(--blue-l);color:var(--blue);border-radius:10px;padding:1px 7px;font-size:9px;font-weight:600;margin:1px 2px 1px 0}
 .mn-ev-noted{position:absolute;bottom:2px;right:3px;font-size:8px;color:var(--blue);opacity:.8}
 
@@ -1814,7 +1815,7 @@ function openEdit(type,id){
   }else if(type==='note'){
     const n=D.notes.find(n=>n.id===id);if(!n)return;
     document.getElementById('m-t').value=n.title==='Sin título'?'':n.title;
-    document.getElementById('m-body').value=n.body||'';
+    const bd=document.getElementById('m-body');if(bd)bd.innerHTML=n.body||'';
     const sel=document.getElementById('m-ncat');
     if(sel){if(n.projectId)sel.value=`proj:${n.projectId}`;else if(n.category)sel.value=`cat:${n.category}`;else sel.value='';}
   }
@@ -1869,9 +1870,13 @@ function buildM(){
   else if(type==='note'){
     const catOpts=NOTE_CATS.map(c=>`<option value="cat:${c.id}">${c.label}</option>`).join('');
     const pOpts=D.projects.map(p=>`<option value="proj:${p.id}">${p.name}</option>`).join('');
+    document.querySelector('.mbox').style.maxWidth='600px';
     b=`
     <div class="ff"><label>Título <span style="font-size:10px;color:var(--text3);font-weight:400">(opcional)</span></label><input id="m-t" placeholder="Título de la nota…"/></div>
-    <div class="ff"><label>Contenido</label><textarea id="m-body" placeholder="Escribe aquí…" style="min-height:150px"></textarea></div>
+    <div class="ff"><label>Contenido</label>
+      ${_mnToolbar()}
+      <div class="mn-editor" id="m-body" contenteditable="true" spellcheck="true" data-ph="Escribe aquí…" style="min-height:160px;max-height:340px"></div>
+    </div>
     <div class="ff"><label>Categoría o proyecto</label>
       <select id="m-ncat">
         <option value="">— Sin categoría —</option>
@@ -1889,7 +1894,7 @@ function buildM(){
     <div style="font-size:10px;color:var(--text3);margin-top:6px;line-height:1.5">Tras crearlo, arrástralo desde el panel lateral sobre los días del mes donde aplica. Clic sobre el bubble en el día para quitarlo de ese día.</div>`;
   document.getElementById('mbody').innerHTML=b;
   document.getElementById('mo').classList.add('open');
-  setTimeout(()=>{const f=document.querySelector('#mbody input,#mbody textarea');if(f)f.focus()},80);
+  setTimeout(()=>{const f=document.querySelector('#mbody input,#mbody textarea,#mbody [contenteditable]');if(f)f.focus()},80);
 }
 function pickColor(el,c){
   document.getElementById('m-c').value=c;
@@ -1934,7 +1939,9 @@ function saveM(){
     }else if(type==='note'){
       const n=D.notes.find(n=>n.id===eid);if(!n)return;
       const{category,projectId}=parseNoteTarget(gv('m-ncat'));
-      Object.assign(n,{title:gv('m-t').trim()||'Sin título',body:gv('m-body'),updatedAt:new Date().toISOString()});
+      const bdEl=document.getElementById('m-body');
+      const body=bdEl?(bdEl.innerHTML||''):gv('m-body');
+      Object.assign(n,{title:gv('m-t').trim()||'Sin título',body,updatedAt:new Date().toISOString()});
       if(category)n.category=category;else delete n.category;
       if(projectId)n.projectId=projectId;else delete n.projectId;
     }
@@ -1962,7 +1969,9 @@ function saveM(){
     else if(type==='note'){
       const now=new Date().toISOString();
       const{category,projectId}=parseNoteTarget(gv('m-ncat'));
-      D.notes.push({id,title:gv('m-t').trim()||'Sin título',body:gv('m-body'),createdAt:now,updatedAt:now,...(category?{category}:{}),...(projectId?{projectId}:{})});
+      const bdEl=document.getElementById('m-body');
+      const body=bdEl?(bdEl.innerHTML||''):gv('m-body');
+      D.notes.push({id,title:gv('m-t').trim()||'Sin título',body,createdAt:now,updatedAt:now,...(category?{category}:{}),...(projectId?{projectId}:{})});
     }
     else if(type==='plan'){const t=gv('m-t').trim();if(!t)return;D.plans.push({id,title:t,color:gv('m-c'),days:[]});}
     else if(type==='ics-promote'){
@@ -2329,7 +2338,7 @@ function renderNotes(){
   function sortMeet(arr){return arr.sort((a,b)=>{const cmp=a.date.localeCompare(b.date)||(a.time||'').localeCompare(b.time||'');return asc?cmp:-cmp;});}
   // \u2500\u2500 Note card \u2500\u2500
   function noteCard(n){
-    const preview=(n.body||'').trim().slice(0,130);
+    const preview=(n.body||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim().slice(0,130);
     const safeTitle=(n.title||'Sin t\u00edtulo').replace(/</g,'&lt;');
     const d=new Date(n.updatedAt);
     const when=`${d.getDate()} ${MFULL[d.getMonth()].slice(0,3)} ${d.getFullYear()}`;
