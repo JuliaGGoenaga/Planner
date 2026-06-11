@@ -430,6 +430,35 @@ html.dark .cpick{box-shadow:0 0 0 1px rgba(255,255,255,0.2)}
 .ff textarea{resize:vertical;min-height:60px;font-size:16px}
 .ff input:focus,.ff select:focus,.ff textarea:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:transparent}
 .macts{display:flex;gap:6px;margin-top:13px;justify-content:flex-end}
+
+/* ── AI CHAT ── */
+.ai-fab{position:fixed;bottom:20px;right:16px;width:48px;height:48px;border-radius:50%;background:var(--accent);color:#fff;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(83,74,183,.35);z-index:150;transition:transform .18s,opacity .2s;font-size:20px}
+.ai-fab:hover{transform:scale(1.09)}
+.ai-fab.hidden{opacity:0;pointer-events:none;transform:scale(0.7)}
+.ai-panel{position:fixed;bottom:0;right:0;width:380px;max-width:100vw;height:65vh;max-height:600px;background:var(--surface);border:1px solid var(--border);border-top-left-radius:var(--r);border-top-right-radius:var(--r);z-index:160;display:flex;flex-direction:column;box-shadow:0 -4px 28px rgba(0,0,0,0.14);transform:translateY(calc(100% + 4px));transition:transform .26s cubic-bezier(.4,0,.2,1)}
+.ai-panel.open{transform:translateY(0)}
+.ai-ph{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--surface)}
+.ai-ph-title{font-size:13px;font-weight:700;flex:1;display:flex;align-items:center;gap:6px}
+.ai-ph-title i{color:var(--accent);font-size:16px}
+.ai-ph-model{font-size:9px;color:var(--text3);font-weight:400;margin-left:4px}
+.ai-msgs{flex:1;overflow-y:auto;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.ai-msg{max-width:88%;padding:8px 11px;border-radius:10px;font-size:12px;line-height:1.55;word-break:break-word}
+.ai-msg.user{background:var(--accent);color:#fff;align-self:flex-end;border-bottom-right-radius:3px}
+.ai-msg.assistant{background:var(--surface2);color:var(--text);align-self:flex-start;border-bottom-left-radius:3px;border:1px solid var(--border)}
+.ai-msg.err{background:var(--red-l);color:var(--red);align-self:flex-start;border:1px solid var(--red-l)}
+.ai-typing{align-self:flex-start;background:var(--surface2);border:1px solid var(--border);padding:7px 14px;border-radius:10px;border-bottom-left-radius:3px;font-size:13px;color:var(--text3);letter-spacing:.12em}
+.ai-empty{text-align:center;color:var(--text3);font-size:11px;padding:28px 16px;line-height:1.8}
+.ai-empty i{font-size:30px;display:block;margin-bottom:10px;opacity:.35}
+.ai-input-row{display:flex;gap:6px;padding:8px 10px;border-top:1px solid var(--border);flex-shrink:0;align-items:flex-end;background:var(--surface)}
+.ai-input-row textarea{flex:1;border:1px solid var(--border2);border-radius:var(--rs);padding:7px 9px;font-size:13px;font-family:inherit;background:var(--surface2);color:var(--text);resize:none;min-height:36px;max-height:100px;line-height:1.4;outline:none}
+.ai-input-row textarea:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:transparent}
+.ai-send{background:var(--accent);color:#fff;border:none;border-radius:var(--rs);width:34px;height:34px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .12s}
+.ai-send:hover{background:#3C3489}
+.ai-send:disabled{background:var(--border2);color:var(--text3);cursor:not-allowed}
+@media(max-width:700px){
+  .ai-fab{bottom:68px;right:12px;width:44px;height:44px;font-size:18px}
+  .ai-panel{width:100vw;border-radius:var(--r) var(--r) 0 0;height:80vh}
+}
 </style>
 </head>
 <body>
@@ -645,6 +674,35 @@ html.dark .cpick{box-shadow:0 0 0 1px rgba(255,255,255,0.2)}
             </div>
             <div class="smsg" id="proxy-msg"></div>
           </div>
+          <div class="scard" style="grid-column:1/-1">
+            <h3><i class="ti ti-robot" style="color:var(--accent)"></i> Asistente IA</h3>
+            <p>Conecta un LLM gratuito que conoce todo tu planner. Tus datos se envían <strong>solo cuando tú preguntas</strong> y nunca se almacenan en servidores de IA.</p>
+            <ol class="steps">
+              <li>Crea cuenta gratuita en <a href="https://console.groq.com" target="_blank">console.groq.com</a> (no requiere nada instalado, funciona desde cualquier dispositivo).</li>
+              <li>Ve a <strong>API Keys</strong> → <strong>Create API Key</strong> → copia la clave (empieza por <code>gsk_</code>).</li>
+              <li>Pégala abajo y pulsa <em>Guardar</em>. Aparecerá el botón <i class="ti ti-robot" style="color:var(--accent)"></i> flotante en todas las pestañas.</li>
+              <li><strong>Portátil de empresa:</strong> deja la clave vacía (sin asistente) o pon la URL del LLM interno en el campo Endpoint.</li>
+            </ol>
+            <div class="sf">
+              <label>Groq API Key</label>
+              <input type="password" id="s-ai-key" placeholder="gsk_xxxxxxxxxxxx"/>
+              <div class="snote">Guardada solo en <em>este</em> navegador — nunca va al Gist ni a ningún servidor salvo al enviar una pregunta.</div>
+            </div>
+            <div class="sf">
+              <label>Endpoint <span style="font-weight:400;color:var(--text3)">(opcional — deja vacío para usar Groq)</span></label>
+              <input type="url" id="s-ai-endpoint" placeholder="https://api.groq.com/openai/v1/chat/completions"/>
+              <div class="snote">Cámbialo si tu empresa tiene su propio LLM compatible con la API de OpenAI.</div>
+            </div>
+            <div class="sf">
+              <label>Modelo <span style="font-weight:400;color:var(--text3)">(opcional — deja vacío para el predeterminado)</span></label>
+              <input type="text" id="s-ai-model" placeholder="llama-3.3-70b-versatile"/>
+            </div>
+            <div class="bg">
+              <button class="btn btn-p" onclick="saveAICfg()"><i class="ti ti-check"></i> Guardar</button>
+              <button class="btn" onclick="clearAICfg()"><i class="ti ti-x"></i> Eliminar clave</button>
+            </div>
+            <div class="smsg" id="ai-cfg-msg"></div>
+          </div>
         </div>
       </div>
 
@@ -666,6 +724,26 @@ html.dark .cpick{box-shadow:0 0 0 1px rgba(255,255,255,0.2)}
 
   </div><!-- /main -->
 </div><!-- /app -->
+
+<!-- AI FAB -->
+<button class="ai-fab hidden" id="ai-fab" onclick="toggleAIChat()" title="Asistente IA"><i class="ti ti-robot"></i></button>
+
+<!-- AI CHAT PANEL -->
+<div class="ai-panel" id="ai-panel">
+  <div class="ai-ph">
+    <div class="ai-ph-title"><i class="ti ti-robot"></i> Asistente IA<span class="ai-ph-model" id="ai-ph-model"></span></div>
+    <div class="ai-ph-btns">
+      <button class="icon-btn" id="ai-ctx-btn" onclick="toggleAICtx()" title="Contexto resumido — clic para usar contexto completo" style="width:26px;height:26px"><i class="ti ti-database" style="font-size:13px"></i></button>
+      <button class="icon-btn" onclick="clearAIChat()" title="Limpiar conversación" style="width:26px;height:26px"><i class="ti ti-trash" style="font-size:13px"></i></button>
+      <button class="icon-btn" onclick="toggleAIChat()" title="Cerrar" style="width:26px;height:26px"><i class="ti ti-x" style="font-size:13px"></i></button>
+    </div>
+  </div>
+  <div class="ai-msgs" id="ai-msgs"></div>
+  <div class="ai-input-row">
+    <textarea id="ai-input" placeholder="Pregunta sobre tareas, proyectos, notas, ideas…" rows="1" onkeydown="aiInputKey(event)"></textarea>
+    <button class="ai-send" id="ai-send" onclick="sendAIMsg()" title="Enviar (Enter)"><i class="ti ti-send" style="font-size:14px"></i></button>
+  </div>
+</div>
 
 <!-- MODAL -->
 <div class="mo" id="mo" onclick="closeMO(event)">
@@ -1165,6 +1243,11 @@ function go(name){
     document.getElementById('s-token').value=CFG.token;
     document.getElementById('s-gist').value=CFG.gistId;
     document.getElementById('netlify-token').value=ls('netlify_token')||'';
+    // AI setup
+    document.getElementById('s-ai-key').value=ls('ai_key')?'●●●●●●●●●●●●':'';
+    document.getElementById('s-ai-endpoint').value=ls('ai_endpoint')||'';
+    document.getElementById('s-ai-model').value=ls('ai_model')||'';
+    if(ls('ai_key'))showMsg('ai-cfg-msg','ok','✓ Clave configurada — el asistente está activo.');
     renderCalList();renderProxyStatus();
     if(CFG.token&&CFG.gistId){showMsg('gist-msg','ok','✓ Connected — credentials saved in this browser.');}
   }
@@ -2424,9 +2507,197 @@ function renderNotes(){
   el.innerHTML=html;
 }
 
+// ── AI CHAT ───────────────────────────────────────────────────────────────
+let _aiHistory=[];
+let _aiFullCtx=false;
+
+function saveAICfg(){
+  const rawKey=document.getElementById('s-ai-key').value.trim();
+  // Only update key if user typed something new (not the placeholder bullets)
+  if(rawKey&&!rawKey.startsWith('●')){lss('ai_key',rawKey);}
+  else if(!rawKey){try{localStorage.removeItem('ai_key')}catch(e){}}
+  const ep=document.getElementById('s-ai-endpoint').value.trim();
+  const mo=document.getElementById('s-ai-model').value.trim();
+  if(ep)lss('ai_endpoint',ep);else try{localStorage.removeItem('ai_endpoint')}catch(e){}
+  if(mo)lss('ai_model',mo);else try{localStorage.removeItem('ai_model')}catch(e){}
+  const hasKey=!!ls('ai_key');
+  showMsg('ai-cfg-msg',hasKey?'ok':'info',hasKey?'✓ Clave guardada. El botón <i class="ti ti-robot"></i> aparece en todas las pestañas.':'✓ Configuración actualizada.');
+  updateAIFab();
+}
+function clearAICfg(){
+  try{localStorage.removeItem('ai_key');localStorage.removeItem('ai_endpoint');localStorage.removeItem('ai_model');}catch(e){}
+  document.getElementById('s-ai-key').value='';
+  document.getElementById('s-ai-endpoint').value='';
+  document.getElementById('s-ai-model').value='';
+  showMsg('ai-cfg-msg','ok','Clave eliminada.');
+  updateAIFab();
+}
+function updateAIFab(){
+  const fab=document.getElementById('ai-fab');if(!fab)return;
+  const hasKey=!!ls('ai_key');
+  fab.classList.toggle('hidden',!hasKey);
+  const lbl=document.getElementById('ai-ph-model');
+  if(lbl)lbl.textContent=ls('ai_model')||'llama-3.3-70b-versatile';
+}
+function toggleAIChat(){
+  const panel=document.getElementById('ai-panel');if(!panel)return;
+  const open=panel.classList.toggle('open');
+  if(open){renderAIMsgs();setTimeout(()=>{const i=document.getElementById('ai-input');if(i)i.focus();},120);}
+}
+function clearAIChat(){_aiHistory=[];renderAIMsgs();}
+function toggleAICtx(){
+  _aiFullCtx=!_aiFullCtx;
+  const btn=document.getElementById('ai-ctx-btn');
+  if(btn){
+    btn.title=_aiFullCtx?'Contexto COMPLETO activo — clic para volver al resumido':'Contexto resumido — clic para usar contexto completo';
+    btn.style.background=_aiFullCtx?'var(--accent)':'';
+    btn.style.color=_aiFullCtx?'#fff':'';
+    btn.style.borderColor=_aiFullCtx?'var(--accent)':'';
+  }
+  // Notify in chat
+  const note=_aiFullCtx
+    ?'<em style="font-size:11px;color:var(--text3)">Contexto completo activado — el siguiente mensaje enviará todos tus datos sin límite de registros.</em>'
+    :'<em style="font-size:11px;color:var(--text3)">Vuelto a contexto resumido.</em>';
+  _aiHistory.push({role:'assistant',content:note});
+  renderAIMsgs();
+}
+function renderAIMsgs(){
+  const el=document.getElementById('ai-msgs');if(!el)return;
+  if(!_aiHistory.length){
+    el.innerHTML=`<div class="ai-empty"><i class="ti ti-robot"></i>Pregúntame sobre tus tareas, proyectos,<br>notas o ideas. Tengo acceso a todo tu planner.</div>`;
+    return;
+  }
+  el.innerHTML=_aiHistory.map(m=>`<div class="ai-msg ${m.role}">${m.role==='user'?aiEsc(m.content):m.content}</div>`).join('');
+  el.scrollTop=el.scrollHeight;
+}
+function aiEsc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function aiInputKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendAIMsg();}}
+async function sendAIMsg(){
+  const inp=document.getElementById('ai-input');
+  const sendBtn=document.getElementById('ai-send');
+  const msg=inp?inp.value.trim():'';
+  if(!msg)return;
+  const key=ls('ai_key');
+  if(!key){alert('Configura tu API key en Setup → Asistente IA.');return;}
+  inp.value='';
+  _aiHistory.push({role:'user',content:msg});
+  renderAIMsgs();
+  const msgsEl=document.getElementById('ai-msgs');
+  if(msgsEl){msgsEl.insertAdjacentHTML('beforeend','<div class="ai-typing" id="ai-typing">· · ·</div>');msgsEl.scrollTop=msgsEl.scrollHeight;}
+  if(sendBtn)sendBtn.disabled=true;
+  try{
+    const endpoint=ls('ai_endpoint')||'https://api.groq.com/openai/v1/chat/completions';
+    const model=ls('ai_model')||'llama-3.3-70b-versatile';
+    const res=await fetch(endpoint,{
+      method:'POST',
+      headers:{'Authorization':`Bearer ${key}`,'Content-Type':'application/json'},
+      body:JSON.stringify({model,messages:[{role:'system',content:buildLLMContext(_aiFullCtx)},..._aiHistory.map(m=>({role:m.role==='err'?'assistant':m.role,content:m.role==='err'?'[error]':typeof m.content==='string'?m.content.replace(/<[^>]+>/g,' '):m.content}))],temperature:0.7,max_tokens:1024})
+    });
+    if(!res.ok){const ed=await res.json().catch(()=>({}));throw new Error(ed.error?.message||`Error ${res.status}`);}
+    const data=await res.json();
+    const reply=data.choices?.[0]?.message?.content||'(sin respuesta)';
+    _aiHistory.push({role:'assistant',content:aiMarkdown(reply)});
+  }catch(err){
+    _aiHistory.push({role:'err',content:`⚠️ ${aiEsc(err.message)}`});
+  }finally{
+    const t=document.getElementById('ai-typing');if(t)t.remove();
+    if(sendBtn)sendBtn.disabled=false;
+    renderAIMsgs();
+    setTimeout(()=>{const i=document.getElementById('ai-input');if(i)i.focus();},50);
+  }
+}
+function aiMarkdown(text){
+  return text
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*([^*\n]+?)\*/g,'<em>$1</em>')
+    .replace(/`([^`]+)`/g,'<code style="background:var(--surface);border:1px solid var(--border);border-radius:3px;padding:1px 4px;font-size:11px;font-family:monospace">$1</code>')
+    .replace(/^#{1,3} (.+)$/gm,'<strong style="display:block;margin-top:4px">$1</strong>')
+    .replace(/^[-•] (.+)$/gm,'<div style="padding-left:10px;margin:1px 0">· $1</div>')
+    .replace(/\n\n+/g,'<br><br>')
+    .replace(/\n/g,'<br>');
+}
+function buildLLMContext(full=false){
+  const today=todayStr();
+  const dn=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+  const dayName=dn[new Date().getDay()];
+  const ws=S.weekStart,we=addDays(ws,6);
+  const cutoff=full?'9999-99-99':dStr(addDays(new Date(),14));
+  const lim=(arr,n)=>full?arr:arr.slice(0,n);
+  const bodyPreview=full?400:150;
+  // Projects
+  const projStr=D.projects.map(p=>{
+    const allT=D.todos.filter(t=>t.projectId===p.id);
+    const pending=allT.filter(t=>!t.done);
+    const done=allT.filter(t=>t.done);
+    const manH=(p.manualEntries||[]).reduce((s,e)=>s+e.hours,0);
+    const taskH=allT.filter(t=>t.duration).reduce((s,t)=>s+(t.duration||0),0);
+    const pList=lim(pending,8).map(t=>`    - ${t.title}${t.urgency==='high'?' [URGENTE]':''}${t.date?' ('+t.date+')':''}`).join('\n');
+    return `• ${p.name} — ${pending.length} pendientes, ${done.length} completadas, ${Math.round((manH+taskH)*10)/10}h${p.desc?'\n  '+p.desc:''}${pList?'\n'+pList:''}`;
+  }).join('\n')||'(ninguno)';
+  // Events
+  const evStr=[...D.events,...EXT]
+    .filter(e=>full||(e.date>=today&&e.date<=cutoff))
+    .sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'').localeCompare(b.time||''))
+    .map(e=>`• ${e.date}${e.time?' '+e.time+(e.endTime?'–'+e.endTime:''):''}${e.source?' ('+e.source+')':''}: ${e.title}${e.projectId?' ['+((D.projects.find(p=>p.id===e.projectId)||{}).name||'')+']':''}`)
+    .join('\n')||'(ninguno)';
+  // Todos
+  const pend=D.todos.filter(t=>!t.done);
+  const fmtT=t=>`• [${t.date||'sin fecha'}] ${t.title}${t.urgency==='high'?' ⚠️':''}${t.projectId?' → '+((D.projects.find(p=>p.id===t.projectId)||{}).name||''):''}`;
+  const overdue=pend.filter(t=>t.date&&t.date<today);
+  const upcoming=pend.filter(t=>!t.date||(t.date>=today&&t.date<=cutoff)).sort((a,b)=>(a.date||'9999').localeCompare(b.date||'9999'));
+  const later=full?[]:pend.filter(t=>t.date&&t.date>cutoff);
+  // Notes
+  const sortedNotes=[...(D.notes||[])].sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));
+  const notesStr=lim(sortedNotes,12).map(n=>{
+    const cat=n.category?NOTE_CATS.find(c=>c.id===n.category):null;
+    const proj=n.projectId?D.projects.find(p=>p.id===n.projectId):null;
+    const preview=(n.body||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim().slice(0,bodyPreview);
+    return `• "${n.title}" [${cat?cat.label:proj?proj.name:'Sin categoría'}]${preview?': '+preview:''}`;
+  }).join('\n')||'(ninguna)';
+  const sortedMeet=[...(D.meetingNotes||[])].sort((a,b)=>b.date.localeCompare(a.date));
+  const meetStr=lim(sortedMeet,5)
+    .map(n=>`• ${n.date}: "${n.title}" — ${(n.notes||'').replace(/<[^>]+>/g,' ').trim().slice(0,full?400:120)}`).join('\n');
+  // Ideas
+  const ideasStr=(D.ideas||[]).map(i=>{const tp=D.topics.find(t=>t.id===i.topicId);return`• ${i.text}${tp?' ['+tp.name+']':''}${i.taskId?' (→ tarea)':''}`;}).join('\n')||'(ninguna)';
+  // Timeblocks
+  const tbAll=D.timeblocks.filter(tb=>full||(tb.date>=today&&tb.date<=cutoff));
+  const tbStr=tbAll.map(tb=>{const p=D.projects.find(p=>p.id===tb.projectId);return`• ${tb.date} ${tb.startTime} (${tb.duration}h): ${p?p.name:'Bloque'}`;}).join('\n');
+  const ctxLabel=full?'\n[MODO CONTEXTO COMPLETO — todos los registros sin límite]\n':'';
+
+  return `Eres el asistente personal integrado en el planner del usuario. Tienes acceso completo a todos sus datos. Responde en el mismo idioma en que te hablen (normalmente español). Sé conciso y útil. Si te preguntan qué pueden hacer, explica que puedes ayudar a priorizar tareas, resumir proyectos, encontrar huecos en la agenda, revisar notas o ideas, y sugerir próximos pasos.${ctxLabel}
+
+HOY: ${today} (${dayName})
+SEMANA ACTUAL: ${dStr(ws)} – ${dStr(we)}
+
+══ PROYECTOS ══
+${projStr}
+
+══ EVENTOS / CALENDARIO (${full?'todos':'próximos 14 días'}) ══
+${evStr}
+
+══ TAREAS ══
+VENCIDAS (${overdue.length}):
+${overdue.map(fmtT).join('\n')||'(ninguna)'}
+PRÓXIMAS / SIN FECHA (${upcoming.length}):
+${upcoming.map(fmtT).join('\n')||'(ninguna)'}
+MÁS ADELANTE (${later.length}):
+${later.slice(0,full?9999:10).map(fmtT).join('\n')||'(ninguna)'}
+
+══ NOTAS ══
+${notesStr}${meetStr?'\nNOTAS DE REUNIÓN:\n'+meetStr:''}
+
+══ IDEAS ══
+${ideasStr}
+
+══ BLOQUES DE TIEMPO ══
+${tbStr||'(ninguno)'}`;
+}
+
 // ── INIT ───────────────────────────────────────────────────────────────────
 loadGist().then(()=>{injectHashCalendars();checkAutoExport();}).catch(()=>injectHashCalendars());
 renderWeek();
+updateAIFab();
 </script>
 </body>
 </html>
