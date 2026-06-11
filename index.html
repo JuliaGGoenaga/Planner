@@ -460,8 +460,8 @@ html.dark .cpick{box-shadow:0 0 0 1px rgba(255,255,255,0.2)}
 .ai-send:hover{background:#3C3489;transform:scale(1.06)}
 .ai-send:disabled{background:var(--border2);color:var(--text3);cursor:not-allowed;transform:none}
 @media(max-width:700px){
-  .ai-fab{bottom:68px;right:12px;width:46px;height:46px;font-size:19px}
-  .ai-panel{width:100vw;border-radius:20px 20px 0 0;height:82vh}
+  .ai-fab{bottom:calc(var(--bottomnav) + env(safe-area-inset-bottom) + 10px);right:14px;width:46px;height:46px;font-size:19px;z-index:180}
+  .ai-panel{width:100vw;border-radius:20px 20px 0 0;height:82vh;z-index:180;bottom:calc(var(--bottomnav) + env(safe-area-inset-bottom))}
 }
 </style>
 </head>
