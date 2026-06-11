@@ -550,7 +550,8 @@ html.dark .cpick{box-shadow:0 0 0 1px rgba(255,255,255,0.2)}
       <!-- NOTES -->
       <div class="page" id="page-notes">
         <div class="ph">
-          <div class="pt">Notes</div>
+          <div class="pt">Notas</div>
+          <button class="btn btn-p" onclick="openM('note')"><i class="ti ti-plus"></i> Nueva nota</button>
         </div>
         <div id="notes-list"></div>
       </div>
@@ -657,6 +658,7 @@ html.dark .cpick{box-shadow:0 0 0 1px rgba(255,255,255,0.2)}
         <button class="bn-item" onclick="go('todos')" id="bn-todos"><i class="ti ti-checks"></i><span>To-dos</span></button>
         <button class="bn-item" onclick="go('projects')" id="bn-projects"><i class="ti ti-briefcase"></i><span>Projects</span></button>
         <button class="bn-item" onclick="go('ideas')" id="bn-ideas"><i class="ti ti-bulb"></i><span>Ideas</span></button>
+        <button class="bn-item" onclick="go('notes')" id="bn-notes"><i class="ti ti-notes"></i><span>Notas</span></button>
         <button class="bn-item" onclick="go('setup')" id="bn-setup"><i class="ti ti-settings-2"></i><span>Setup</span></button>
       </div>
     </nav>
@@ -687,6 +689,11 @@ const DAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const MFULL=['January','February','March','April','May','June','July','August','September','October','November','December'];
 const PCOLS=['#534AB7','#0F6E56','#D85A30','#D4537E','#185FA5','#BA7517','#639922','#993556'];
 const TICOS=['ti-bulb','ti-briefcase','ti-plane','ti-heart','ti-home','ti-book','ti-music','ti-star','ti-rocket','ti-camera'];
+const NOTE_CATS=[
+  {id:'reflexiones', label:'Reflexiones',      icon:'ti-brain',    color:'var(--accent)'},
+  {id:'personal',    label:'Notas personales', icon:'ti-user',     color:'var(--green)'},
+  {id:'recordar',    label:'Cosas que recordar',icon:'ti-pin',     color:'var(--amber)'},
+];
 const isMobile=()=>window.innerWidth<=700;
 
 // ── NETLIFY FUNCTION SCRIPT ────────────────────────────────────────────────
@@ -727,8 +734,8 @@ async function sha1Hex(data){
 }
 
 // ── STATE ──────────────────────────────────────────────────────────────────
-let S={weekStart:getMonday(new Date()),monthDate:new Date(),yearDate:new Date(),filter:'all',mType:null,mDay:null,editId:null,mProjId:null,nextId:Date.now(),sidebarCollapsed:false,meetingNotesMode:false,yearPaintMode:false};
-let D={events:[],todos:[],projects:[],timeblocks:[],meetingNotes:[],topics:[
+let S={weekStart:getMonday(new Date()),monthDate:new Date(),yearDate:new Date(),filter:'all',noteFilter:'all',noteSort:'newest',mType:null,mDay:null,editId:null,mProjId:null,nextId:Date.now(),sidebarCollapsed:false,meetingNotesMode:false,yearPaintMode:false};
+let D={events:[],todos:[],projects:[],timeblocks:[],meetingNotes:[],notes:[],topics:[
   {id:1,name:'Work',icon:'ti-briefcase'},
   {id:2,name:'Personal',icon:'ti-heart'},
   {id:3,name:'Ideas',icon:'ti-bulb'}
@@ -827,6 +834,7 @@ async function loadGist(){
           D.customHolidays=p.customHolidays||D.customHolidays;
           D.proxyUrl=p.proxyUrl||'';
           D.meetingNotes=p.meetingNotes||D.meetingNotes;
+          D.notes=p.notes||D.notes;
           D.plans=p.plans||D.plans;
           if(p.nextId)S.nextId=p.nextId;
         }
@@ -1803,12 +1811,18 @@ function openEdit(type,id){
     const i=D.ideas.find(i=>i.id===id);if(!i)return;
     document.getElementById('m-tx').value=i.text;
     document.getElementById('m-topic').value=i.topicId;
+  }else if(type==='note'){
+    const n=D.notes.find(n=>n.id===id);if(!n)return;
+    document.getElementById('m-t').value=n.title==='Sin título'?'':n.title;
+    document.getElementById('m-body').value=n.body||'';
+    const sel=document.getElementById('m-ncat');
+    if(sel){if(n.projectId)sel.value=`proj:${n.projectId}`;else if(n.category)sel.value=`cat:${n.category}`;else sel.value='';}
   }
 }
 function buildM(){
   const type=S.mType,day=S.mDay||(type==='todo'?'':todayStr()),ed=S.editId;
-  const addT={todo:'Add to-do',event:'Add event',project:'New project',timeblock:'Add time block',topic:'New topic',idea:'New idea',plan:'Nuevo plan',assigntask:'Asignar tarea al proyecto',loghours:'Registrar horas manuales'};
-  const edtT={todo:'Edit to-do',event:'Edit event',project:'Edit project',topic:'Edit topic',idea:'Edit idea'};
+  const addT={todo:'Add to-do',event:'Add event',project:'New project',timeblock:'Add time block',topic:'New topic',idea:'New idea',note:'Nueva nota',plan:'Nuevo plan',assigntask:'Asignar tarea al proyecto',loghours:'Registrar horas manuales'};
+  const edtT={todo:'Edit to-do',event:'Edit event',project:'Edit project',topic:'Edit topic',idea:'Edit idea',note:'Editar nota'};
   document.getElementById('mtitle').textContent=(ed?edtT[type]:addT[type])||'Add';
   const projOpts='<option value="">— None —</option>'+D.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
   let b='';
@@ -1852,6 +1866,20 @@ function buildM(){
   else if(type==='idea'){const to=D.topics.map(t=>`<option value="${t.id}">${t.name}</option>`).join('');b=`
     <div class="ff"><label>Your idea</label><textarea id="m-tx" placeholder="Capture it while it's fresh…"></textarea></div>
     <div class="ff"><label>Topic</label><select id="m-topic">${to||'<option>Add a topic first</option>'}</select></div>`;}
+  else if(type==='note'){
+    const catOpts=NOTE_CATS.map(c=>`<option value="cat:${c.id}">${c.label}</option>`).join('');
+    const pOpts=D.projects.map(p=>`<option value="proj:${p.id}">${p.name}</option>`).join('');
+    b=`
+    <div class="ff"><label>Título <span style="font-size:10px;color:var(--text3);font-weight:400">(opcional)</span></label><input id="m-t" placeholder="Título de la nota…"/></div>
+    <div class="ff"><label>Contenido</label><textarea id="m-body" placeholder="Escribe aquí…" style="min-height:150px"></textarea></div>
+    <div class="ff"><label>Categoría o proyecto</label>
+      <select id="m-ncat">
+        <option value="">— Sin categoría —</option>
+        <optgroup label="Categorías">${catOpts}</optgroup>
+        ${pOpts?`<optgroup label="Proyectos">${pOpts}</optgroup>`:''}
+      </select>
+    </div>`;
+  }
   else if(type==='plan')b=`
     <div class="ff"><label>Nombre del plan</label><input id="m-t" placeholder="Ej. Viaje a París, Sprint de diseño…"/></div>
     <div class="ff"><label>Color</label>
@@ -1903,6 +1931,12 @@ function saveM(){
       const i=D.ideas.find(i=>i.id===eid);if(!i)return;
       const t=gv('m-tx').trim();if(!t)return;
       Object.assign(i,{text:t,topicId:parseInt(gv('m-topic'))});
+    }else if(type==='note'){
+      const n=D.notes.find(n=>n.id===eid);if(!n)return;
+      const{category,projectId}=parseNoteTarget(gv('m-ncat'));
+      Object.assign(n,{title:gv('m-t').trim()||'Sin título',body:gv('m-body'),updatedAt:new Date().toISOString()});
+      if(category)n.category=category;else delete n.category;
+      if(projectId)n.projectId=projectId;else delete n.projectId;
     }
   } else {
     const id=nid();
@@ -1925,6 +1959,11 @@ function saveM(){
     else if(type==='timeblock'){const pid=parseInt(gv('m-proj'));const dur=parseFloat(gv('m-dur'))||1;D.timeblocks.push({id,date:gv('m-d'),startTime:gv('m-time'),duration:dur,projectId:pid});const p=D.projects.find(p=>p.id===pid);if(p)p.hoursUsed=Math.round((p.hoursUsed+dur)*10)/10;}
     else if(type==='topic'){const n=gv('m-t').trim();if(!n)return;D.topics.push({id,name:n,icon:gv('m-icon')})}
     else if(type==='idea'){const t=gv('m-tx').trim();if(!t)return;D.ideas.push({id,topicId:parseInt(gv('m-topic')),text:t})}
+    else if(type==='note'){
+      const now=new Date().toISOString();
+      const{category,projectId}=parseNoteTarget(gv('m-ncat'));
+      D.notes.push({id,title:gv('m-t').trim()||'Sin título',body:gv('m-body'),createdAt:now,updatedAt:now,...(category?{category}:{}),...(projectId?{projectId}:{})});
+    }
     else if(type==='plan'){const t=gv('m-t').trim();if(!t)return;D.plans.push({id,title:t,color:gv('m-c'),days:[]});}
     else if(type==='ics-promote'){
       const ev=S._icsEv;if(!ev)return;
@@ -2271,31 +2310,106 @@ function deleteMeetingNote(noteId){
 }
 
 // ── NOTES PAGE ────────────────────────────────────────────────────────────
+function setNoteFilter(f){S.noteFilter=f;renderNotes();}
+function setNoteSort(s){S.noteSort=s;renderNotes();}
+function parseNoteTarget(val){
+  if(!val)return{category:null,projectId:null};
+  if(val.startsWith('cat:'))return{category:val.slice(4),projectId:null};
+  if(val.startsWith('proj:'))return{category:null,projectId:parseInt(val.slice(5))};
+  return{category:null,projectId:null};
+}
+function delNote(id){D.notes=D.notes.filter(n=>n.id!==id);sched();renderNotes();}
 function renderNotes(){
   const el=document.getElementById('notes-list');if(!el)return;
-  if(!D.meetingNotes||!D.meetingNotes.length){
-    el.innerHTML=`<div style="color:var(--text3);font-size:12px;padding:2rem 0;text-align:center;line-height:1.8"><i class="ti ti-notebook" style="font-size:28px;display:block;margin-bottom:8px;opacity:.3"></i>Sin meeting notes a\u00fan.<br>Activa el modo <strong>Meeting Notes</strong> en la vista semanal y haz clic en una reuni\u00f3n.</div>`;
-    return;
+  const f=S.noteFilter,asc=S.noteSort==='oldest';
+  const allFree=[...(D.notes||[])];
+  const allMeet=[...(D.meetingNotes||[])];
+  // \u2500\u2500 Sort helpers \u2500\u2500
+  function sortFree(arr){return arr.sort((a,b)=>asc?a.updatedAt.localeCompare(b.updatedAt):b.updatedAt.localeCompare(a.updatedAt));}
+  function sortMeet(arr){return arr.sort((a,b)=>{const cmp=a.date.localeCompare(b.date)||(a.time||'').localeCompare(b.time||'');return asc?cmp:-cmp;});}
+  // \u2500\u2500 Note card \u2500\u2500
+  function noteCard(n){
+    const preview=(n.body||'').trim().slice(0,130);
+    const safeTitle=(n.title||'Sin t\u00edtulo').replace(/</g,'&lt;');
+    const d=new Date(n.updatedAt);
+    const when=`${d.getDate()} ${MFULL[d.getMonth()].slice(0,3)} ${d.getFullYear()}`;
+    // small badge for category/project label (shown in 'all' flat view only when sorting)
+    const cat=n.category?NOTE_CATS.find(c=>c.id===n.category):null;
+    const proj=n.projectId?D.projects.find(p=>p.id===n.projectId):null;
+    const badge=cat?`<span style="font-size:9px;color:${cat.color};background:${cat.color}18;padding:1px 5px;border-radius:8px;flex-shrink:0">${cat.label}</span>`:proj?`<span style="font-size:9px;color:${proj.color};background:${proj.color}18;padding:1px 5px;border-radius:8px;flex-shrink:0">${proj.name}</span>`:'';
+    return`<div class="note-card" onclick="openEdit('note',${n.id})">
+      <div class="note-card-head">
+        <i class="ti ti-file-text" style="font-size:14px;color:var(--text3);flex-shrink:0;margin-top:1px"></i>
+        <div class="note-card-title">${safeTitle}</div>
+        ${badge}
+        <span style="font-size:9px;color:var(--text3);white-space:nowrap;flex-shrink:0">${when}</span>
+        <button class="btn-del" onclick="event.stopPropagation();delNote(${n.id})" style="color:var(--red);flex-shrink:0;padding:2px 4px"><i class="ti ti-trash" style="font-size:12px"></i></button>
+      </div>
+      ${preview?`<div class="note-card-preview">${preview.replace(/</g,'&lt;')}${(n.body||'').length>130?'\u2026':''}</div>`:''}
+    </div>`;
   }
-  const notes=[...D.meetingNotes].sort((a,b)=>b.date.localeCompare(a.date)||(b.time||'').localeCompare(a.time||''));
-  el.innerHTML=notes.map(n=>{
-    const attendees=(n.attendees||[]).filter(a=>a.name||a.email).map(a=>`<span class="mn-badge">${(a.name||a.email).replace(/</g,'&lt;')}</span>`).join('');
-    const preview=(n.notes||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim().slice(0,140);
+  function meetCard(n){
+    const preview=(n.notes||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim().slice(0,130);
     const safeTitle=(n.title||'').replace(/</g,'&lt;');
     return`<div class="note-card" onclick="viewMeetingNote(${n.id})">
       <div class="note-card-head">
-        <i class="ti ti-notes" style="font-size:15px;color:var(--blue);flex-shrink:0;margin-top:1px"></i>
+        <i class="ti ti-notebook" style="font-size:14px;color:var(--blue);flex-shrink:0;margin-top:1px"></i>
         <div class="note-card-title">${safeTitle}</div>
-        <button class="btn-del" onclick="event.stopPropagation();deleteMeetingNote(${n.id})" style="color:var(--red);flex-shrink:0;padding:2px 4px" title="Eliminar"><i class="ti ti-trash" style="font-size:13px"></i></button>
+        <span style="font-size:9px;color:var(--text3);white-space:nowrap;flex-shrink:0">${n.date}${n.time?' \u00b7 '+n.time:''}</span>
+        <button class="btn-del" onclick="event.stopPropagation();deleteMeetingNote(${n.id})" style="color:var(--red);flex-shrink:0;padding:2px 4px"><i class="ti ti-trash" style="font-size:12px"></i></button>
       </div>
-      <div class="note-card-meta">
-        <span><i class="ti ti-calendar" style="font-size:9px"></i> ${n.date}${n.time?' \u00b7 '+n.time:''}</span>
-        ${n.source?`<span style="color:var(--blue)">${n.source}</span>`:''}
-      </div>
-      ${attendees?`<div style="margin-top:4px;line-height:2">${attendees}</div>`:''}
       ${preview?`<div class="note-card-preview">${preview}\u2026</div>`:''}
     </div>`;
-  }).join('');
+  }
+  function sectionHead(icon,label,color,mt=0){
+    return`<div style="display:flex;align-items:center;gap:6px;font-size:10px;font-weight:700;color:${color};letter-spacing:.06em;text-transform:uppercase;margin:${mt}px 0 6px"><i class="ti ${icon}" style="font-size:13px"></i>${label}</div>`;
+  }
+  // \u2500\u2500 Build filter chips \u2500\u2500
+  const usedKeys=new Set(allFree.map(n=>n.projectId?`proj:${n.projectId}`:(n.category?`cat:${n.category}`:'sin')));
+  let chips=`<button class="fb${f==='all'?' active':''}" onclick="setNoteFilter('all')">Todas</button>`;
+  NOTE_CATS.forEach(c=>{
+    if(!usedKeys.has(`cat:${c.id}`))return;
+    chips+=`<button class="fb${f===`cat:${c.id}`?' active':''}" onclick="setNoteFilter('cat:${c.id}')">${c.label}</button>`;
+  });
+  D.projects.forEach(p=>{
+    if(!usedKeys.has(`proj:${p.id}`))return;
+    chips+=`<button class="fb${f===`proj:${p.id}`?' active':''}" onclick="setNoteFilter('proj:${p.id}')">${p.name}</button>`;
+  });
+  if(allMeet.length) chips+=`<button class="fb${f==='meeting'?' active':''}" onclick="setNoteFilter('meeting')">Reuniones</button>`;
+  // \u2500\u2500 Sort buttons \u2500\u2500
+  const sortBar=`<div style="display:flex;gap:4px;flex-shrink:0">
+    <button class="btn btn-sm${!asc?' btn-p':''}" onclick="setNoteSort('newest')" title="M\u00e1s reciente primero"><i class="ti ti-sort-descending" style="font-size:12px"></i> Reciente</button>
+    <button class="btn btn-sm${asc?' btn-p':''}" onclick="setNoteSort('oldest')" title="M\u00e1s antiguo primero"><i class="ti ti-sort-ascending" style="font-size:12px"></i> Antiguo</button>
+  </div>`;
+  let html=`<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+    <div class="tfilters" style="margin-bottom:0;flex:1">${chips}</div>
+    ${sortBar}
+  </div>`;
+  // \u2500\u2500 Render notes \u2500\u2500
+  if(f==='meeting'){
+    // Show only meeting notes
+    const shown=sortMeet(allMeet);
+    html+=shown.length?shown.map(meetCard).join(''):`<div style="color:var(--text3);font-size:12px;padding:1rem 0">Sin notas de reuni\u00f3n.</div>`;
+  } else if(f!=='all'){
+    // Flat filtered list
+    const shown=sortFree(allFree.filter(n=>{
+      if(f.startsWith('cat:'))return n.category===f.slice(4);
+      if(f.startsWith('proj:'))return n.projectId===parseInt(f.slice(5));
+      return true;
+    }));
+    html+=shown.length?shown.map(noteCard).join(''):`<div style="color:var(--text3);font-size:12px;padding:1rem 0">Sin notas en esta categor\u00eda.</div>`;
+  } else {
+    // 'all' \u2014 grouped view, each group sorted by date
+    const groups={};
+    allFree.forEach(n=>{const k=n.projectId?`proj:${n.projectId}`:(n.category?`cat:${n.category}`:'sin');if(!groups[k])groups[k]=[];groups[k].push(n);});
+    let first=true;
+    D.projects.forEach(p=>{const grp=groups[`proj:${p.id}`];if(!grp)return;html+=sectionHead('ti-briefcase',p.name,p.color,first?0:16);first=false;html+=sortFree(grp).map(noteCard).join('');});
+    NOTE_CATS.forEach(c=>{const grp=groups[`cat:${c.id}`];if(!grp)return;html+=sectionHead(c.icon,c.label,c.color,first?0:16);first=false;html+=sortFree(grp).map(noteCard).join('');});
+    if(groups['sin']){html+=sectionHead('ti-file-text','Sin categor\u00eda','var(--text3)',first?0:16);first=false;html+=sortFree(groups['sin']).map(noteCard).join('');}
+    if(allMeet.length){html+=sectionHead('ti-notebook','Notas de reuni\u00f3n','var(--blue)',first?0:16);html+=sortMeet(allMeet).map(meetCard).join('');}
+    if(!allFree.length&&!allMeet.length){html+=`<div style="color:var(--text3);font-size:12px;padding:2rem 0;text-align:center;line-height:1.8"><i class="ti ti-notes" style="font-size:28px;display:block;margin-bottom:8px;opacity:.3"></i>Sin notas a\u00fan.<br>Pulsa <strong>+ Nueva nota</strong> para empezar.</div>`;}
+  }
+  el.innerHTML=html;
 }
 
 // ── INIT ───────────────────────────────────────────────────────────────────
