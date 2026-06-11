@@ -971,8 +971,47 @@ function renderCalList(){
   el.innerHTML=D.calendars.map(c=>`<div class="cal-row">
     <div style="width:8px;height:8px;border-radius:50%;background:${c.color};flex-shrink:0"></div>
     <div style="flex:1"><div class="cal-name">${c.name}</div><div class="cal-url">${c.url}</div></div>
+    <button class="btn btn-sm" onclick="testCal(${c.id})" title="Diagnosticar conexión" style="font-size:10px;padding:2px 7px"><i class="ti ti-stethoscope"></i></button>
     <button class="btn-del" onclick="delCal(${c.id})"><i class="ti ti-x" style="font-size:12px"></i></button>
   </div>`).join('');
+}
+async function testCal(id){
+  const cal=D.calendars.find(c=>c.id===id);if(!cal)return;
+  const msgEl=document.getElementById('ics-msg');
+  if(msgEl){msgEl.className='smsg info';msgEl.innerHTML=`<strong>Testeando "${cal.name}"…</strong><br><span id="ics-test-log" style="font-size:10px;line-height:1.8;display:block;margin-top:4px"></span>`;}
+  const log=s=>{const el=document.getElementById('ics-test-log');if(el)el.innerHTML+=s+'<br>';};
+  const allProxies=D.proxyUrl?[{label:'Netlify (tuyo)',url:D.proxyUrl},...PROXIES.map(p=>({label:p.replace('https://','').split('/')[0],url:p}))]
+    :PROXIES.map(p=>({label:p.replace('https://','').split('/')[0],url:p}));
+  // Direct first
+  log('🔄 Directo…');
+  try{
+    const r=await fetch(cal.url,{signal:AbortSignal.timeout(6000)});
+    if(r.ok){const t=await r.text();if(t.includes('BEGIN:VCALENDAR')){log('✅ <strong>Directo funciona</strong> — recarga el calendario');if(msgEl)msgEl.className='smsg ok';return;}}
+    log(`❌ Directo — HTTP ${r.status}`);
+  }catch(e){log(`❌ Directo — ${e.name==='TimeoutError'?'timeout':e.message}`);}
+  let worked=false;
+  for(const {label,url} of allProxies){
+    log(`🔄 ${label}…`);
+    try{
+      const r=await fetch(url+encodeURIComponent(cal.url),{signal:AbortSignal.timeout(9000)});
+      if(r.ok){
+        const t=await r.text();
+        if(t.includes('BEGIN:VCALENDAR')){log(`✅ <strong>${label} funciona</strong>`);worked=true;break;}
+        else{log(`⚠️ ${label} — respuesta no es ICS (${t.slice(0,60).replace(/</g,'&lt;')}…)`);}
+      }else{log(`❌ ${label} — HTTP ${r.status}`);}
+    }catch(e){log(`❌ ${label} — ${e.name==='TimeoutError'?'timeout':e.message}`);}
+  }
+  if(msgEl){
+    if(worked){msgEl.className='smsg ok';}
+    else{
+      msgEl.className='smsg err';
+      const logEl=document.getElementById('ics-test-log');
+      if(logEl)logEl.innerHTML+=`<br>⛔ Todos los proxies fallaron. Posibles causas:<br>
+        · La URL del calendario ha caducado — regenera el enlace en Outlook<br>
+        · La URL cambió (Settings → Calendar → Shared calendars)<br>
+        · Despliega el proxy Netlify propio (sección de abajo) para mayor fiabilidad`;
+    }
+  }
 }
 function promoteIcsEvent(icsId){
   const ev=EXT.find(e=>e.id===icsId);if(!ev)return;
@@ -1003,10 +1042,12 @@ async function refreshIcs(){
 }
 const PROXIES=[
   'https://corsproxy.io/?',
-  'https://corsproxy.org/?',
   'https://api.allorigins.win/raw?url=',
+  'https://corsproxy.org/?',
   'https://api.codetabs.com/v1/proxy?quest=',
-  'https://thingproxy.freeboard.io/fetch/'
+  'https://thingproxy.freeboard.io/fetch/',
+  'https://cors-anywhere.herokuapp.com/',
+  'https://yacdn.org/proxy/'
 ];
 async function fetchIcs(cal){
   const allProxies=D.proxyUrl?[D.proxyUrl,...PROXIES]:PROXIES;
