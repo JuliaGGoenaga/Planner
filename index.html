@@ -677,6 +677,7 @@ html.dark .cpick{box-shadow:0 0 0 1px rgba(255,255,255,0.2)}
             <div class="bg">
               <button class="btn btn-p" onclick="deployProxy()"><i class="ti ti-rocket"></i> Deploy proxy</button>
               <button class="btn" onclick="clearProxy()"><i class="ti ti-x"></i> Remove proxy</button>
+              <button class="btn" onclick="downloadProxyJs()" title="Descarga el fichero para desplegarlo manualmente en Netlify"><i class="ti ti-download"></i> Descargar proxy.js</button>
             </div>
             <div class="smsg" id="proxy-msg"></div>
           </div>
@@ -1335,9 +1336,16 @@ async function deployProxy(){
     renderProxyStatus();
     showMsg('proxy-msg','ok',`Deployed ✓ → ${siteName}.netlify.app`);
     if(D.calendars.length)refreshIcs();
-  }catch(e){showMsg('proxy-msg','err',e.message);console.error(e);}
+  }catch(e){
+    // Clear cached site so next attempt starts fresh
+    lss('netlify_site','');lss('netlify_name','');
+    const hint=e.message.includes('Load failed')||e.message.includes('fetch')?
+      e.message+' — ¿Token correcto? Prueba a descargarlo manualmente con el botón de abajo.':e.message;
+    showMsg('proxy-msg','err',hint);console.error(e);
+  }
 }
 function clearProxy(){D.proxyUrl='';lss('netlify_site','');lss('netlify_name','');sched();renderProxyStatus();showMsg('proxy-msg','info','Proxy removed — falling back to public proxies.');}
+function downloadProxyJs(){const blob=new Blob([NETLIFY_FUNC_SCRIPT],{type:'text/javascript'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='proxy.js';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);}
 function renderProxyStatus(){
   const el=document.getElementById('proxy-url-display');if(!el)return;
   if(D.proxyUrl){el.textContent='Active: '+D.proxyUrl.replace('?url=','');el.style.display='block';}
