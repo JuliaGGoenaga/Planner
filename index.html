@@ -648,9 +648,10 @@ html.dark .cpick{box-shadow:0 0 0 1px rgba(255,255,255,0.2)}
             </ol>
             <div class="cal-list" id="cal-list"></div>
             <div class="sf"><label>Calendar name</label><input type="text" id="ics-name" placeholder="Work, Personal…"/></div>
-            <div class="sf"><label>ICS URL</label><input type="url" id="ics-url" placeholder="https://calendar.google.com/calendar/ical/…"/><div class="snote">Tries direct fetch + 5 free public proxies automatically. No login required.</div></div>
+            <div class="sf"><label>ICS URL</label><input type="url" id="ics-url" placeholder="https://calendar.google.com/calendar/ical/…"/><div class="snote">Si la URL es muy larga (Outlook) y falla con error 413, usa el botón <strong>Acortar</strong> antes de añadir — los tokens de autenticación se conservan.</div></div>
             <div class="bg">
               <button class="btn btn-p" onclick="addCal()"><i class="ti ti-plus"></i> Add</button>
+              <button class="btn" onclick="shortenIcsUrl()" id="shorten-btn"><i class="ti ti-link"></i> Acortar URL</button>
               <button class="btn" onclick="refreshIcs()"><i class="ti ti-refresh"></i> Refresh all</button>
             </div>
             <div class="smsg" id="ics-msg"></div>
@@ -971,6 +972,26 @@ async function testGist(){showMsg('gist-msg','info','Testing…');await loadGist
 function showMsg(id,cls,txt){const el=document.getElementById(id);if(el){el.className='smsg '+cls;el.textContent=txt}}
 
 // ── ICS ────────────────────────────────────────────────────────────────────
+async function shortenIcsUrl(){
+  const inp=document.getElementById('ics-url');
+  const url=(inp?inp.value:'').trim();
+  if(!url){showMsg('ics-msg','err','Pega primero la URL del calendario.');return;}
+  if(url.length<200){showMsg('ics-msg','info','La URL ya es corta, no hace falta acortarla.');return;}
+  const btn=document.getElementById('shorten-btn');
+  if(btn){btn.disabled=true;btn.textContent='Acortando…';}
+  try{
+    const r=await fetch('https://tinyurl.com/api-create.php?url='+encodeURIComponent(url),{signal:AbortSignal.timeout(8000)});
+    if(!r.ok)throw new Error('TinyURL HTTP '+r.status);
+    const short=await r.text();
+    if(!short.startsWith('https://tinyurl.com/'))throw new Error('Respuesta inesperada: '+short.slice(0,60));
+    if(inp)inp.value=short;
+    showMsg('ics-msg','ok','✓ URL acortada: '+short);
+  }catch(e){
+    showMsg('ics-msg','err','No se pudo acortar: '+e.message+'. Prueba en tinyurl.com manualmente.');
+  }finally{
+    if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-link"></i> Acortar URL';}
+  }
+}
 function addCal(){
   const name=document.getElementById('ics-name').value.trim();
   const url=document.getElementById('ics-url').value.trim();
