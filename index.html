@@ -976,7 +976,6 @@ async function shortenIcsUrl(){
   const inp=document.getElementById('ics-url');
   const url=(inp?inp.value:'').trim();
   if(!url){showMsg('ics-msg','err','Pega primero la URL del calendario.');return;}
-  if(url.length<200){showMsg('ics-msg','info','La URL ya es corta, no hace falta acortarla.');return;}
   const btn=document.getElementById('shorten-btn');
   if(btn){btn.disabled=true;btn.textContent='Acortando…';}
   try{
