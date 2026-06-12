@@ -974,6 +974,27 @@ async function loadGist(){
         }
       }catch(e){setSS('err','Corrupt data in Gist');return}
     }
+    // Check if localStorage has unsaved changes newer than the last Gist save
+    try{
+      const raw=ls('planner_data_v1');
+      if(raw){
+        const local=JSON.parse(raw);
+        const localAt=local._savedAt||0;
+        const gistAt=parseInt(ls('planner_gist_at')||'0');
+        if(localAt>gistAt+3000){
+          // Local changes are >3s newer than last confirmed Gist save — restore them
+          delete local._savedAt;
+          const p=local;
+          if(p.events)D.events=p.events;if(p.todos)D.todos=p.todos;if(p.projects)D.projects=p.projects;
+          if(p.timeblocks)D.timeblocks=p.timeblocks;if(p.meetingNotes)D.meetingNotes=p.meetingNotes;
+          if(p.notes)D.notes=p.notes;if(p.ideas)D.ideas=p.ideas;if(p.plans)D.plans=p.plans;
+          if(p.vacationDays)D.vacationDays=p.vacationDays;if(p.customHolidays)D.customHolidays=p.customHolidays;
+          if(p.nextId)S.nextId=p.nextId;
+          setSS('saving','Recuperando cambios locales…');
+          saveGistNow();
+        }
+      }
+    }catch(e){}
     setSS('ok','Synced ✓');
     doRollover();refreshPage();renderCalList();
     if(D.calendars.length)refreshIcs();
@@ -986,10 +1007,12 @@ async function saveGistNow(){
     const files={'planner.json':{content:JSON.stringify({...D,nextId:S.nextId},null,2)},'proxy.js':{content:NETLIFY_FUNC_SCRIPT}};
     const r=await fetch(`https://api.github.com/gists/${CFG.gistId}`,{method:'PATCH',headers:{Authorization:`token ${CFG.token}`,Accept:'application/vnd.github.v3+json','Content-Type':'application/json'},body:JSON.stringify({files})});
     if(!r.ok)throw new Error(r.status);
+    lss('planner_gist_at',Date.now().toString());
     setSS('ok','Saved ✓');
   }catch(e){setSS('err','Save failed');console.error(e)}
 }
-function sched(){clearTimeout(saveTimer);saveTimer=setTimeout(saveGistNow,1500)}
+function _localSave(){try{lss('planner_data_v1',JSON.stringify({...D,nextId:S.nextId,_savedAt:Date.now()}));}catch(e){}}
+function sched(){_localSave();clearTimeout(saveTimer);saveTimer=setTimeout(saveGistNow,800)}
 function forceSave(){clearTimeout(saveTimer);saveGistNow()}
 async function saveGistCfg(){
   const t=document.getElementById('s-token').value.trim();
