@@ -2855,6 +2855,11 @@ ${tbStr||'(ninguno)'}`;
 
 // ── INIT ───────────────────────────────────────────────────────────────────
 loadGist().then(()=>{injectHashCalendars();checkAutoExport();}).catch(()=>injectHashCalendars());
+
+// Flush any pending save when the app goes to background (mobile) or tab closes (desktop)
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&saveTimer){clearTimeout(saveTimer);saveTimer=null;saveGistNow();}});
+window.addEventListener('pagehide',()=>{if(saveTimer){clearTimeout(saveTimer);saveTimer=null;saveGistNow();}});
+window.addEventListener('beforeunload',()=>{if(saveTimer){clearTimeout(saveTimer);saveTimer=null;saveGistNow();}});
 renderWeek();
 updateAIFab();
 </script>
