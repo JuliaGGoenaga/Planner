@@ -781,31 +781,60 @@ const NOTE_CATS=[
 const isMobile=()=>window.innerWidth<=700;
 
 // ── NETLIFY FUNCTION SCRIPT ────────────────────────────────────────────────
-const NETLIFY_FUNC_SCRIPT=`exports.handler = async function(event) {
-  const CORS = {'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'*'};
-  if(event.httpMethod==='OPTIONS') return {statusCode:204,headers:CORS,body:''};
-  const url = (event.queryStringParameters && event.queryStringParameters.url) || '';
-  if(!url) return {statusCode:400,headers:CORS,body:'Missing url param'};
-  const controller = new AbortController();
-  const timer = setTimeout(()=>controller.abort(),12000);
+const NETLIFY_FUNC_SCRIPT=`const https = require('https');
+const http = require('http');
+const { URL } = require('url');
+
+function httpGet(urlStr) {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error('Timeout after 12s')), 12000);
+    function doRequest(u, redirects) {
+      if (redirects > 5) { clearTimeout(timeout); return reject(new Error('Too many redirects')); }
+      const parsed = new URL(u);
+      const lib = parsed.protocol === 'https:' ? https : http;
+      const options = {
+        hostname: parsed.hostname, port: parsed.port || (parsed.protocol === 'https:' ? 443 : 80),
+        path: parsed.pathname + parsed.search, method: 'GET',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Accept': 'text/calendar, text/html, */*',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Cache-Control': 'no-cache', 'Pragma': 'no-cache'
+        }
+      };
+      const req = lib.request(options, res => {
+        if ([301,302,303,307,308].includes(res.statusCode) && res.headers.location) {
+          const next = res.headers.location.startsWith('http') ? res.headers.location : parsed.origin + res.headers.location;
+          return doRequest(next, redirects + 1);
+        }
+        let data = '';
+        res.on('data', c => data += c);
+        res.on('end', () => { clearTimeout(timeout); resolve({ status: res.statusCode, body: data }); });
+      });
+      req.on('error', e => { clearTimeout(timeout); reject(e); });
+      req.end();
+    }
+    doRequest(urlStr, 0);
+  });
+}
+
+exports.handler = async function(event) {
+  const CORS = {'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'Content-Type,Authorization','Access-Control-Allow-Methods':'GET,POST,OPTIONS'};
+  if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: CORS, body: '' };
+  let url = '';
+  if (event.httpMethod === 'POST') {
+    try { url = JSON.parse(event.body || '{}').url || ''; } catch(e) { url = event.body || ''; }
+  } else {
+    url = (event.queryStringParameters && event.queryStringParameters.url) || '';
+  }
+  if (!url) return { statusCode: 400, headers: CORS, body: 'Missing url' };
   try {
-    const res = await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; CalendarSync/1.0)',
-        'Accept': 'text/calendar, text/plain, */*',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Cache-Control': 'no-cache'
-      }
-    });
-    clearTimeout(timer);
-    if(!res.ok) return {statusCode:502,headers:CORS,body:'Upstream HTTP '+res.status+' for: '+url.slice(0,120)};
-    const body = await res.text();
-    if(!body.includes('BEGIN:VCALENDAR')) return {statusCode:502,headers:CORS,body:'Response is not an ICS file ('+body.slice(0,80)+')'};
-    return {statusCode:200,headers:{...CORS,'Content-Type':'text/calendar; charset=utf-8'},body};
+    const { status, body } = await httpGet(url);
+    if (status >= 400) return { statusCode: 502, headers: CORS, body: 'Upstream returned HTTP ' + status };
+    if (!body.includes('BEGIN:VCALENDAR')) return { statusCode: 502, headers: CORS, body: 'Not an ICS file. Got: ' + body.slice(0, 120) };
+    return { statusCode: 200, headers: { ...CORS, 'Content-Type': 'text/calendar; charset=utf-8' }, body };
   } catch(e) {
-    clearTimeout(timer);
-    return {statusCode:502,headers:CORS,body:'Fetch error: '+e.message};
+    return { statusCode: 502, headers: CORS, body: 'Error: ' + e.message };
   }
 };`;
 
@@ -1016,24 +1045,32 @@ async function testCal(id){
   const msgEl=document.getElementById('ics-msg');
   if(msgEl){msgEl.className='smsg info';msgEl.innerHTML=`<strong>Testeando "${cal.name}"…</strong><br><span id="ics-test-log" style="font-size:10px;line-height:1.8;display:block;margin-top:4px"></span>`;}
   const log=s=>{const el=document.getElementById('ics-test-log');if(el)el.innerHTML+=s+'<br>';};
-  const allProxies=D.proxyUrl?[{label:'Netlify (tuyo)',url:D.proxyUrl},...PROXIES.map(p=>({label:p.replace('https://','').split('/')[0],url:p}))]
-    :PROXIES.map(p=>({label:p.replace('https://','').split('/')[0],url:p}));
+  const publicProxies=PROXIES.map(p=>({label:p.replace('https://','').split('/')[0],url:p}));
   // Direct first
   log('🔄 Directo…');
   try{
     const r=await fetch(cal.url,{signal:AbortSignal.timeout(6000)});
-    if(r.ok){const t=await r.text();if(t.includes('BEGIN:VCALENDAR')){log('✅ <strong>Directo funciona</strong> — recarga el calendario');if(msgEl)msgEl.className='smsg ok';return;}}
+    if(r.ok){const t=await r.text();if(t.includes('BEGIN:VCALENDAR')){log('✅ <strong>Directo funciona</strong>');if(msgEl)msgEl.className='smsg ok';return;}}
     log(`❌ Directo — HTTP ${r.status}`);
   }catch(e){log(`❌ Directo — ${e.name==='TimeoutError'?'timeout':e.message}`);}
   let worked=false;
-  for(const {label,url} of allProxies){
+  // Netlify via POST
+  if(D.proxyUrl){
+    log('🔄 Netlify (tuyo, POST)…');
+    try{
+      const t=await netlifyFetch(D.proxyUrl,cal.url);
+      if(t.includes('BEGIN:VCALENDAR')){log('✅ <strong>Netlify funciona</strong>');worked=true;}
+      else{log(`⚠️ Netlify — respuesta no es ICS: ${t.slice(0,80).replace(/</g,'&lt;')}`);}
+    }catch(e){log(`❌ Netlify — ${e.message}`);}
+  }
+  if(!worked) for(const {label,url} of publicProxies){
     log(`🔄 ${label}…`);
     try{
       const r=await fetch(url+encodeURIComponent(cal.url),{signal:AbortSignal.timeout(9000)});
       if(r.ok){
         const t=await r.text();
         if(t.includes('BEGIN:VCALENDAR')){log(`✅ <strong>${label} funciona</strong>`);worked=true;break;}
-        else{log(`⚠️ ${label} — respuesta no es ICS (${t.slice(0,60).replace(/</g,'&lt;')}…)`);}
+        else{log(`⚠️ ${label} — no es ICS (${t.slice(0,60).replace(/</g,'&lt;')}…)`);}
       }else{log(`❌ ${label} — HTTP ${r.status}`);}
     }catch(e){log(`❌ ${label} — ${e.name==='TimeoutError'?'timeout':e.message}`);}
   }
@@ -1085,25 +1122,34 @@ const PROXIES=[
   'https://cors-anywhere.herokuapp.com/',
   'https://yacdn.org/proxy/'
 ];
+async function netlifyFetch(proxyBase,calUrl){
+  // Strip trailing ?url= if present — we POST the URL in the body instead
+  const base=proxyBase.replace(/\?url=$/,'');
+  const r=await fetch(base,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:calUrl}),signal:AbortSignal.timeout(14000)});
+  if(!r.ok){const t=await r.text().catch(()=>'');throw new Error('HTTP '+r.status+(t?' — '+t.slice(0,80):''));}
+  return r.text();
+}
 async function fetchIcs(cal){
-  const netlifyFirst=D.proxyUrl?[D.proxyUrl]:[];
-  const allProxies=[...netlifyFirst,...PROXIES];
-  // Try direct first
+  // Try direct first (works only if calendar server sends CORS headers)
   try{
     const r=await fetch(cal.url,{signal:AbortSignal.timeout(6000)});
     if(r.ok){const text=await r.text();if(text.includes('BEGIN:VCALENDAR'))return parseIcs(text,cal);}
   }catch(e){}
-  for(const proxy of allProxies){
-    // Try encoded URL first, then unencoded (some proxies choke on encoded long URLs → 413)
+  // Netlify proxy via POST (no URL-length issues, no encoding corruption)
+  if(D.proxyUrl){
+    try{
+      const text=await netlifyFetch(D.proxyUrl,cal.url);
+      if(text.includes('BEGIN:VCALENDAR'))return parseIcs(text,cal);
+    }catch(e){}
+  }
+  // Public proxies via GET
+  for(const proxy of PROXIES){
     const attempts=[proxy+encodeURIComponent(cal.url),proxy+cal.url];
     for(const url of attempts){
       try{
         const r=await fetch(url,{signal:AbortSignal.timeout(12000)});
-        if(r.ok){
-          const text=await r.text();
-          if(text.includes('BEGIN:VCALENDAR'))return parseIcs(text,cal);
-        }
-        if(r.status!==413&&r.status!==414)break; // only retry with unencoded if URL-too-long error
+        if(r.ok){const text=await r.text();if(text.includes('BEGIN:VCALENDAR'))return parseIcs(text,cal);}
+        if(r.status!==413&&r.status!==414)break;
       }catch(e){break;}
     }
   }
