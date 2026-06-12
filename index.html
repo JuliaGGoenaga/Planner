@@ -781,14 +781,30 @@ const isMobile=()=>window.innerWidth<=700;
 
 // ── NETLIFY FUNCTION SCRIPT ────────────────────────────────────────────────
 const NETLIFY_FUNC_SCRIPT=`exports.handler = async function(event) {
-  const url = event.queryStringParameters && event.queryStringParameters.url;
-  if (!url) return { statusCode: 400, headers: {'Access-Control-Allow-Origin': '*'}, body: 'Missing url param' };
+  const CORS = {'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'*'};
+  if(event.httpMethod==='OPTIONS') return {statusCode:204,headers:CORS,body:''};
+  const url = (event.queryStringParameters && event.queryStringParameters.url) || '';
+  if(!url) return {statusCode:400,headers:CORS,body:'Missing url param'};
+  const controller = new AbortController();
+  const timer = setTimeout(()=>controller.abort(),12000);
   try {
-    const res = await fetch(url);
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; CalendarSync/1.0)',
+        'Accept': 'text/calendar, text/plain, */*',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Cache-Control': 'no-cache'
+      }
+    });
+    clearTimeout(timer);
+    if(!res.ok) return {statusCode:502,headers:CORS,body:'Upstream HTTP '+res.status+' for: '+url.slice(0,120)};
     const body = await res.text();
-    return { statusCode: 200, headers: {'Access-Control-Allow-Origin': '*', 'Content-Type': 'text/calendar; charset=utf-8'}, body };
+    if(!body.includes('BEGIN:VCALENDAR')) return {statusCode:502,headers:CORS,body:'Response is not an ICS file ('+body.slice(0,80)+')'};
+    return {statusCode:200,headers:{...CORS,'Content-Type':'text/calendar; charset=utf-8'},body};
   } catch(e) {
-    return { statusCode: 502, headers: {'Access-Control-Allow-Origin': '*'}, body: 'Fetch error: ' + e.message };
+    clearTimeout(timer);
+    return {statusCode:502,headers:CORS,body:'Fetch error: '+e.message};
   }
 };`;
 
@@ -1050,20 +1066,26 @@ const PROXIES=[
   'https://yacdn.org/proxy/'
 ];
 async function fetchIcs(cal){
-  const allProxies=D.proxyUrl?[D.proxyUrl,...PROXIES]:PROXIES;
-  // Try direct first (works if the calendar server sends CORS headers)
+  const netlifyFirst=D.proxyUrl?[D.proxyUrl]:[];
+  const allProxies=[...netlifyFirst,...PROXIES];
+  // Try direct first
   try{
     const r=await fetch(cal.url,{signal:AbortSignal.timeout(6000)});
     if(r.ok){const text=await r.text();if(text.includes('BEGIN:VCALENDAR'))return parseIcs(text,cal);}
   }catch(e){}
   for(const proxy of allProxies){
-    try{
-      const r=await fetch(proxy+encodeURIComponent(cal.url),{signal:AbortSignal.timeout(8000)});
-      if(r.ok){
-        const text=await r.text();
-        if(text.includes('BEGIN:VCALENDAR'))return parseIcs(text,cal);
-      }
-    }catch(e){}
+    // Try encoded URL first, then unencoded (some proxies choke on encoded long URLs → 413)
+    const attempts=[proxy+encodeURIComponent(cal.url),proxy+cal.url];
+    for(const url of attempts){
+      try{
+        const r=await fetch(url,{signal:AbortSignal.timeout(12000)});
+        if(r.ok){
+          const text=await r.text();
+          if(text.includes('BEGIN:VCALENDAR'))return parseIcs(text,cal);
+        }
+        if(r.status!==413&&r.status!==414)break; // only retry with unencoded if URL-too-long error
+      }catch(e){break;}
+    }
   }
   throw new Error('All proxies failed');
 }
