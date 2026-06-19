@@ -227,6 +227,9 @@ html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
 .ub-low{background:var(--green-l);color:var(--green)}
 .tc-t{flex:1;font-size:12px;line-height:1.4}
 .tc-m{font-size:10px;color:var(--text3);margin-top:2px}
+.todos-cols{display:grid;grid-template-columns:1fr 1fr;gap:0 28px;align-items:start}
+.todos-col-right{border-left:1px solid var(--border);padding-left:24px}
+@media(max-width:700px){.todos-cols{display:flex;flex-direction:column}.todos-col-right{border-left:none;padding-left:0;order:-1}}
 
 /* ── PROJECTS ── */
 .proj-layout{display:flex;gap:14px;align-items:flex-start}
@@ -1761,42 +1764,50 @@ function renderTodos(){
   const scheduled=items.filter(t=>t.date);
   const groups={};scheduled.forEach(t=>{if(!groups[t.date])groups[t.date]=[];groups[t.date].push(t)});
   const keys=Object.keys(groups).sort();
-  let html='';
-  if(!unscheduled.length&&!keys.length)html=`<div style="color:var(--text3);font-size:12px;padding:1.5rem 0">No to-dos here.</div>`;
-  if(unscheduled.length){
-    html+=`<div class="tsh"><i class="ti ti-inbox" style="font-size:11px"></i>&nbsp;Bandeja de entrada <span style="font-weight:400;color:var(--text3)">${unscheduled.length}</span></div>`;
-    unscheduled.forEach(t=>{
-      const proj=t.projectId?D.projects.find(p=>p.id===t.projectId):null;
-      html+=`<div class="tcard">
+  const futureKeys=keys.filter(k=>k>=today);
+  const pastKeys=keys.filter(k=>k<today).reverse();
+  const tc=t=>{
+    const proj=t.projectId?D.projects.find(p=>p.id===t.projectId):null;
+    const projTag=proj?` · <span style="color:${proj.color}">${proj.name}</span>`:'';
+    const durTag=t.duration?` · ${t.duration}h`:'';
+    const meta=t.date
+      ?`${fmtS(new Date(t.date))}${t.time?` · ${t.time}`:''}${t.rolledFrom?' · fue '+fmtS(new Date(t.rolledFrom)):''}${projTag}${durTag}`
+      :`Sin fecha${projTag}${durTag}`;
+    return`<div class="tcard">
       <div class="bchk${t.done?' on':''}" onclick="toggleTodo(${t.id},true)"></div>
       <div style="flex:1">
-        <div class="tc-t" style="${t.done?'text-decoration:line-through;color:var(--text3)':''}">${t.title}</div>
-        <div class="tc-m">Sin fecha · arrastra a la vista semanal para programar${proj?` · <span style="color:${proj.color}">${proj.name}</span>`:''}${t.duration?` · ${t.duration}h`:''}</div>
+        <div class="tc-t" style="${t.done?'text-decoration:line-through;color:var(--text3)':''}">${t.title}${t.rolledFrom&&t.date?`<span class="rolled" style="margin-left:5px">↩</span>`:''}</div>
+        <div class="tc-m">${meta}</div>
       </div>
       <span class="ub ub-${t.urgency}">${t.urgency==='high'?'Urgente':t.urgency==='med'?'Normal':'Baja'}</span>
       <button class="btn-del" onclick="openEdit('todo',${t.id})" title="Edit"><i class="ti ti-pencil" style="font-size:12px"></i></button>
       <button class="btn-del" onclick="delTodo(${t.id})" title="Delete"><i class="ti ti-x" style="font-size:12px"></i></button>
     </div>`;
+  };
+  if(!unscheduled.length&&!keys.length){
+    document.getElementById('todos-list').innerHTML=`<div style="color:var(--text3);font-size:12px;padding:1.5rem 0">No to-dos here.</div>`;
+    return;
+  }
+  // Left column: dated (today+future first, then past below)
+  let left='';
+  futureKeys.forEach(k=>{
+    const isT=k===today;
+    left+=`<div class="tsh" style="${isT?'color:var(--accent)':''}">${isT?'Hoy':fmtS(new Date(k))}</div>`;
+    groups[k].forEach(t=>{left+=tc(t);});
+  });
+  if(pastKeys.length){
+    left+=`<div class="tsh" style="margin-top:18px;color:var(--text3)"><i class="ti ti-history" style="font-size:11px"></i>&nbsp;Pasadas</div>`;
+    pastKeys.forEach(k=>{
+      left+=`<div class="tsh" style="color:var(--text3);font-size:9px;margin-top:8px">${fmtS(new Date(k))}</div>`;
+      groups[k].forEach(t=>{left+=tc(t);});
     });
   }
-  keys.forEach(k=>{
-    const isT=k===today,label=isT?'Hoy':fmtS(new Date(k));
-    html+=`<div class="tsh" style="${isT?'color:var(--accent)':''}">${label}</div>`;
-    groups[k].forEach(t=>{
-      const proj=t.projectId?D.projects.find(p=>p.id===t.projectId):null;
-      html+=`<div class="tcard">
-      <div class="bchk${t.done?' on':''}" onclick="toggleTodo(${t.id},true)"></div>
-      <div style="flex:1">
-        <div class="tc-t" style="${t.done?'text-decoration:line-through;color:var(--text3)':''}">${t.title}${t.rolledFrom?`<span class="rolled" style="margin-left:5px">↩ rolled</span>`:''}</div>
-        <div class="tc-m">${fmtS(new Date(t.date))}${t.time?` · ${t.time}`:''}${t.rolledFrom?' · was '+fmtS(new Date(t.rolledFrom)):''}${proj?` · <span style="color:${proj.color}">${proj.name}</span>`:''}${t.duration?` · ${t.duration}h`:''}</div>
-      </div>
-      <span class="ub ub-${t.urgency}">${t.urgency==='high'?'Urgente':t.urgency==='med'?'Normal':'Baja'}</span>
-      <button class="btn-del" onclick="openEdit('todo',${t.id})" title="Edit"><i class="ti ti-pencil" style="font-size:12px"></i></button>
-      <button class="btn-del" onclick="delTodo(${t.id})" title="Delete"><i class="ti ti-x" style="font-size:12px"></i></button>
-    </div>`;
-    });
-  });
-  document.getElementById('todos-list').innerHTML=html;
+  if(!left)left=`<div style="color:var(--text3);font-size:12px;padding:1rem 0">Sin tareas programadas.</div>`;
+  // Right column: undated (inbox)
+  let right=`<div class="tsh"><i class="ti ti-inbox" style="font-size:11px"></i>&nbsp;Sin fecha <span style="font-weight:400;color:var(--text3)">${unscheduled.length}</span></div>`;
+  if(unscheduled.length)unscheduled.forEach(t=>{right+=tc(t);});
+  else right+=`<div style="color:var(--text3);font-size:12px;padding:0.5rem 0">Bandeja vacía.</div>`;
+  document.getElementById('todos-list').innerHTML=`<div class="todos-cols"><div class="todos-col-left">${left}</div><div class="todos-col-right">${right}</div></div>`;
 }
 function toggleTodo(id,re){const t=D.todos.find(t=>t.id===id);if(t){t.done=!t.done;sched()}if(re)renderTodos();else renderWeek()}
 function delTodo(id){
