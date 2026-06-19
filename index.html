@@ -228,8 +228,15 @@ html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
 .tc-t{flex:1;font-size:12px;line-height:1.4}
 .tc-m{font-size:10px;color:var(--text3);margin-top:2px}
 .todos-cols{display:grid;grid-template-columns:1fr 1fr;gap:0 28px;align-items:start}
-.todos-col-right{border-left:1px solid var(--border);padding-left:24px}
-@media(max-width:700px){.todos-cols{display:flex;flex-direction:column}.todos-col-right{border-left:none;padding-left:0;order:-1}}
+.todos-future{grid-column:1;grid-row:1}
+.todos-past{grid-column:1;grid-row:2}
+.todos-undated{grid-column:2;grid-row:1/3;border-left:1px solid var(--border);padding-left:24px}
+@media(max-width:700px){
+  .todos-cols{display:flex;flex-direction:column}
+  .todos-future{order:1}
+  .todos-undated{order:2;border-left:none;padding-left:0}
+  .todos-past{order:3}
+}
 
 /* ── PROJECTS ── */
 .proj-layout{display:flex;gap:14px;align-items:flex-start}
@@ -1759,13 +1766,6 @@ function renderTodos(){
   if(S.filter==='high')items=items.filter(t=>t.urgency==='high'&&!t.done);
   else if(S.filter==='pending')items=items.filter(t=>!t.done);
   else if(S.filter==='done')items=items.filter(t=>t.done);
-  items.sort((a,b)=>{if(a.done!==b.done)return a.done?1:-1;return(a.date||'').localeCompare(b.date||'')});
-  const unscheduled=items.filter(t=>!t.date);
-  const scheduled=items.filter(t=>t.date);
-  const groups={};scheduled.forEach(t=>{if(!groups[t.date])groups[t.date]=[];groups[t.date].push(t)});
-  const keys=Object.keys(groups).sort();
-  const futureKeys=keys.filter(k=>k>=today);
-  const pastKeys=keys.filter(k=>k<today).reverse();
   const tc=t=>{
     const proj=t.projectId?D.projects.find(p=>p.id===t.projectId):null;
     const projTag=proj?` · <span style="color:${proj.color}">${proj.name}</span>`:'';
@@ -1784,30 +1784,35 @@ function renderTodos(){
       <button class="btn-del" onclick="delTodo(${t.id})" title="Delete"><i class="ti ti-x" style="font-size:12px"></i></button>
     </div>`;
   };
-  if(!unscheduled.length&&!keys.length){
+  // Bucket 1: undone, dated today/future
+  const futureUndone=items.filter(t=>!t.done&&t.date&&t.date>=today);
+  // Bucket 2: undone, no date (inbox)
+  const undatedUndone=items.filter(t=>!t.done&&!t.date);
+  // Bucket 3: past-dated OR completed (regardless of date) — newest first
+  const pastOrDone=items.filter(t=>t.done||(t.date&&t.date<today))
+    .sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  if(!futureUndone.length&&!undatedUndone.length&&!pastOrDone.length){
     document.getElementById('todos-list').innerHTML=`<div style="color:var(--text3);font-size:12px;padding:1.5rem 0">No to-dos here.</div>`;
     return;
   }
-  // Left column: dated (today+future first, then past below)
-  let left='';
-  futureKeys.forEach(k=>{
+  // Section: future/today (grouped by date)
+  let future='';
+  const fgroups={};futureUndone.forEach(t=>{if(!fgroups[t.date])fgroups[t.date]=[];fgroups[t.date].push(t)});
+  Object.keys(fgroups).sort().forEach(k=>{
     const isT=k===today;
-    left+=`<div class="tsh" style="${isT?'color:var(--accent)':''}">${isT?'Hoy':fmtS(new Date(k))}</div>`;
-    groups[k].forEach(t=>{left+=tc(t);});
+    future+=`<div class="tsh" style="${isT?'color:var(--accent)':''}">${isT?'Hoy':fmtS(new Date(k))}</div>`;
+    fgroups[k].forEach(t=>{future+=tc(t);});
   });
-  if(pastKeys.length){
-    left+=`<div class="tsh" style="margin-top:18px;color:var(--text3)"><i class="ti ti-history" style="font-size:11px"></i>&nbsp;Pasadas</div>`;
-    pastKeys.forEach(k=>{
-      left+=`<div class="tsh" style="color:var(--text3);font-size:9px;margin-top:8px">${fmtS(new Date(k))}</div>`;
-      groups[k].forEach(t=>{left+=tc(t);});
-    });
-  }
-  if(!left)left=`<div style="color:var(--text3);font-size:12px;padding:1rem 0">Sin tareas programadas.</div>`;
-  // Right column: undated (inbox)
-  let right=`<div class="tsh"><i class="ti ti-inbox" style="font-size:11px"></i>&nbsp;Sin fecha <span style="font-weight:400;color:var(--text3)">${unscheduled.length}</span></div>`;
-  if(unscheduled.length)unscheduled.forEach(t=>{right+=tc(t);});
-  else right+=`<div style="color:var(--text3);font-size:12px;padding:0.5rem 0">Bandeja vacía.</div>`;
-  document.getElementById('todos-list').innerHTML=`<div class="todos-cols"><div class="todos-col-left">${left}</div><div class="todos-col-right">${right}</div></div>`;
+  if(!future)future=`<div style="color:var(--text3);font-size:12px;padding:0.5rem 0">Sin tareas próximas.</div>`;
+  // Section: undated (inbox)
+  let undated=`<div class="tsh"><i class="ti ti-inbox" style="font-size:11px"></i>&nbsp;Sin fecha <span style="font-weight:400;color:var(--text3)">${undatedUndone.length}</span></div>`;
+  if(undatedUndone.length)undatedUndone.forEach(t=>{undated+=tc(t);});
+  else undated+=`<div style="color:var(--text3);font-size:12px;padding:0.5rem 0">Bandeja vacía.</div>`;
+  // Section: past or completed
+  let past=`<div class="tsh" style="color:var(--text3)"><i class="ti ti-history" style="font-size:11px"></i>&nbsp;Pasadas / Completadas</div>`;
+  if(pastOrDone.length)pastOrDone.forEach(t=>{past+=tc(t);});
+  else past+=`<div style="color:var(--text3);font-size:12px;padding:0.5rem 0">Nada por aquí.</div>`;
+  document.getElementById('todos-list').innerHTML=`<div class="todos-cols"><div class="todos-future">${future}</div><div class="todos-undated">${undated}</div><div class="todos-past">${past}</div></div>`;
 }
 function toggleTodo(id,re){const t=D.todos.find(t=>t.id===id);if(t){t.done=!t.done;sched()}if(re)renderTodos();else renderWeek()}
 function delTodo(id){
