@@ -783,6 +783,7 @@ setInterval(applyTimeTheme,60000);
 // ── CONSTANTS ──────────────────────────────────────────────────────────────
 const DAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const MFULL=['January','February','March','April','May','June','July','August','September','October','November','December'];
+const DOW3=['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
 const PCOLS=['#534AB7','#0F6E56','#D85A30','#D4537E','#185FA5','#BA7517','#639922','#993556'];
 const TICOS=['ti-bulb','ti-briefcase','ti-plane','ti-heart','ti-home','ti-book','ti-music','ti-star','ti-rocket','ti-camera'];
 const NOTE_CATS=[
@@ -879,7 +880,7 @@ async function sha1Hex(data){
 }
 
 // ── STATE ──────────────────────────────────────────────────────────────────
-let S={weekStart:getMonday(new Date()),monthDate:new Date(),yearDate:new Date(),filter:'all',noteFilter:'all',noteSort:'newest',mType:null,mDay:null,editId:null,mProjId:null,nextId:Date.now(),sidebarCollapsed:false,meetingNotesMode:false,yearPaintMode:false};
+let S={weekStart:getMonday(new Date()),monthDate:new Date(),yearDate:new Date(),filter:'all',noteFilter:'all',noteSort:'newest',mType:null,mDay:null,editId:null,mProjId:null,nextId:Date.now(),sidebarCollapsed:false,meetingNotesMode:false,yearPaintMode:false,selDay:todayStr()};
 let D={events:[],todos:[],projects:[],timeblocks:[],meetingNotes:[],notes:[],topics:[
   {id:1,name:'Work',icon:'ti-briefcase'},
   {id:2,name:'Personal',icon:'ti-heart'},
@@ -2124,6 +2125,7 @@ function buildM(){
     <div class="ff"><label>Tarea</label><select id="m-task">${taskOpts||'<option>No hay tareas</option>'}</select></div>
     <div class="ff"><label>Horas dedicadas</label><input id="m-dur" type="number" min="0.25" step="0.25" placeholder="ej. 1.5"/></div>`;}
   else if(type==='loghours')b=`
+    ${!S.mProjId?`<div class="ff"><label>Proyecto</label><select id="m-proj">${D.projects.length?D.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join(''):'<option value="">Crea un proyecto primero</option>'}</select></div>`:''}
     <div class="ff"><label>Fecha</label><input id="m-d" type="date" value="${day}"/></div>
     <div class="ff"><label>Horas</label><input id="m-dur" type="number" min="0.25" step="0.25" placeholder="ej. 2"/></div>
     <div class="ff"><label>Descripción</label><input id="m-t" placeholder="En qué trabajaste…"/></div>`;
@@ -2230,7 +2232,8 @@ function saveM(){
     else if(type==='loghours'){
       const dur=parseFloat(gv('m-dur'))||0;if(!dur)return;
       const desc=gv('m-t').trim();
-      const p=D.projects.find(p=>p.id===S.mProjId);if(!p)return;
+      const pid=S.mProjId||parseInt(gv('m-proj'));
+      const p=D.projects.find(p=>p.id===pid);if(!p)return;
       if(!p.manualEntries)p.manualEntries=[];
       p.manualEntries.push({id,date:gv('m-d'),hours:dur,desc});
     }
@@ -2389,24 +2392,51 @@ function deletePlan(id){
   D.plans=(D.plans||[]).filter(p=>p.id!==id);
   sched();renderMonth();
 }
+function shiftSelDay(delta){
+  const d=new Date((S.selDay||todayStr())+'T00:00:00');
+  d.setDate(d.getDate()+delta);
+  S.selDay=dStr(d);
+  renderTodayPanel();
+}
+function jumpToToday(){S.selDay=todayStr();renderTodayPanel();}
+function logHForDay(ds){S.mProjId=null;S.mType='loghours';S.mDay=ds;S.editId=null;buildM();}
+function dayProjectHours(ds){
+  const out=[];
+  D.projects.forEach(p=>{
+    let h=0;
+    h+=D.todos.filter(t=>t.projectId===p.id&&t.date===ds&&t.duration).reduce((s,t)=>s+t.duration,0);
+    h+=(p.manualEntries||[]).filter(e=>e.date===ds).reduce((s,e)=>s+e.hours,0);
+    h+=D.timeblocks.filter(tb=>tb.projectId===p.id&&tb.date===ds).reduce((s,tb)=>s+(tb.duration||0),0);
+    h+=D.events.filter(e=>e.projectId===p.id&&e.date===ds&&e.duration).reduce((s,e)=>s+e.duration,0);
+    if(h>0)out.push({name:p.name,color:p.color,hours:Math.round(h*10)/10});
+  });
+  return out;
+}
 function renderTodayPanel(){
   const el=document.getElementById('month-today');if(!el)return;
   const today=todayStr();
-  const evs=[...D.events.filter(e=>e.date===today&&e.time&&!e.fromIcs),...EXT.filter(e=>e.date===today&&e.time)].sort((a,b)=>(a.time||'').localeCompare(b.time||''));
-  const tasks=D.todos.filter(t=>t.date===today&&!t.done);
+  const sel=S.selDay||today;
+  const selD=new Date(sel+'T00:00:00');
+  const isToday=sel===today;
+  const evs=[...D.events.filter(e=>e.date===sel&&e.time&&!e.fromIcs),...EXT.filter(e=>e.date===sel&&e.time)].sort((a,b)=>(a.time||'').localeCompare(b.time||''));
+  const tasks=D.todos.filter(t=>t.date===sel&&!t.done);
   const allItems=[
     ...evs.map(e=>({...e,_kind:'ev'})),
     ...tasks.map(t=>({...t,_kind:'task'}))
   ].sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));
   const assignedH=Math.round([
-    ...D.todos.filter(t=>t.date===today&&t.duration),
-    ...D.events.filter(e=>e.date===today&&e.duration&&!e.fromIcs)
+    ...D.todos.filter(t=>t.date===sel&&t.duration),
+    ...D.events.filter(e=>e.date===sel&&e.duration&&!e.fromIcs)
   ].reduce((s,i)=>s+(i.duration||0),0)*10)/10;
-  const todayD=new Date();
-  let html=`<div class="mtp-head"><i class="ti ti-calendar-today" style="font-size:11px"></i>HOY · ${todayD.getDate()} ${MFULL[todayD.getMonth()].slice(0,3).toUpperCase()}</div>`;
+  let html=`<div class="mtp-head"><i class="ti ti-calendar-today" style="font-size:11px"></i>${isToday?'HOY':DOW3[(selD.getDay()+6)%7].toUpperCase()} · ${selD.getDate()} ${MFULL[selD.getMonth()].slice(0,3).toUpperCase()}${!isToday?`<button onclick="jumpToToday()" style="margin-left:auto;background:none;border:none;cursor:pointer;color:var(--accent);font-size:9px;text-decoration:underline;padding:0">hoy</button>`:''}</div>
+  <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin:0 0 10px">
+    <button onclick="shiftSelDay(-1)" style="background:var(--surface2);border:1px solid var(--border2);border-radius:6px;width:24px;height:22px;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center" title="Día anterior"><i class="ti ti-chevron-left" style="font-size:13px"></i></button>
+    <span style="font-size:9px;color:var(--text3)">navegar día</span>
+    <button onclick="shiftSelDay(1)" style="background:var(--surface2);border:1px solid var(--border2);border-radius:6px;width:24px;height:22px;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center" title="Día siguiente"><i class="ti ti-chevron-right" style="font-size:13px"></i></button>
+  </div>`;
   if(assignedH>0)html+=`<div style="font-size:10px;color:var(--text2);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:4px"><i class="ti ti-clock" style="font-size:10px"></i>${assignedH}h asignadas</div>`;
   if(!allItems.length){
-    html+=`<div style="font-size:11px;color:var(--text3);text-align:center;padding:14px 0;line-height:1.6"><i class="ti ti-checks" style="font-size:18px;display:block;margin-bottom:4px;opacity:.3"></i>Sin eventos hoy</div>`;
+    html+=`<div style="font-size:11px;color:var(--text3);text-align:center;padding:14px 0;line-height:1.6"><i class="ti ti-checks" style="font-size:18px;display:block;margin-bottom:4px;opacity:.3"></i>Sin eventos este día</div>`;
   } else {
     allItems.forEach(item=>{
       if(item._kind==='ev'){
@@ -2430,7 +2460,24 @@ function renderTodayPanel(){
       }
     });
   }
-  const todayNotes=(D.meetingNotes||[]).filter(n=>n.date===today);
+  // ── Project hours section ──
+  const projHours=dayProjectHours(sel);
+  html+=`<div style="font-size:9px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-top:10px;padding-top:8px;border-top:1px solid var(--border);margin-bottom:4px;display:flex;align-items:center;gap:5px">
+    <i class="ti ti-clock-hour-4" style="font-size:11px"></i>Horas de proyectos
+    <button onclick="logHForDay('${sel}')" style="margin-left:auto;background:none;border:none;cursor:pointer;color:var(--accent);font-size:16px;line-height:1;padding:0 2px" title="Registrar horas este día"><i class="ti ti-plus"></i></button>
+  </div>`;
+  if(!projHours.length){
+    html+=`<div style="font-size:10px;color:var(--text3);font-style:italic;padding:2px 0 4px">Sin horas registradas.</div>`;
+  } else {
+    projHours.forEach(ph=>{
+      html+=`<div style="display:flex;align-items:center;gap:6px;padding:2px 0;font-size:11px">
+        <span style="width:7px;height:7px;border-radius:50%;background:${ph.color};flex-shrink:0"></span>
+        <span style="flex:1;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ph.name}</span>
+        <span style="font-weight:600;color:${ph.color};flex-shrink:0">${ph.hours}h</span>
+      </div>`;
+    });
+  }
+  const todayNotes=(D.meetingNotes||[]).filter(n=>n.date===sel);
   if(todayNotes.length){
     html+=`<div style="font-size:9px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-top:10px;padding-top:8px;border-top:1px solid var(--border);margin-bottom:4px">Notas</div>`;
     todayNotes.forEach(n=>{
