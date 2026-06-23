@@ -322,14 +322,17 @@ html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
 .month-scroll-dow{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;position:sticky;top:0;z-index:3;background:var(--bg);padding:3px 0 5px;border-bottom:1px solid var(--border);margin-bottom:3px}
 .month-section{margin-bottom:6px}
 .month-section-label{font-size:11px;font-weight:700;color:var(--text2);padding:6px 4px 5px;position:sticky;top:26px;z-index:2;background:var(--bg);display:flex;align-items:center;gap:5px;border-bottom:1px solid var(--border);margin-bottom:3px}
-.month-today-panel{width:270px;flex-shrink:0;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px;position:sticky;top:0;max-height:calc(100dvh - 100px);overflow-y:auto}
-.mtp-head{font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:5px}
+.month-today-wrap{width:270px;flex-shrink:0;display:flex;flex-direction:column;gap:10px;position:sticky;top:0;max-height:calc(100dvh - 100px);overflow-y:auto}
+.month-today-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px;flex-shrink:0}
+.mtp-head{font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:4px}
+.mtp-nav-btn{background:none;border:none;cursor:pointer;color:var(--text2);padding:0 1px;display:flex;align-items:center;font-size:13px}
+.mtp-nav-btn:hover{color:var(--accent)}
 .mtp-item{display:flex;align-items:flex-start;gap:6px;padding:5px 0;border-bottom:1px solid var(--border);min-width:0}
 .mtp-item:last-child{border-bottom:none}
 .mtp-time{font-size:9px;color:var(--text3);width:34px;flex-shrink:0;padding-top:1px;text-align:right}
 .mtp-title{flex:1;font-size:11px;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .mtp-hours{font-size:9px;color:var(--text3);background:var(--surface2);padding:1px 4px;border-radius:3px;flex-shrink:0;white-space:nowrap}
-@media(max-width:860px){.month-layout{flex-direction:column}.month-today-panel{width:100%;position:static;max-height:380px}}
+@media(max-width:860px){.month-layout{flex-direction:column}.month-today-wrap{width:100%;position:static;max-height:none;flex-direction:row;flex-wrap:wrap}.month-today-panel{flex:1;min-width:220px;max-height:380px;overflow-y:auto}}
 
 /* ── YEAR VIEW ── */
 .year-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
@@ -410,7 +413,8 @@ html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
   .pgrid{grid-template-columns:1fr}
   /* Month layout stacks vertically on mobile */
   .month-layout{flex-direction:column}
-  .month-today-panel{width:100% !important;position:static;max-height:280px;padding:8px 10px}
+  .month-today-wrap{width:100% !important;position:static;max-height:none;flex-direction:column}
+  .month-today-panel{width:100% !important;max-height:280px;padding:8px 10px}
   .mtp-item{padding:3px 0}
   /* Year grid: 2 columns on phone */
   .year-grid{grid-template-columns:repeat(2,1fr) !important;gap:6px}
@@ -559,7 +563,10 @@ html.dark .cpick{box-shadow:0 0 0 1px rgba(255,255,255,0.2)}
         </div>
         <div class="month-layout">
           <div id="month-grid" style="flex:1;min-width:0"></div>
-          <div id="month-today" class="month-today-panel"></div>
+          <div class="month-today-wrap">
+            <div id="month-today" class="month-today-panel"></div>
+            <div id="month-plans" class="month-today-panel"></div>
+          </div>
         </div>
       </div>
 
@@ -2428,11 +2435,12 @@ function renderTodayPanel(){
     ...D.todos.filter(t=>t.date===sel&&t.duration),
     ...D.events.filter(e=>e.date===sel&&e.duration&&!e.fromIcs)
   ].reduce((s,i)=>s+(i.duration||0),0)*10)/10;
-  let html=`<div class="mtp-head"><i class="ti ti-calendar-today" style="font-size:11px"></i>${isToday?'HOY':DOW3[(selD.getDay()+6)%7].toUpperCase()} · ${selD.getDate()} ${MFULL[selD.getMonth()].slice(0,3).toUpperCase()}${!isToday?`<button onclick="jumpToToday()" style="margin-left:auto;background:none;border:none;cursor:pointer;color:var(--accent);font-size:9px;text-decoration:underline;padding:0">hoy</button>`:''}</div>
-  <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin:0 0 10px">
-    <button onclick="shiftSelDay(-1)" style="background:var(--surface2);border:1px solid var(--border2);border-radius:6px;width:24px;height:22px;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center" title="Día anterior"><i class="ti ti-chevron-left" style="font-size:13px"></i></button>
-    <span style="font-size:9px;color:var(--text3)">navegar día</span>
-    <button onclick="shiftSelDay(1)" style="background:var(--surface2);border:1px solid var(--border2);border-radius:6px;width:24px;height:22px;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center" title="Día siguiente"><i class="ti ti-chevron-right" style="font-size:13px"></i></button>
+  let html=`<div class="mtp-head">
+    <i class="ti ti-calendar-today" style="font-size:11px"></i>
+    <button onclick="shiftSelDay(-1)" class="mtp-nav-btn" title="Día anterior"><i class="ti ti-chevron-left"></i></button>
+    <span>${isToday?'HOY':DOW3[(selD.getDay()+6)%7].toUpperCase()} · ${selD.getDate()} ${MFULL[selD.getMonth()].slice(0,3).toUpperCase()}</span>
+    <button onclick="shiftSelDay(1)" class="mtp-nav-btn" title="Día siguiente"><i class="ti ti-chevron-right"></i></button>
+    ${!isToday?`<button onclick="jumpToToday()" style="margin-left:auto;background:none;border:none;cursor:pointer;color:var(--accent);font-size:9px;text-decoration:underline;padding:0">hoy</button>`:''}
   </div>`;
   if(assignedH>0)html+=`<div style="font-size:10px;color:var(--text2);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:4px"><i class="ti ti-clock" style="font-size:10px"></i>${assignedH}h asignadas</div>`;
   if(!allItems.length){
@@ -2488,31 +2496,31 @@ function renderTodayPanel(){
       </div>`;
     });
   }
-  // ── Plans section ──
+  // ── Plans + vacation panel (separate bubble) ──
   const plans=D.plans||[];
   const visiblePlans=plans.filter(p=>!p.archived);
   const archivedPlans=plans.filter(p=>p.archived);
-  html+=`<div class="plan-section"><div class="plan-section-head"><i class="ti ti-map" style="font-size:11px"></i>Planes<button onclick="openM('plan')" style="margin-left:auto;background:none;border:none;cursor:pointer;color:var(--accent);font-size:18px;line-height:1;padding:0 2px" title="Nuevo plan"><i class="ti ti-plus"></i></button></div>`;
+  let htmlPlans=`<div class="plan-section"><div class="plan-section-head"><i class="ti ti-map" style="font-size:11px"></i>Planes<button onclick="openM('plan')" style="margin-left:auto;background:none;border:none;cursor:pointer;color:var(--accent);font-size:18px;line-height:1;padding:0 2px" title="Nuevo plan"><i class="ti ti-plus"></i></button></div>`;
   if(!plans.length){
-    html+=`<div style="font-size:10px;color:var(--text3);font-style:italic;padding:4px 0">Sin planes. Pulsa <strong>+</strong> para crear uno y arrástralo sobre los días del mes.</div>`;
+    htmlPlans+=`<div style="font-size:10px;color:var(--text3);font-style:italic;padding:4px 0">Sin planes. Pulsa <strong>+</strong> para crear uno y arrástralo sobre los días del mes.</div>`;
   } else {
     visiblePlans.forEach(p=>{
       const safeTitle=(p.title||'').replace(/</g,'&lt;');
-      html+=`<div class="plan-chip" draggable="true" ondragstart="planDragStart(event,${p.id})" ondragend="_planDrag=null"><div class="plan-chip-dot" style="background:${p.color}"></div><span class="plan-chip-title">${safeTitle}</span><span style="font-size:9px;color:var(--text3);flex-shrink:0">${(p.days||[]).length}d</span><button class="btn-del" onclick="event.stopPropagation();archivePlan(${p.id})" style="color:var(--green);padding:0 2px" title="Quitar de la lista (mantiene marcas en el calendario)"><i class="ti ti-check" style="font-size:11px"></i></button><button class="btn-del" onclick="event.stopPropagation();deletePlan(${p.id})" style="color:var(--red);padding:0 2px" title="Eliminar completamente del calendario"><i class="ti ti-trash" style="font-size:11px"></i></button></div>`;
+      htmlPlans+=`<div class="plan-chip" draggable="true" ondragstart="planDragStart(event,${p.id})" ondragend="_planDrag=null"><div class="plan-chip-dot" style="background:${p.color}"></div><span class="plan-chip-title">${safeTitle}</span><span style="font-size:9px;color:var(--text3);flex-shrink:0">${(p.days||[]).length}d</span><button class="btn-del" onclick="event.stopPropagation();archivePlan(${p.id})" style="color:var(--green);padding:0 2px" title="Quitar de la lista (mantiene marcas en el calendario)"><i class="ti ti-check" style="font-size:11px"></i></button><button class="btn-del" onclick="event.stopPropagation();deletePlan(${p.id})" style="color:var(--red);padding:0 2px" title="Eliminar completamente del calendario"><i class="ti ti-trash" style="font-size:11px"></i></button></div>`;
     });
     if(archivedPlans.length){
-      html+=`<div style="font-size:9px;color:var(--text3);margin-top:6px;padding-top:6px;border-top:1px solid var(--border);font-style:italic">${archivedPlans.length} plan${archivedPlans.length>1?'es':''} archivado${archivedPlans.length>1?'s':''} — visible${archivedPlans.length>1?'s':''} en el calendario</div>`;
+      htmlPlans+=`<div style="font-size:9px;color:var(--text3);margin-top:6px;padding-top:6px;border-top:1px solid var(--border);font-style:italic">${archivedPlans.length} plan${archivedPlans.length>1?'es':''} archivado${archivedPlans.length>1?'s':''} — visible${archivedPlans.length>1?'s':''} en el calendario</div>`;
     }
     if(!visiblePlans.length&&!archivedPlans.length){
-      html+=`<div style="font-size:10px;color:var(--text3);font-style:italic;padding:4px 0">Todos los planes están archivados.</div>`;
+      htmlPlans+=`<div style="font-size:10px;color:var(--text3);font-style:italic;padding:4px 0">Todos los planes están archivados.</div>`;
     }
   }
-  html+=`</div>`;
+  htmlPlans+=`</div>`;
   // ── Vacation counter ──
   const vacYear=S.monthDate.getFullYear();
   const vacYearPfx=`${vacYear}-`;
   const vacCount=(D.vacationDays||[]).filter(v=>v.startsWith(vacYearPfx)).length;
-  html+=`<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
+  htmlPlans+=`<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
     <div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;margin-bottom:6px;display:flex;align-items:center;gap:5px"><i class="ti ti-beach" style="font-size:11px;color:var(--blue)"></i>Vacaciones ${vacYear}</div>
     <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:6px">${vacCount} día${vacCount!==1?'s':''}</div>
     <div style="font-size:10px;color:var(--text3);line-height:1.6">
@@ -2522,6 +2530,8 @@ function renderTodayPanel(){
     </div>
   </div>`;
   el.innerHTML=html;
+  const elPlans=document.getElementById('month-plans');
+  if(elPlans)elPlans.innerHTML=htmlPlans;
 }
 
 // ── YEAR VIEW ─────────────────────────────────────────────────────────────
