@@ -2392,6 +2392,12 @@ function archivePlan(id){
   plan.archived=true;
   sched();renderMonth();
 }
+function unarchivePlan(id){
+  const plan=(D.plans||[]).find(p=>p.id===id);
+  if(!plan)return;
+  delete plan.archived;
+  sched();renderMonth();
+}
 function deletePlan(id){
   const plan=(D.plans||[]).find(p=>p.id===id);
   const label=plan?`"${plan.title}"`:'este plan';
@@ -2509,7 +2515,11 @@ function renderTodayPanel(){
       htmlPlans+=`<div class="plan-chip" draggable="true" ondragstart="planDragStart(event,${p.id})" ondragend="_planDrag=null"><div class="plan-chip-dot" style="background:${p.color}"></div><span class="plan-chip-title">${safeTitle}</span><span style="font-size:9px;color:var(--text3);flex-shrink:0">${(p.days||[]).length}d</span><button class="btn-del" onclick="event.stopPropagation();archivePlan(${p.id})" style="color:var(--green);padding:0 2px" title="Quitar de la lista (mantiene marcas en el calendario)"><i class="ti ti-check" style="font-size:11px"></i></button><button class="btn-del" onclick="event.stopPropagation();deletePlan(${p.id})" style="color:var(--red);padding:0 2px" title="Eliminar completamente del calendario"><i class="ti ti-trash" style="font-size:11px"></i></button></div>`;
     });
     if(archivedPlans.length){
-      htmlPlans+=`<div style="font-size:9px;color:var(--text3);margin-top:6px;padding-top:6px;border-top:1px solid var(--border);font-style:italic">${archivedPlans.length} plan${archivedPlans.length>1?'es':''} archivado${archivedPlans.length>1?'s':''} — visible${archivedPlans.length>1?'s':''} en el calendario</div>`;
+      htmlPlans+=`<div style="font-size:9px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-top:8px;padding-top:6px;border-top:1px solid var(--border);margin-bottom:3px">Archivados</div>`;
+      archivedPlans.forEach(p=>{
+        const safeTitle=(p.title||'').replace(/</g,'&lt;');
+        htmlPlans+=`<div class="plan-chip" style="opacity:.65"><div class="plan-chip-dot" style="background:${p.color}"></div><span class="plan-chip-title">${safeTitle}</span><span style="font-size:9px;color:var(--text3);flex-shrink:0">${(p.days||[]).length}d</span><button class="btn-del" onclick="event.stopPropagation();unarchivePlan(${p.id})" style="color:var(--accent);padding:0 2px" title="Restaurar — volver a la lista activa para seguir colocándolo"><i class="ti ti-rotate" style="font-size:11px"></i></button><button class="btn-del" onclick="event.stopPropagation();deletePlan(${p.id})" style="color:var(--red);padding:0 2px" title="Eliminar completamente del calendario"><i class="ti ti-trash" style="font-size:11px"></i></button></div>`;
+      });
     }
     if(!visiblePlans.length&&!archivedPlans.length){
       htmlPlans+=`<div style="font-size:10px;color:var(--text3);font-style:italic;padding:4px 0">Todos los planes están archivados.</div>`;
