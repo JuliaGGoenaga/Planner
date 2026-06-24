@@ -324,6 +324,7 @@ html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
 .month-section-label{font-size:11px;font-weight:700;color:var(--text2);padding:6px 4px 5px;position:sticky;top:26px;z-index:2;background:var(--bg);display:flex;align-items:center;gap:5px;border-bottom:1px solid var(--border);margin-bottom:3px}
 .month-today-wrap{width:270px;flex-shrink:0;display:flex;flex-direction:column;gap:10px;position:sticky;top:0;max-height:calc(100dvh - 100px);overflow-y:auto}
 .month-today-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px;flex-shrink:0}
+#month-today{height:75vh;overflow-y:auto}
 .mtp-head{font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:4px}
 .mtp-nav-btn{background:none;border:none;cursor:pointer;color:var(--text2);padding:0 1px;display:flex;align-items:center;font-size:13px}
 .mtp-nav-btn:hover{color:var(--accent)}
@@ -332,7 +333,7 @@ html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
 .mtp-time{font-size:9px;color:var(--text3);width:34px;flex-shrink:0;padding-top:1px;text-align:right}
 .mtp-title{flex:1;font-size:11px;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .mtp-hours{font-size:9px;color:var(--text3);background:var(--surface2);padding:1px 4px;border-radius:3px;flex-shrink:0;white-space:nowrap}
-@media(max-width:860px){.month-layout{flex-direction:column}.month-today-wrap{width:100%;position:static;max-height:none;flex-direction:row;flex-wrap:wrap}.month-today-panel{flex:1;min-width:220px;max-height:380px;overflow-y:auto}}
+@media(max-width:860px){.month-layout{flex-direction:column}.month-today-wrap{width:100%;position:static;max-height:none;flex-direction:row;flex-wrap:wrap}.month-today-panel{flex:1;min-width:220px;max-height:380px;overflow-y:auto}#month-today{height:auto}}
 
 /* ── YEAR VIEW ── */
 .year-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
@@ -415,6 +416,7 @@ html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
   .month-layout{flex-direction:column}
   .month-today-wrap{width:100% !important;position:static;max-height:none;flex-direction:column}
   .month-today-panel{width:100% !important;max-height:280px;padding:8px 10px}
+  #month-today{height:auto}
   .mtp-item{padding:3px 0}
   /* Year grid: 2 columns on phone */
   .year-grid{grid-template-columns:repeat(2,1fr) !important;gap:6px}
@@ -2398,6 +2400,7 @@ function unarchivePlan(id){
   delete plan.archived;
   sched();renderMonth();
 }
+function toggleArchivedPlans(){S.archivedOpen=!S.archivedOpen;renderTodayPanel();}
 function deletePlan(id){
   const plan=(D.plans||[]).find(p=>p.id===id);
   const label=plan?`"${plan.title}"`:'este plan';
@@ -2515,8 +2518,11 @@ function renderTodayPanel(){
       htmlPlans+=`<div class="plan-chip" draggable="true" ondragstart="planDragStart(event,${p.id})" ondragend="_planDrag=null"><div class="plan-chip-dot" style="background:${p.color}"></div><span class="plan-chip-title">${safeTitle}</span><span style="font-size:9px;color:var(--text3);flex-shrink:0">${(p.days||[]).length}d</span><button class="btn-del" onclick="event.stopPropagation();archivePlan(${p.id})" style="color:var(--green);padding:0 2px" title="Quitar de la lista (mantiene marcas en el calendario)"><i class="ti ti-check" style="font-size:11px"></i></button><button class="btn-del" onclick="event.stopPropagation();deletePlan(${p.id})" style="color:var(--red);padding:0 2px" title="Eliminar completamente del calendario"><i class="ti ti-trash" style="font-size:11px"></i></button></div>`;
     });
     if(archivedPlans.length){
-      htmlPlans+=`<div style="font-size:9px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-top:8px;padding-top:6px;border-top:1px solid var(--border);margin-bottom:3px">Archivados</div>`;
-      archivedPlans.forEach(p=>{
+      const aOpen=!!S.archivedOpen;
+      htmlPlans+=`<div onclick="toggleArchivedPlans()" style="cursor:pointer;user-select:none;display:flex;align-items:center;gap:4px;font-size:9px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-top:8px;padding-top:6px;border-top:1px solid var(--border);margin-bottom:3px">
+        <i class="ti ti-chevron-${aOpen?'down':'right'}" style="font-size:10px"></i>Archivados <span style="font-weight:400">(${archivedPlans.length})</span>
+      </div>`;
+      if(aOpen)archivedPlans.forEach(p=>{
         const safeTitle=(p.title||'').replace(/</g,'&lt;');
         htmlPlans+=`<div class="plan-chip" style="opacity:.65"><div class="plan-chip-dot" style="background:${p.color}"></div><span class="plan-chip-title">${safeTitle}</span><span style="font-size:9px;color:var(--text3);flex-shrink:0">${(p.days||[]).length}d</span><button class="btn-del" onclick="event.stopPropagation();unarchivePlan(${p.id})" style="color:var(--accent);padding:0 2px" title="Restaurar — volver a la lista activa para seguir colocándolo"><i class="ti ti-rotate" style="font-size:11px"></i></button><button class="btn-del" onclick="event.stopPropagation();deletePlan(${p.id})" style="color:var(--red);padding:0 2px" title="Eliminar completamente del calendario"><i class="ti ti-trash" style="font-size:11px"></i></button></div>`;
       });
