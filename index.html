@@ -378,13 +378,12 @@ html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
 /* ── MOBILE BOTTOM NAV ── */
 .bottom-nav{
   display:none;
-  height:var(--bottomnav);
   background:var(--surface);
   border-top:1px solid var(--border);
   flex-shrink:0;
   padding-bottom:env(safe-area-inset-bottom);
 }
-.bn-inner{display:flex;height:100%}
+.bn-inner{display:flex;height:var(--bottomnav)}
 .bn-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;color:var(--text3);border:none;background:none;font-family:inherit;font-size:9px;transition:color .12s;padding:0}
 .bn-item i{font-size:20px}
 .bn-item.active{color:var(--accent)}
@@ -767,6 +766,7 @@ html.dark .cpick{box-shadow:0 0 0 1px rgba(255,255,255,0.2)}
         <button class="bn-item" onclick="go('month')" id="bn-month"><i class="ti ti-calendar"></i><span>Month</span></button>
         <button class="bn-item" onclick="go('year')" id="bn-year"><i class="ti ti-calendar-stats"></i><span>Year</span></button>
         <button class="bn-item" onclick="go('todos')" id="bn-todos"><i class="ti ti-checks"></i><span>To-dos</span></button>
+        <button class="bn-item" onclick="go('ideas')" id="bn-ideas"><i class="ti ti-bulb"></i><span>Ideas</span></button>
       </div>
     </nav>
 
