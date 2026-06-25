@@ -1581,7 +1581,6 @@ function renderWeekMobile(){
   }
   html+='</div>';
   document.getElementById('week-grid').innerHTML=html;
-  setTimeout(()=>{const t=document.querySelector('.today-col');if(t)t.scrollIntoView({inline:'center',behavior:'smooth'})},50);
 }
 function startTimeDrag(e,kind,id){
   _timeDrag={kind,id};
