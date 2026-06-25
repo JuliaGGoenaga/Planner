@@ -322,8 +322,9 @@ html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
 .month-scroll-dow{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;position:sticky;top:0;z-index:3;background:var(--bg);padding:3px 0 5px;border-bottom:1px solid var(--border);margin-bottom:3px}
 .month-section{margin-bottom:6px}
 .month-section-label{font-size:11px;font-weight:700;color:var(--text2);padding:6px 4px 5px;position:sticky;top:26px;z-index:2;background:var(--bg);display:flex;align-items:center;gap:5px;border-bottom:1px solid var(--border);margin-bottom:3px}
-.month-today-wrap{width:270px;flex-shrink:0;display:flex;flex-direction:column;gap:10px;position:sticky;top:0;max-height:calc(100dvh - 100px);overflow-y:auto}
+.month-side{width:270px;flex-shrink:0;display:flex;flex-direction:column;gap:10px;position:sticky;top:0;max-height:calc(100dvh - 100px);overflow-y:auto}
 .month-today-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px;flex-shrink:0}
+#month-today-wrap{flex-shrink:0}
 .day-modal-close{display:none}
 #month-today{height:75vh;overflow-y:auto}
 .mtp-head{font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:4px}
@@ -334,7 +335,7 @@ html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
 .mtp-time{font-size:9px;color:var(--text3);width:34px;flex-shrink:0;padding-top:1px;text-align:right}
 .mtp-title{flex:1;font-size:11px;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .mtp-hours{font-size:9px;color:var(--text3);background:var(--surface2);padding:1px 4px;border-radius:3px;flex-shrink:0;white-space:nowrap}
-@media(max-width:860px){.month-layout{flex-direction:column}.month-today-wrap{width:100%;position:static;max-height:none;flex-direction:row;flex-wrap:wrap}.month-today-panel{flex:1;min-width:220px;max-height:380px;overflow-y:auto}#month-today{height:auto}}
+@media(max-width:860px){.month-layout{flex-direction:column}.month-side{width:100%;position:static;max-height:none;flex-direction:row;flex-wrap:wrap}#month-today-wrap,#month-plans{flex:1;min-width:220px}.month-today-panel{max-height:380px;overflow-y:auto}#month-today{height:auto}}
 
 /* ── YEAR VIEW ── */
 .year-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
@@ -414,16 +415,17 @@ html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
   .pgrid{grid-template-columns:1fr}
   /* Month layout stacks vertically on mobile */
   .month-layout{flex-direction:column}
-  .month-today-wrap{
+  .month-side{width:100% !important;position:static;max-height:none;flex-direction:column}
+  .month-side .month-today-panel{width:100% !important;max-height:280px;padding:8px 10px}
+  #month-today-wrap{
     display:none;position:fixed;inset:0;z-index:170;
     background:rgba(0,0,0,.45);
     align-items:center;justify-content:center;
     flex-direction:column;gap:10px;padding:54px 16px 16px;
     overflow-y:auto;
   }
-  .month-today-wrap.open{display:flex}
-  .month-today-wrap .month-today-panel{width:100%;max-width:380px;max-height:70vh;padding:8px 10px}
-  .month-today-wrap #month-plans{display:none}
+  #month-today-wrap.open{display:flex}
+  #month-today-wrap .month-today-panel{width:100%;max-width:380px;max-height:70vh;padding:8px 10px}
   #month-today{height:auto}
   .day-modal-close{
     display:flex;position:fixed;top:14px;right:14px;width:34px;height:34px;border-radius:50%;
@@ -589,9 +591,11 @@ html.dark .cpick{box-shadow:0 0 0 1px rgba(255,255,255,0.2)}
         </div>
         <div class="month-layout">
           <div id="month-grid" style="flex:1;min-width:0"></div>
-          <div class="month-today-wrap" id="month-today-wrap" onclick="if(event.target===this)closeDayModal()">
-            <button class="day-modal-close" onclick="closeDayModal()" title="Cerrar"><i class="ti ti-x"></i></button>
-            <div id="month-today" class="month-today-panel"></div>
+          <div class="month-side">
+            <div id="month-today-wrap" onclick="if(event.target===this)closeDayModal()">
+              <button class="day-modal-close" onclick="closeDayModal()" title="Cerrar"><i class="ti ti-x"></i></button>
+              <div id="month-today" class="month-today-panel"></div>
+            </div>
             <div id="month-plans" class="month-today-panel"></div>
           </div>
         </div>
