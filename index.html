@@ -426,6 +426,16 @@ html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
   .mn-editor{min-height:80px;max-height:150px}
   .plan-bubble{font-size:7px;line-height:1;padding:0 3px;margin-top:1px;cursor:default}
   .mcell{min-height:60px;padding:3px 4px}
+  /* Floating add button (To-dos / Ideas) replaces the top-right button */
+  .fab-add-mobile{
+    position:fixed;left:16px;
+    bottom:calc(var(--bottomnav) + env(safe-area-inset-bottom) + 14px);
+    width:50px;height:50px;border-radius:50%;padding:0;
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 4px 16px rgba(0,0,0,.28);z-index:120;
+  }
+  .fab-add-mobile i{font-size:20px}
+  .fab-add-mobile span{display:none}
 }
 
 /* ── COLOR PICKER ── */
@@ -590,7 +600,7 @@ html.dark .cpick{box-shadow:0 0 0 1px rgba(255,255,255,0.2)}
       <div class="page" id="page-todos">
         <div class="ph">
           <div class="pt">To-dos</div>
-          <button class="btn btn-p" onclick="openM('todo')"><i class="ti ti-plus"></i> Add</button>
+          <button class="btn btn-p fab-add-mobile" onclick="openM('todo')"><i class="ti ti-plus"></i><span> Add</span></button>
         </div>
         <div class="tfilters">
           <button class="fb active" onclick="setF('all',this)">All</button>
@@ -633,7 +643,7 @@ html.dark .cpick{box-shadow:0 0 0 1px rgba(255,255,255,0.2)}
           <div class="pt">Ideas</div>
           <div class="bg">
             <button class="btn" onclick="openM('topic')"><i class="ti ti-plus"></i> Topic</button>
-            <button class="btn btn-p" onclick="openM('idea')"><i class="ti ti-sparkles"></i> Idea</button>
+            <button class="btn btn-p fab-add-mobile" onclick="openM('idea')"><i class="ti ti-sparkles"></i><span> Idea</span></button>
           </div>
         </div>
         <div class="igrid" id="ideas-grid"></div>
@@ -741,10 +751,6 @@ html.dark .cpick{box-shadow:0 0 0 1px rgba(255,255,255,0.2)}
         <button class="bn-item" onclick="go('month')" id="bn-month"><i class="ti ti-calendar"></i><span>Month</span></button>
         <button class="bn-item" onclick="go('year')" id="bn-year"><i class="ti ti-calendar-stats"></i><span>Year</span></button>
         <button class="bn-item" onclick="go('todos')" id="bn-todos"><i class="ti ti-checks"></i><span>To-dos</span></button>
-        <button class="bn-item" onclick="go('projects')" id="bn-projects"><i class="ti ti-briefcase"></i><span>Projects</span></button>
-        <button class="bn-item" onclick="go('ideas')" id="bn-ideas"><i class="ti ti-bulb"></i><span>Ideas</span></button>
-        <button class="bn-item" onclick="go('notes')" id="bn-notes"><i class="ti ti-notes"></i><span>Notas</span></button>
-        <button class="bn-item" onclick="go('setup')" id="bn-setup"><i class="ti ti-settings-2"></i><span>Setup</span></button>
       </div>
     </nav>
 
