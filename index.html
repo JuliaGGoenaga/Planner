@@ -324,6 +324,7 @@ html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
 .month-section-label{font-size:11px;font-weight:700;color:var(--text2);padding:6px 4px 5px;position:sticky;top:26px;z-index:2;background:var(--bg);display:flex;align-items:center;gap:5px;border-bottom:1px solid var(--border);margin-bottom:3px}
 .month-today-wrap{width:270px;flex-shrink:0;display:flex;flex-direction:column;gap:10px;position:sticky;top:0;max-height:calc(100dvh - 100px);overflow-y:auto}
 .month-today-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px;flex-shrink:0}
+.day-modal-close{display:none}
 #month-today{height:75vh;overflow-y:auto}
 .mtp-head{font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:4px}
 .mtp-nav-btn{background:none;border:none;cursor:pointer;color:var(--text2);padding:0 1px;display:flex;align-items:center;font-size:13px}
@@ -350,7 +351,7 @@ html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
 .ym-day.ym-hol{background:var(--amber-l);color:var(--amber)}
 .ym-day.ym-paint{cursor:pointer}
 .ym-day.ym-paint:hover{outline:1.5px solid var(--accent)}
-.year-paint-active{background:var(--accent) !important;color:#fff !important;border-color:var(--accent) !important}
+.paint-active{background:var(--accent) !important;color:#fff !important;border-color:var(--accent) !important}
 
 /* ── MEETING NOTES ── */
 .mn-btn-active{background:var(--blue) !important;color:#fff !important;border-color:var(--blue) !important}
@@ -414,9 +415,22 @@ html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
   .pgrid{grid-template-columns:1fr}
   /* Month layout stacks vertically on mobile */
   .month-layout{flex-direction:column}
-  .month-today-wrap{width:100% !important;position:static;max-height:none;flex-direction:column}
-  .month-today-panel{width:100% !important;max-height:280px;padding:8px 10px}
+  .month-today-wrap{
+    display:none;position:fixed;inset:0;z-index:170;
+    background:rgba(0,0,0,.45);
+    align-items:center;justify-content:center;
+    flex-direction:column;gap:10px;padding:54px 16px 16px;
+    overflow-y:auto;
+  }
+  .month-today-wrap.open{display:flex}
+  .month-today-wrap .month-today-panel{width:100%;max-width:380px;max-height:70vh;padding:8px 10px}
+  .month-today-wrap #month-plans{display:none}
   #month-today{height:auto}
+  .day-modal-close{
+    display:flex;position:fixed;top:14px;right:14px;width:34px;height:34px;border-radius:50%;
+    background:var(--surface);border:1px solid var(--border2);align-items:center;justify-content:center;
+    color:var(--text2);font-size:16px;cursor:pointer;z-index:175;
+  }
   .mtp-item{padding:3px 0}
   /* Year grid: 2 columns on phone */
   .year-grid{grid-template-columns:repeat(2,1fr) !important;gap:6px}
@@ -426,6 +440,16 @@ html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
   .mn-editor{min-height:80px;max-height:150px}
   .plan-bubble{font-size:7px;line-height:1;padding:0 3px;margin-top:1px;cursor:default}
   .mcell{min-height:60px;padding:3px 4px}
+  /* Floating add button (To-dos / Ideas) replaces the top-right button */
+  .fab-add-mobile{
+    position:fixed;left:16px;
+    bottom:calc(var(--bottomnav) + env(safe-area-inset-bottom) + 14px);
+    width:50px;height:50px;border-radius:50%;padding:0;
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 4px 16px rgba(0,0,0,.28);z-index:120;
+  }
+  .fab-add-mobile i{font-size:20px}
+  .fab-add-mobile span{display:none}
 }
 
 /* ── COLOR PICKER ── */
@@ -560,12 +584,14 @@ html.dark .cpick{box-shadow:0 0 0 1px rgba(255,255,255,0.2)}
             <span style="font-size:12px;color:var(--text2);min-width:100px;text-align:center" id="mlabel"></span>
             <button class="btn btn-sm" onclick="changeMonth(1)"><i class="ti ti-chevron-right"></i></button>
             <button class="btn btn-sm" onclick="S.monthDate=new Date();renderMonth()" title="Ir al mes actual"><i class="ti ti-calendar-today"></i> Hoy</button>
+            <button class="btn" id="month-paint-btn" onclick="toggleMonthPaint()"><i class="ti ti-paint"></i> Pincel</button>
             <button class="btn btn-p" onclick="openM('timeblock')"><i class="ti ti-plus"></i> Time block</button>
           </div>
         </div>
         <div class="month-layout">
           <div id="month-grid" style="flex:1;min-width:0"></div>
-          <div class="month-today-wrap">
+          <div class="month-today-wrap" id="month-today-wrap" onclick="if(event.target===this)closeDayModal()">
+            <button class="day-modal-close" onclick="closeDayModal()" title="Cerrar"><i class="ti ti-x"></i></button>
             <div id="month-today" class="month-today-panel"></div>
             <div id="month-plans" class="month-today-panel"></div>
           </div>
@@ -590,7 +616,7 @@ html.dark .cpick{box-shadow:0 0 0 1px rgba(255,255,255,0.2)}
       <div class="page" id="page-todos">
         <div class="ph">
           <div class="pt">To-dos</div>
-          <button class="btn btn-p" onclick="openM('todo')"><i class="ti ti-plus"></i> Add</button>
+          <button class="btn btn-p fab-add-mobile" onclick="openM('todo')"><i class="ti ti-plus"></i><span> Add</span></button>
         </div>
         <div class="tfilters">
           <button class="fb active" onclick="setF('all',this)">All</button>
@@ -633,7 +659,7 @@ html.dark .cpick{box-shadow:0 0 0 1px rgba(255,255,255,0.2)}
           <div class="pt">Ideas</div>
           <div class="bg">
             <button class="btn" onclick="openM('topic')"><i class="ti ti-plus"></i> Topic</button>
-            <button class="btn btn-p" onclick="openM('idea')"><i class="ti ti-sparkles"></i> Idea</button>
+            <button class="btn btn-p fab-add-mobile" onclick="openM('idea')"><i class="ti ti-sparkles"></i><span> Idea</span></button>
           </div>
         </div>
         <div class="igrid" id="ideas-grid"></div>
@@ -741,10 +767,6 @@ html.dark .cpick{box-shadow:0 0 0 1px rgba(255,255,255,0.2)}
         <button class="bn-item" onclick="go('month')" id="bn-month"><i class="ti ti-calendar"></i><span>Month</span></button>
         <button class="bn-item" onclick="go('year')" id="bn-year"><i class="ti ti-calendar-stats"></i><span>Year</span></button>
         <button class="bn-item" onclick="go('todos')" id="bn-todos"><i class="ti ti-checks"></i><span>To-dos</span></button>
-        <button class="bn-item" onclick="go('projects')" id="bn-projects"><i class="ti ti-briefcase"></i><span>Projects</span></button>
-        <button class="bn-item" onclick="go('ideas')" id="bn-ideas"><i class="ti ti-bulb"></i><span>Ideas</span></button>
-        <button class="bn-item" onclick="go('notes')" id="bn-notes"><i class="ti ti-notes"></i><span>Notas</span></button>
-        <button class="bn-item" onclick="go('setup')" id="bn-setup"><i class="ti ti-settings-2"></i><span>Setup</span></button>
       </div>
     </nav>
 
@@ -889,7 +911,7 @@ async function sha1Hex(data){
 }
 
 // ── STATE ──────────────────────────────────────────────────────────────────
-let S={weekStart:getMonday(new Date()),monthDate:new Date(),yearDate:new Date(),filter:'all',noteFilter:'all',noteSort:'newest',mType:null,mDay:null,editId:null,mProjId:null,nextId:Date.now(),sidebarCollapsed:false,meetingNotesMode:false,yearPaintMode:false,selDay:todayStr()};
+let S={weekStart:getMonday(new Date()),monthDate:new Date(),yearDate:new Date(),filter:'all',noteFilter:'all',noteSort:'newest',mType:null,mDay:null,editId:null,mProjId:null,nextId:Date.now(),sidebarCollapsed:false,meetingNotesMode:false,yearPaintMode:false,monthPaintMode:false,selDay:todayStr()};
 let D={events:[],todos:[],projects:[],timeblocks:[],meetingNotes:[],notes:[],topics:[
   {id:1,name:'Work',icon:'ti-briefcase'},
   {id:2,name:'Personal',icon:'ti-heart'},
@@ -1660,6 +1682,9 @@ function renderMonth(){
   const cusSet=new Set(D.customHolidays||[]);
   const grid=document.getElementById('month-grid');
   const MON_DAYS=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const paint=S.monthPaintMode;
+  const monthPaintBtn=document.getElementById('month-paint-btn');
+  if(monthPaintBtn)monthPaintBtn.className=paint?'btn paint-active':'btn';
 
   // ── helper: render one cell ──────────────────────────────────────────────
   function cellHtml(cur,om,isMob){
@@ -1672,7 +1697,9 @@ function renderMonth(){
     const holBadge=isHol?`<span class="mc-badge mc-hol">${hols[ds]}</span>`:'';
     const cusBadge=isCus?`<span class="mc-badge mc-hol">Festivo</span>`:'';
     const vacBadge=isVac?`<span class="mc-badge mc-vac">Vacaciones</span>`:'';
-    const clickAttr=!om?`onclick="toggleDayState('${ds}')" title="1 clic: vacaciones · 2 clics: festivo · 3 clics: quitar"`:'';
+    const clickAttr=om?'':(paint
+      ?`onclick="toggleDayState('${ds}')" title="1 clic: vacaciones · 2 clics: festivo · 3 clics: quitar"`
+      :`onclick="selectMonthDay('${ds}')" title="Ver detalles del día"`);
     const isWeekend=cur.getDay()===0||cur.getDay()===6;
     const cellCls=`mcell${isT?' today-cell':''}${om?' other':''}${(!om&&isWeekend)?' weekend':''}${(isHol||isCus)?' hol-cell':''}${isVac?' vac-cell':''}`;
     const cellPlans=om?[]:(D.plans||[]).filter(p=>p.days&&p.days.includes(ds));
@@ -1735,7 +1762,9 @@ function renderMonth(){
         const cellPlans=(D.plans||[]).filter(p=>p.days&&p.days.includes(ds));
         const planBubbles=cellPlans.map(p=>`<div class="plan-bubble" style="background:${p.color}" onclick="event.stopPropagation();removePlanFromDay(${p.id},'${ds}')" title="${(p.title||'').replace(/"/g,'&quot;')}">${(p.title||'').replace(/</g,'&lt;')}</div>`).join('');
         const dragHandlers=`ondragover="event.preventDefault();this.classList.add('plan-drop-hover')" ondragleave="if(!this.contains(event.relatedTarget))this.classList.remove('plan-drop-hover')" ondrop="dropPlanOnDay(event,'${ds}')"`;
-        const clickAttr=`onclick="toggleDayState('${ds}')" title="1 clic: vacaciones · 2 clics: festivo · 3 clics: quitar"`;
+        const clickAttr=paint
+          ?`onclick="toggleDayState('${ds}')" title="1 clic: vacaciones · 2 clics: festivo · 3 clics: quitar"`
+          :`onclick="selectMonthDay('${ds}')" title="Ver detalles del día"`;
         html+=`<div class="${cellCls}" data-ym="${cellYm}" ${clickAttr} ${dragHandlers}><div class="mc-n${isT?' tn':''}">${cur.getDate()}</div><div class="mcdots">${dots}</div>${holBadge}${cusBadge}${vacBadge}${planBubbles}</div>`;
         cur.setDate(cur.getDate()+1);
       }
@@ -1757,6 +1786,20 @@ function toggleDayState(ds){
   else if(vi>=0){D.vacationDays.splice(vi,1);D.customHolidays.push(ds);}
   else{D.vacationDays.push(ds);}
   sched();renderMonth();
+}
+function toggleMonthPaint(){S.monthPaintMode=!S.monthPaintMode;renderMonth();}
+function selectMonthDay(ds){
+  S.selDay=ds;
+  renderTodayPanel();
+  if(isMobile())openDayModal();
+}
+function openDayModal(){
+  const w=document.getElementById('month-today-wrap');
+  if(w)w.classList.add('open');
+}
+function closeDayModal(){
+  const w=document.getElementById('month-today-wrap');
+  if(w)w.classList.remove('open');
 }
 function changeMonth(d){
   const dt=S.monthDate;
@@ -2560,7 +2603,7 @@ function renderYear(){
   const cusSet=new Set(D.customHolidays||[]);
   const paint=S.yearPaintMode;
   const paintBtn=document.getElementById('year-paint-btn');
-  if(paintBtn)paintBtn.className=paint?'btn year-paint-active':'btn';
+  if(paintBtn)paintBtn.className=paint?'btn paint-active':'btn';
   const DOW=['L','M','X','J','V','S','D'];
   let html='';
   for(let m=0;m<12;m++){
