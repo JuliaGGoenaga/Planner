@@ -966,6 +966,7 @@ let D={events:[],todos:[],projects:[],timeblocks:[],meetingNotes:[],notes:[],top
   {id:3,name:'Ideas',icon:'ti-bulb'}
 ],ideas:[],calendars:[],vacationDays:[],customHolidays:[],plans:[],proxyUrl:''};
 let EXT=[];
+const URG_RANK={high:0,med:1,low:2};
 let CAL_CACHE=null; // calendar-cache.json from the Gist, populated server-side by the sync-calendars GitHub Action
 // Read credentials: hash params take priority, then localStorage
 function readCFG(){
@@ -1939,7 +1940,8 @@ function renderTodos(){
   const undatedUndone=items.filter(t=>!t.done&&!t.date);
   // Bucket 3: past-dated OR completed (regardless of date) — newest first
   const pastOrDone=items.filter(t=>t.done||(t.date&&t.date<today))
-    .sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+    .sort((a,b)=>(b.date||'').localeCompare(a.date||'')||URG_RANK[a.urgency]-URG_RANK[b.urgency]);
+  undatedUndone.sort((a,b)=>URG_RANK[a.urgency]-URG_RANK[b.urgency]);
   if(!futureUndone.length&&!undatedUndone.length&&!pastOrDone.length){
     document.getElementById('todos-list').innerHTML=`<div style="color:var(--text3);font-size:12px;padding:1.5rem 0">No to-dos here.</div>`;
     return;
@@ -1947,6 +1949,7 @@ function renderTodos(){
   // Section: future/today (grouped by date)
   let future='';
   const fgroups={};futureUndone.forEach(t=>{if(!fgroups[t.date])fgroups[t.date]=[];fgroups[t.date].push(t)});
+  Object.values(fgroups).forEach(g=>g.sort((a,b)=>URG_RANK[a.urgency]-URG_RANK[b.urgency]));
   Object.keys(fgroups).sort().forEach(k=>{
     const isT=k===today;
     future+=`<div class="tsh" style="${isT?'color:var(--accent)':''}">${isT?'Hoy':fmtS(new Date(k))}</div>`;
@@ -1981,10 +1984,10 @@ function renderTodosByProject(items,today){
     </div>`;
   };
   const colHtml=(label,color,colItems)=>{
-    const todayItems=colItems.filter(t=>!t.done&&t.date===today);
-    const undatedItems=colItems.filter(t=>!t.done&&!t.date);
-    const futureItems=colItems.filter(t=>!t.done&&t.date&&t.date>today).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
-    const pastOrDone=colItems.filter(t=>t.done||(t.date&&t.date<today)).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+    const todayItems=colItems.filter(t=>!t.done&&t.date===today).sort((a,b)=>URG_RANK[a.urgency]-URG_RANK[b.urgency]);
+    const undatedItems=colItems.filter(t=>!t.done&&!t.date).sort((a,b)=>URG_RANK[a.urgency]-URG_RANK[b.urgency]);
+    const futureItems=colItems.filter(t=>!t.done&&t.date&&t.date>today).sort((a,b)=>(a.date||'').localeCompare(b.date||'')||URG_RANK[a.urgency]-URG_RANK[b.urgency]);
+    const pastOrDone=colItems.filter(t=>t.done||(t.date&&t.date<today)).sort((a,b)=>(b.date||'').localeCompare(a.date||'')||URG_RANK[a.urgency]-URG_RANK[b.urgency]);
     let body='';
     if(todayItems.length){body+=`<div class="tpc-sub">Hoy</div>`;todayItems.forEach(t=>body+=tb(t));}
     if(undatedItems.length){body+=`<div class="tpc-sub">Sin fecha</div>`;undatedItems.forEach(t=>body+=tb(t));}
