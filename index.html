@@ -25,7 +25,6 @@
   --page-pad:18px;
   --ph-h:28px;--ph-mb:14px;
   --filters-h:23px;--filters-mb:12px;
-  --cols-pb:8px;
 }
 html.dark:root{
   --bg:#1a1917;--surface:#242320;--surface2:#2e2d29;--border:rgba(255,255,255,0.09);--border2:rgba(255,255,255,0.16);
@@ -243,8 +242,8 @@ html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
   .todos-past{order:3}
 }
 /* ── TO-DOS BY PROJECT (kanban-style columns) ── */
-.todos-proj-cols{display:flex;gap:12px;overflow-x:auto;padding-bottom:var(--cols-pb)}
-.todos-proj-col{flex:0 0 230px;display:flex;flex-direction:column;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);height:calc(100dvh - var(--topbar-h) - var(--page-pad) - var(--ph-h) - var(--ph-mb) - var(--filters-h) - var(--filters-mb) - var(--page-pad) - var(--cols-pb));min-height:140px}
+.todos-proj-cols{display:flex;gap:12px;overflow-x:auto;overflow-y:hidden;height:calc(100dvh - var(--topbar-h) - var(--page-pad) - var(--ph-h) - var(--ph-mb) - var(--filters-h) - var(--filters-mb) - var(--page-pad))}
+.todos-proj-col{flex:0 0 230px;display:flex;flex-direction:column;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);min-height:140px}
 .tpc-head{display:flex;align-items:center;gap:6px;padding:10px 12px;font-size:12px;font-weight:700;border-bottom:1px solid var(--border);flex-shrink:0}
 .tpc-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
 .tpc-count{margin-left:auto;font-size:10px;font-weight:500;color:var(--text3)}
