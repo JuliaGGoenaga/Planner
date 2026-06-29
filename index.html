@@ -244,6 +244,24 @@ html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
   .todos-undated{order:2;border-left:none;padding-left:0}
   .todos-past{order:3}
 }
+/* ── TO-DOS BY PROJECT (kanban-style columns) ── */
+.todos-proj-cols{display:flex;gap:12px;overflow-x:auto;padding-bottom:8px}
+.todos-proj-col{flex:0 0 230px;display:flex;flex-direction:column;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);max-height:calc(100vh - 230px);min-height:140px}
+.tpc-head{display:flex;align-items:center;gap:6px;padding:10px 12px;font-size:12px;font-weight:700;border-bottom:1px solid var(--border);flex-shrink:0}
+.tpc-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.tpc-count{margin-left:auto;font-size:10px;font-weight:500;color:var(--text3)}
+.tpc-body{overflow-y:auto;padding:8px;flex:1}
+.tpc-sub{font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin:8px 0 4px}
+.tpc-sub:first-child{margin-top:0}
+.tbubble{display:flex;align-items:flex-start;gap:6px;padding:6px 8px;background:var(--surface);border:1px solid var(--border);border-radius:8px;margin-bottom:5px}
+.tbubble:hover{border-color:var(--border2)}
+.tbubble .bchk{width:14px;height:14px;margin-top:1px}
+.tbubble .bchk.on::after{font-size:8px}
+.tbubble .tc-t{font-size:11px;line-height:1.3}
+.tbubble .tc-m{font-size:9px}
+.tbubble .ub{font-size:8px;padding:1px 6px;flex-shrink:0}
+.tbubble .btn-del{padding:1px 2px}
+.tbubble .btn-del i{font-size:9px}
 
 /* ── PROJECTS ── */
 .proj-layout{display:flex;gap:14px;align-items:flex-start}
@@ -633,6 +651,8 @@ html.dark .cpick{box-shadow:0 0 0 1px rgba(255,255,255,0.2)}
           <button class="fb" onclick="setF('high',this)">Urgent</button>
           <button class="fb" onclick="setF('pending',this)">Pending</button>
           <button class="fb" onclick="setF('done',this)">Done</button>
+          <button class="fb active" id="tg-date" style="margin-left:auto" onclick="setGroupBy('date')"><i class="ti ti-calendar" style="font-size:11px"></i> Por fecha</button>
+          <button class="fb" id="tg-project" onclick="setGroupBy('project')"><i class="ti ti-folder" style="font-size:11px"></i> Por proyecto</button>
         </div>
         <div id="todos-list"></div>
       </div>
@@ -922,7 +942,7 @@ async function sha1Hex(data){
 }
 
 // ── STATE ──────────────────────────────────────────────────────────────────
-let S={weekStart:getMonday(new Date()),monthDate:new Date(),yearDate:new Date(),filter:'all',noteFilter:'all',noteSort:'newest',mType:null,mDay:null,editId:null,mProjId:null,nextId:Date.now(),sidebarCollapsed:false,meetingNotesMode:false,yearPaintMode:false,monthPaintMode:false,selDay:todayStr()};
+let S={weekStart:getMonday(new Date()),monthDate:new Date(),yearDate:new Date(),filter:'all',noteFilter:'all',noteSort:'newest',mType:null,mDay:null,editId:null,mProjId:null,nextId:Date.now(),sidebarCollapsed:false,meetingNotesMode:false,yearPaintMode:false,monthPaintMode:false,selDay:todayStr(),todoGroupBy:'date'};
 let D={events:[],todos:[],projects:[],timeblocks:[],meetingNotes:[],notes:[],topics:[
   {id:1,name:'Work',icon:'ti-briefcase'},
   {id:2,name:'Personal',icon:'ti-heart'},
@@ -1831,12 +1851,19 @@ function changeMonth(d){
 
 // ── TODOS ──────────────────────────────────────────────────────────────────
 function setF(f,btn){S.filter=f;document.querySelectorAll('.fb').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderTodos()}
+function setGroupBy(mode){
+  S.todoGroupBy=mode;
+  document.getElementById('tg-date').classList.toggle('active',mode==='date');
+  document.getElementById('tg-project').classList.toggle('active',mode==='project');
+  renderTodos();
+}
 function renderTodos(){
   const today=todayStr();
   let items=[...D.todos];
   if(S.filter==='high')items=items.filter(t=>t.urgency==='high'&&!t.done);
   else if(S.filter==='pending')items=items.filter(t=>!t.done);
   else if(S.filter==='done')items=items.filter(t=>t.done);
+  if(S.todoGroupBy==='project'){renderTodosByProject(items,today);return}
   const tc=t=>{
     const proj=t.projectId?D.projects.find(p=>p.id===t.projectId):null;
     const projTag=proj?` · <span style="color:${proj.color}">${proj.name}</span>`:'';
@@ -1884,6 +1911,46 @@ function renderTodos(){
   if(pastOrDone.length)pastOrDone.forEach(t=>{past+=tc(t);});
   else past+=`<div style="color:var(--text3);font-size:12px;padding:0.5rem 0">Nada por aquí.</div>`;
   document.getElementById('todos-list').innerHTML=`<div class="todos-cols"><div class="todos-future">${future}</div><div class="todos-undated">${undated}</div><div class="todos-past">${past}</div></div>`;
+}
+function renderTodosByProject(items,today){
+  const tb=t=>{
+    const durTag=t.duration?` · ${t.duration}h`:'';
+    const meta=t.date
+      ?`${fmtS(new Date(t.date))}${t.time?` · ${t.time}`:''}${t.rolledFrom?' · fue '+fmtS(new Date(t.rolledFrom)):''}${durTag}`
+      :`Sin fecha${durTag}`;
+    return`<div class="tbubble">
+      <div class="bchk${t.done?' on':''}" onclick="toggleTodo(${t.id},true)"></div>
+      <div style="flex:1;min-width:0">
+        <div class="tc-t" style="${t.done?'text-decoration:line-through;color:var(--text3)':''}">${t.title}${t.rolledFrom&&t.date?`<span class="rolled" style="margin-left:5px">↩</span>`:''}</div>
+        <div class="tc-m">${meta}</div>
+      </div>
+      <span class="ub ub-${t.urgency}">${t.urgency==='high'?'Urg':t.urgency==='med'?'Med':'Baja'}</span>
+      <button class="btn-del" onclick="openEdit('todo',${t.id})" title="Edit"><i class="ti ti-pencil"></i></button>
+      <button class="btn-del" onclick="delTodo(${t.id})" title="Delete"><i class="ti ti-x"></i></button>
+    </div>`;
+  };
+  const colHtml=(label,color,colItems)=>{
+    const todayItems=colItems.filter(t=>!t.done&&t.date===today);
+    const undatedItems=colItems.filter(t=>!t.done&&!t.date);
+    const futureItems=colItems.filter(t=>!t.done&&t.date&&t.date>today).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+    const pastOrDone=colItems.filter(t=>t.done||(t.date&&t.date<today)).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+    let body='';
+    if(todayItems.length){body+=`<div class="tpc-sub">Hoy</div>`;todayItems.forEach(t=>body+=tb(t));}
+    if(undatedItems.length){body+=`<div class="tpc-sub">Sin fecha</div>`;undatedItems.forEach(t=>body+=tb(t));}
+    if(futureItems.length){body+=`<div class="tpc-sub">Próximas</div>`;futureItems.forEach(t=>body+=tb(t));}
+    if(pastOrDone.length){body+=`<div class="tpc-sub">Pasadas / Completadas</div>`;pastOrDone.forEach(t=>body+=tb(t));}
+    if(!body)body=`<div style="color:var(--text3);font-size:11px;padding:0.5rem 0">Sin tareas.</div>`;
+    return`<div class="todos-proj-col">
+      <div class="tpc-head"><span class="tpc-dot" style="background:${color}"></span>${label}<span class="tpc-count">${colItems.length}</span></div>
+      <div class="tpc-body">${body}</div>
+    </div>`;
+  };
+  let html='';
+  D.projects.forEach(p=>{
+    html+=colHtml(p.name,p.color,items.filter(t=>t.projectId===p.id));
+  });
+  html+=colHtml('Sin proyecto','var(--text3)',items.filter(t=>!t.projectId));
+  document.getElementById('todos-list').innerHTML=`<div class="todos-proj-cols">${html}</div>`;
 }
 function toggleTodo(id,re){const t=D.todos.find(t=>t.id===id);if(t){t.done=!t.done;sched()}if(re)renderTodos();else renderWeek()}
 function delTodo(id){
