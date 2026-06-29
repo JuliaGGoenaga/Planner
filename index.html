@@ -128,7 +128,7 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
   #page-week.active #week-grid{flex:1;min-height:0;overflow:hidden}
   /* month continuous scroll */
   .page-area:has(#page-month.active){overflow:hidden}
-  #page-month.active #month-grid{height:calc(100dvh - 145px);overflow-y:auto}
+  #page-month.active #month-grid{height:calc(100dvh - 180px);overflow-y:auto}
 }
 /* outer: row — calendar left, project column right */
 .wt-wrap{display:flex;flex-direction:row;border:1px solid var(--border);border-radius:var(--r);overflow:hidden;height:100%}
@@ -351,7 +351,8 @@ html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
 .month-today-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px;flex-shrink:0}
 #month-today-wrap{flex-shrink:0}
 .day-modal-close{display:none}
-#month-today{height:75vh;overflow-y:auto}
+#month-today{height:50vh;overflow-y:auto}
+.month-main{flex:1;min-width:0;display:flex;flex-direction:column;min-height:0}
 .mtp-head{font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:4px}
 .mtp-nav-btn{background:none;border:none;cursor:pointer;color:var(--text2);padding:0 1px;display:flex;align-items:center;font-size:13px}
 .mtp-nav-btn:hover{color:var(--accent)}
@@ -360,7 +361,8 @@ html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
 .mtp-time{font-size:9px;color:var(--text3);width:34px;flex-shrink:0;padding-top:1px;text-align:right}
 .mtp-title{flex:1;font-size:11px;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .mtp-hours{font-size:9px;color:var(--text3);background:var(--surface2);padding:1px 4px;border-radius:3px;flex-shrink:0;white-space:nowrap}
-@media(max-width:860px){.month-layout{flex-direction:column}.month-side{width:100%;position:static;max-height:none;flex-direction:row;flex-wrap:wrap}#month-today-wrap,#month-plans{flex:1;min-width:220px}.month-today-panel{max-height:380px;overflow-y:auto}#month-today{height:auto}}
+@media(max-width:860px){.month-layout{flex-direction:column}.month-main{width:100%}.month-side{width:100%;position:static;max-height:none;flex-direction:row;flex-wrap:wrap}#month-today-wrap,#month-plans{flex:1;min-width:220px}.month-today-panel{max-height:380px;overflow-y:auto}#month-today{height:auto}}
+#month-vac-row{flex-shrink:0}
 
 /* ── YEAR VIEW ── */
 .year-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
@@ -440,6 +442,7 @@ html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
   .pgrid{grid-template-columns:1fr}
   /* Month layout stacks vertically on mobile */
   .month-layout{flex-direction:column}
+  .month-main{width:100%}
   .month-side{width:100% !important;position:static;max-height:none;flex-direction:column}
   .month-side .month-today-panel{width:100% !important;max-height:280px;padding:8px 10px}
   #month-today-wrap{
@@ -615,7 +618,10 @@ html.dark .cpick{box-shadow:0 0 0 1px rgba(255,255,255,0.2)}
           </div>
         </div>
         <div class="month-layout">
-          <div id="month-grid" style="flex:1;min-width:0"></div>
+          <div class="month-main">
+            <div id="month-grid"></div>
+            <div id="month-vac-row"></div>
+          </div>
           <div class="month-side">
             <div id="month-today-wrap" onclick="if(event.target===this)closeDayModal()">
               <button class="day-modal-close" onclick="closeDayModal()" title="Cerrar"><i class="ti ti-x"></i></button>
@@ -1815,6 +1821,17 @@ function renderMonth(){
     if(sec)sec.scrollIntoView({block:'start',behavior:'instant'});
   }
   renderTodayPanel();
+  renderMonthVacRow();
+}
+function renderMonthVacRow(){
+  const el=document.getElementById('month-vac-row');if(!el)return;
+  const y=S.monthDate.getFullYear();
+  const vacCount=(D.vacationDays||[]).filter(v=>v.startsWith(`${y}-`)).length;
+  el.innerHTML=`<div class="mvac-row">
+    <i class="ti ti-beach" style="color:var(--blue)"></i>
+    <strong>Vacaciones ${y}: ${vacCount} día${vacCount!==1?'s':''}</strong>
+    <span style="color:var(--text3)">·&nbsp;1 clic vacaciones&nbsp;·&nbsp;2 clics festivo&nbsp;·&nbsp;3 quitar</span>
+  </div>`;
 }
 function toggleDayState(ds){
   if(!D.vacationDays)D.vacationDays=[];
@@ -2548,11 +2565,12 @@ function dayProjectHours(ds){
   const out=[];
   D.projects.forEach(p=>{
     let h=0;
-    h+=D.todos.filter(t=>t.projectId===p.id&&t.date===ds&&t.duration).reduce((s,t)=>s+t.duration,0);
-    h+=(p.manualEntries||[]).filter(e=>e.date===ds).reduce((s,e)=>s+e.hours,0);
-    h+=D.timeblocks.filter(tb=>tb.projectId===p.id&&tb.date===ds).reduce((s,tb)=>s+(tb.duration||0),0);
-    h+=D.events.filter(e=>e.projectId===p.id&&e.date===ds&&e.duration).reduce((s,e)=>s+e.duration,0);
-    if(h>0)out.push({name:p.name,color:p.color,hours:Math.round(h*10)/10});
+    const items=[];
+    D.todos.filter(t=>t.projectId===p.id&&t.date===ds&&t.duration).forEach(t=>{h+=t.duration;items.push(t.title)});
+    (p.manualEntries||[]).filter(e=>e.date===ds).forEach(e=>{h+=e.hours;items.push(e.desc||'Horas manuales')});
+    D.timeblocks.filter(tb=>tb.projectId===p.id&&tb.date===ds).forEach(tb=>{h+=(tb.duration||0);items.push('Bloque de tiempo')});
+    D.events.filter(e=>e.projectId===p.id&&e.date===ds&&e.duration).forEach(e=>{h+=e.duration;items.push(e.title)});
+    if(h>0)out.push({name:p.name,color:p.color,hours:Math.round(h*10)/10,items});
   });
   return out;
 }
@@ -2615,10 +2633,15 @@ function renderTodayPanel(){
     html+=`<div style="font-size:10px;color:var(--text3);font-style:italic;padding:2px 0 4px">Sin horas registradas.</div>`;
   } else {
     projHours.forEach(ph=>{
-      html+=`<div style="display:flex;align-items:center;gap:6px;padding:2px 0;font-size:11px">
-        <span style="width:7px;height:7px;border-radius:50%;background:${ph.color};flex-shrink:0"></span>
-        <span style="flex:1;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ph.name}</span>
-        <span style="font-weight:600;color:${ph.color};flex-shrink:0">${ph.hours}h</span>
+      const safeItems=(ph.items||[]).map(s=>(s||'').replace(/</g,'&lt;').replace(/>/g,'&gt;'));
+      const subtitle=safeItems.join(', ');
+      html+=`<div style="display:flex;align-items:flex-start;gap:6px;padding:2px 0;font-size:11px">
+        <span style="width:7px;height:7px;border-radius:50%;background:${ph.color};flex-shrink:0;margin-top:3px"></span>
+        <div style="flex:1;min-width:0">
+          <div style="color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ph.name}</div>
+          ${subtitle?`<div style="font-size:9px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${subtitle}">${subtitle}</div>`:''}
+        </div>
+        <span style="font-weight:600;color:${ph.color};flex-shrink:0;margin-top:1px">${ph.hours}h</span>
       </div>`;
     });
   }
@@ -2660,19 +2683,6 @@ function renderTodayPanel(){
     }
   }
   htmlPlans+=`</div>`;
-  // ── Vacation counter ──
-  const vacYear=S.monthDate.getFullYear();
-  const vacYearPfx=`${vacYear}-`;
-  const vacCount=(D.vacationDays||[]).filter(v=>v.startsWith(vacYearPfx)).length;
-  htmlPlans+=`<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
-    <div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;margin-bottom:6px;display:flex;align-items:center;gap:5px"><i class="ti ti-beach" style="font-size:11px;color:var(--blue)"></i>Vacaciones ${vacYear}</div>
-    <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:6px">${vacCount} día${vacCount!==1?'s':''}</div>
-    <div style="font-size:10px;color:var(--text3);line-height:1.6">
-      <span style="display:inline-flex;align-items:center;gap:3px;margin-bottom:2px"><span style="width:8px;height:8px;border-radius:2px;background:var(--blue-l);border:1px solid var(--blue);display:inline-block"></span>1 clic → vacaciones</span><br>
-      <span style="display:inline-flex;align-items:center;gap:3px;margin-bottom:2px"><span style="width:8px;height:8px;border-radius:2px;background:var(--amber-l);border:1px solid var(--amber);display:inline-block"></span>2 clics → festivo</span><br>
-      <span style="display:inline-flex;align-items:center;gap:3px"><span style="width:8px;height:8px;border-radius:2px;background:var(--border2);display:inline-block"></span>3 clics → quitar</span>
-    </div>
-  </div>`;
   el.innerHTML=html;
   const elPlans=document.getElementById('month-plans');
   if(elPlans)elPlans.innerHTML=htmlPlans;
