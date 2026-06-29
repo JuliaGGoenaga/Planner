@@ -2641,12 +2641,12 @@ function renderTodayPanel(){
   } else {
     projHours.forEach(ph=>{
       const safeItems=(ph.items||[]).map(s=>(s||'').replace(/</g,'&lt;').replace(/>/g,'&gt;'));
-      const subtitle=safeItems.join(', ');
+      const subtitle=safeItems.map(s=>`<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${s}">· ${s}</div>`).join('');
       html+=`<div style="display:flex;align-items:flex-start;gap:6px;padding:2px 0;font-size:11px">
         <span style="width:7px;height:7px;border-radius:50%;background:${ph.color};flex-shrink:0;margin-top:3px"></span>
         <div style="flex:1;min-width:0">
           <div style="color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ph.name}</div>
-          ${subtitle?`<div style="font-size:9px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${subtitle}">${subtitle}</div>`:''}
+          ${subtitle?`<div style="font-size:9px;color:var(--text3);line-height:1.5">${subtitle}</div>`:''}
         </div>
         <span style="font-weight:600;color:${ph.color};flex-shrink:0;margin-top:1px">${ph.hours}h</span>
       </div>`;
