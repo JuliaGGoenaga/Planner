@@ -356,6 +356,13 @@ html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
 .mtp-hours{font-size:9px;color:var(--text3);background:var(--surface2);padding:1px 4px;border-radius:3px;flex-shrink:0;white-space:nowrap}
 @media(max-width:860px){.month-layout{flex-direction:column}.month-main{width:100%}.month-side{width:100%;position:static;max-height:none;flex-direction:row;flex-wrap:wrap}#month-today-wrap,#month-plans{flex:1;min-width:220px}.month-today-panel{max-height:380px;overflow-y:auto}#month-today{height:auto}}
 #month-vac-row{flex-shrink:0}
+/* Desktop: split the sidebar's fixed available height 70/30 between the day panel and Planes, instead of sizing the day panel off raw vh (which ignores the space already taken by headers/gaps) */
+@media(min-width:861px){
+  .month-side{height:calc(100dvh - 100px);max-height:none;overflow:hidden}
+  #month-today-wrap{flex:7 1 0;min-height:0;display:flex;flex-direction:column}
+  #month-today{flex:1;min-height:0;height:auto;overflow-y:auto}
+  #month-plans{flex:3 1 0;min-height:0;overflow-y:auto}
+}
 
 /* ── YEAR VIEW ── */
 .year-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
