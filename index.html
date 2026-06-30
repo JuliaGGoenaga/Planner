@@ -722,38 +722,38 @@ html.dark .cpick{box-shadow:0 0 0 1px rgba(255,255,255,0.2)}
 
       <!-- SETUP -->
       <div class="page" id="page-setup">
-        <div class="ph"><div class="pt">Setup</div></div>
+        <div class="ph"><div class="pt">Ajustes</div></div>
         <div class="setup-layout">
           <div class="setup-main">
             <div class="setup-grid">
               <div class="scard">
-                <h3><i class="ti ti-brand-github"></i> GitHub Gist sync</h3>
+                <h3><i class="ti ti-brand-github"></i> Sincronización con GitHub Gist</h3>
                 <ol class="steps">
-                  <li>Go to <a href="https://github.com/settings/tokens/new" target="_blank">github.com/settings/tokens/new</a> → choose <strong>Classic token</strong> → tick only <strong>gist</strong> → Generate.</li>
-                  <li>Go to <a href="https://gist.github.com" target="_blank">gist.github.com</a> → New secret Gist → filename <code>planner.json</code> → content <code>{}</code> → Create.</li>
-                  <li>Copy the Gist ID from its URL: <code>gist.github.com/you/<strong>ID_HERE</strong></code></li>
+                  <li>Ve a <a href="https://github.com/settings/tokens/new" target="_blank">github.com/settings/tokens/new</a> → elige <strong>Classic token</strong> → marca solo <strong>gist</strong> → Generate.</li>
+                  <li>Ve a <a href="https://gist.github.com" target="_blank">gist.github.com</a> → New secret Gist → nombre de archivo <code>planner.json</code> → contenido <code>{}</code> → Create.</li>
+                  <li>Copia el ID del Gist desde su URL: <code>gist.github.com/tu_usuario/<strong>ID_AQUÍ</strong></code></li>
                 </ol>
-                <div class="sf"><label>Personal Access Token (Classic, ghp_…)</label><input type="password" id="s-token" placeholder="ghp_xxxxxxxxxxxx"/><div class="snote">Stored only in this browser — sent only to api.github.com.</div></div>
-                <div class="sf"><label>Gist ID (~32 characters)</label><input type="text" id="s-gist" placeholder="a1b2c3d4e5f6…"/></div>
+                <div class="sf"><label>Personal Access Token (Classic, ghp_…)</label><input type="password" id="s-token" placeholder="ghp_xxxxxxxxxxxx"/><div class="snote">Se guarda solo en este navegador — solo se envía a api.github.com.</div></div>
+                <div class="sf"><label>ID del Gist (~32 caracteres)</label><input type="text" id="s-gist" placeholder="a1b2c3d4e5f6…"/></div>
                 <div class="bg">
-                  <button class="btn btn-p" onclick="saveGistCfg()"><i class="ti ti-check"></i> Save & connect</button>
-                  <button class="btn" onclick="testGist()"><i class="ti ti-refresh"></i> Test</button>
+                  <button class="btn btn-p" onclick="saveGistCfg()"><i class="ti ti-check"></i> Guardar y conectar</button>
+                  <button class="btn" onclick="testGist()"><i class="ti ti-refresh"></i> Probar</button>
                 </div>
                 <div class="smsg" id="gist-msg"></div>
               </div>
               <div class="scard">
-                <h3><i class="ti ti-calendar-event" style="color:var(--blue)"></i> External calendars (ICS)</h3>
+                <h3><i class="ti ti-calendar-event" style="color:var(--blue)"></i> Calendarios externos (ICS)</h3>
                 <ol class="steps">
-                  <li><strong>Google:</strong> calendar.google.com → Settings → your calendar → <em>Secret address in iCal format</em></li>
-                  <li><strong>Outlook.com:</strong> Settings → Calendar → Shared calendars → Publish → copy ICS link</li>
+                  <li><strong>Google:</strong> calendar.google.com → Ajustes → tu calendario → <em>Dirección secreta en formato iCal</em></li>
+                  <li><strong>Outlook.com:</strong> Ajustes → Calendario → Calendarios compartidos → Publicar → copia el enlace ICS</li>
                 </ol>
                 <div class="cal-list" id="cal-list"></div>
-                <div class="sf"><label>Calendar name</label><input type="text" id="ics-name" placeholder="Work, Personal…"/></div>
-                <div class="sf"><label>ICS URL</label><input type="url" id="ics-url" placeholder="https://calendar.google.com/calendar/ical/…"/><div class="snote">Si la URL es muy larga (Outlook) y falla con error 413, usa el botón <strong>Acortar</strong> antes de añadir — los tokens de autenticación se conservan.</div></div>
+                <div class="sf"><label>Nombre del calendario</label><input type="text" id="ics-name" placeholder="Trabajo, Personal…"/></div>
+                <div class="sf"><label>URL ICS</label><input type="url" id="ics-url" placeholder="https://calendar.google.com/calendar/ical/…"/><div class="snote">Si la URL es muy larga (Outlook) y falla con error 413, usa el botón <strong>Acortar</strong> antes de añadir — los tokens de autenticación se conservan.</div></div>
                 <div class="bg">
-                  <button class="btn btn-p" onclick="addCal()"><i class="ti ti-plus"></i> Add</button>
+                  <button class="btn btn-p" onclick="addCal()"><i class="ti ti-plus"></i> Añadir</button>
                   <button class="btn" onclick="shortenIcsUrl()" id="shorten-btn"><i class="ti ti-link"></i> Acortar URL</button>
-                  <button class="btn" onclick="refreshIcs()"><i class="ti ti-refresh"></i> Refresh all</button>
+                  <button class="btn" onclick="refreshIcs()"><i class="ti ti-refresh"></i> Actualizar todos</button>
                 </div>
                 <div class="smsg" id="ics-msg"></div>
               </div>
@@ -766,7 +766,7 @@ html.dark .cpick{box-shadow:0 0 0 1px rgba(255,255,255,0.2)}
                   <li><strong>Portátil de empresa:</strong> deja la clave vacía (sin asistente) o pon la URL del LLM interno en el campo Endpoint.</li>
                 </ol>
                 <div class="sf">
-                  <label>Groq API Key</label>
+                  <label>Clave API de Groq</label>
                   <input type="password" id="s-ai-key" placeholder="gsk_xxxxxxxxxxxx"/>
                   <div class="snote">Guardada solo en <em>este</em> navegador — nunca va al Gist ni a ningún servidor salvo al enviar una pregunta.</div>
                 </div>
@@ -790,20 +790,20 @@ html.dark .cpick{box-shadow:0 0 0 1px rgba(255,255,255,0.2)}
           <div class="setup-side">
             <div class="setup-side-title">Información</div>
             <div class="scard">
-              <h3><i class="ti ti-brand-github"></i> GitHub Gist sync</h3>
-              <p>Your data is saved as JSON in a private Gist and synced across all devices.</p>
+              <h3><i class="ti ti-brand-github"></i> Sincronización con GitHub Gist</h3>
+              <p>Tus datos se guardan como JSON en un Gist privado y se sincronizan en todos tus dispositivos.</p>
             </div>
             <div class="scard">
-              <h3><i class="ti ti-calendar-event" style="color:var(--blue)"></i> External calendars (ICS)</h3>
-              <p>Paste the secret ICS link from Google Calendar or Outlook. Events appear read-only in week and month views.</p>
+              <h3><i class="ti ti-calendar-event" style="color:var(--blue)"></i> Calendarios externos (ICS)</h3>
+              <p>Pega el enlace secreto ICS de Google Calendar u Outlook. Los eventos aparecen de solo lectura en las vistas semanal y mensual.</p>
             </div>
             <div class="scard">
-              <h3><i class="ti ti-arrow-forward" style="color:var(--amber)"></i> Task rollover</h3>
-              <p>To-dos not completed before today are automatically moved to today on app load. They show a <span style="font-size:10px;background:var(--amber-l);color:var(--amber);border-radius:8px;padding:0 5px">↩</span> badge and keep their original date as reference.</p>
+              <h3><i class="ti ti-arrow-forward" style="color:var(--amber)"></i> Arrastre de tareas</h3>
+              <p>Las tareas no completadas antes de hoy se mueven automáticamente a hoy al cargar la app. Muestran una insignia <span style="font-size:10px;background:var(--amber-l);color:var(--amber);border-radius:8px;padding:0 5px">↩</span> y conservan su fecha original como referencia.</p>
             </div>
             <div class="scard">
-              <h3><i class="ti ti-info-circle" style="color:var(--text2)"></i> ICS & CORS note</h3>
-              <p>Browsers block direct ICS fetches. The app first checks the GitHub Action's calendar cache, then tries a direct request (works with self-hosted or CORS-enabled calendars), then falls back through free public proxies automatically. No login needed.</p>
+              <h3><i class="ti ti-info-circle" style="color:var(--text2)"></i> Nota sobre ICS y CORS</h3>
+              <p>Los navegadores bloquean las peticiones ICS directas. La app primero comprueba la caché de calendarios de la GitHub Action, luego intenta una petición directa (funciona con calendarios propios o con CORS habilitado), y por último recurre a proxies públicos gratuitos automáticamente. No requiere iniciar sesión.</p>
             </div>
             <div class="scard">
               <h3><i class="ti ti-robot" style="color:var(--accent)"></i> Asistente IA</h3>
