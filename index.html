@@ -315,8 +315,16 @@ html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
 .ichip.ichip-task .ichip-conv{opacity:1;color:var(--green)}
 
 /* ── SETUP ── */
-.setup-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:820px}
+.setup-layout{display:flex;gap:16px;align-items:flex-start;max-width:1140px}
+.setup-main{flex:1;min-width:0}
+.setup-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 @media(max-width:680px){.setup-grid{grid-template-columns:1fr}}
+.setup-side{width:280px;flex-shrink:0;display:flex;flex-direction:column;gap:12px}
+.setup-side-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);padding-left:2px}
+@media(max-width:860px){
+  .setup-layout{flex-direction:column}
+  .setup-side{width:100%;margin-top:8px}
+}
 .scard{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px}
 .scard h3{font-size:14px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:7px}
 .scard p{font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:10px}
@@ -708,76 +716,92 @@ html.dark .cpick{box-shadow:0 0 0 1px rgba(255,255,255,0.2)}
       <!-- SETUP -->
       <div class="page" id="page-setup">
         <div class="ph"><div class="pt">Setup</div></div>
-        <div class="setup-grid">
-          <div class="scard">
-            <h3><i class="ti ti-brand-github"></i> GitHub Gist sync</h3>
-            <p>Your data is saved as JSON in a private Gist and synced across all devices.</p>
-            <ol class="steps">
-              <li>Go to <a href="https://github.com/settings/tokens/new" target="_blank">github.com/settings/tokens/new</a> → choose <strong>Classic token</strong> → tick only <strong>gist</strong> → Generate.</li>
-              <li>Go to <a href="https://gist.github.com" target="_blank">gist.github.com</a> → New secret Gist → filename <code>planner.json</code> → content <code>{}</code> → Create.</li>
-              <li>Copy the Gist ID from its URL: <code>gist.github.com/you/<strong>ID_HERE</strong></code></li>
-            </ol>
-            <div class="sf"><label>Personal Access Token (Classic, ghp_…)</label><input type="password" id="s-token" placeholder="ghp_xxxxxxxxxxxx"/><div class="snote">Stored only in this browser — sent only to api.github.com.</div></div>
-            <div class="sf"><label>Gist ID (~32 characters)</label><input type="text" id="s-gist" placeholder="a1b2c3d4e5f6…"/></div>
-            <div class="bg">
-              <button class="btn btn-p" onclick="saveGistCfg()"><i class="ti ti-check"></i> Save & connect</button>
-              <button class="btn" onclick="testGist()"><i class="ti ti-refresh"></i> Test</button>
+        <div class="setup-layout">
+          <div class="setup-main">
+            <div class="setup-grid">
+              <div class="scard">
+                <h3><i class="ti ti-brand-github"></i> GitHub Gist sync</h3>
+                <ol class="steps">
+                  <li>Go to <a href="https://github.com/settings/tokens/new" target="_blank">github.com/settings/tokens/new</a> → choose <strong>Classic token</strong> → tick only <strong>gist</strong> → Generate.</li>
+                  <li>Go to <a href="https://gist.github.com" target="_blank">gist.github.com</a> → New secret Gist → filename <code>planner.json</code> → content <code>{}</code> → Create.</li>
+                  <li>Copy the Gist ID from its URL: <code>gist.github.com/you/<strong>ID_HERE</strong></code></li>
+                </ol>
+                <div class="sf"><label>Personal Access Token (Classic, ghp_…)</label><input type="password" id="s-token" placeholder="ghp_xxxxxxxxxxxx"/><div class="snote">Stored only in this browser — sent only to api.github.com.</div></div>
+                <div class="sf"><label>Gist ID (~32 characters)</label><input type="text" id="s-gist" placeholder="a1b2c3d4e5f6…"/></div>
+                <div class="bg">
+                  <button class="btn btn-p" onclick="saveGistCfg()"><i class="ti ti-check"></i> Save & connect</button>
+                  <button class="btn" onclick="testGist()"><i class="ti ti-refresh"></i> Test</button>
+                </div>
+                <div class="smsg" id="gist-msg"></div>
+              </div>
+              <div class="scard">
+                <h3><i class="ti ti-calendar-event" style="color:var(--blue)"></i> External calendars (ICS)</h3>
+                <ol class="steps">
+                  <li><strong>Google:</strong> calendar.google.com → Settings → your calendar → <em>Secret address in iCal format</em></li>
+                  <li><strong>Outlook.com:</strong> Settings → Calendar → Shared calendars → Publish → copy ICS link</li>
+                </ol>
+                <div class="cal-list" id="cal-list"></div>
+                <div class="sf"><label>Calendar name</label><input type="text" id="ics-name" placeholder="Work, Personal…"/></div>
+                <div class="sf"><label>ICS URL</label><input type="url" id="ics-url" placeholder="https://calendar.google.com/calendar/ical/…"/><div class="snote">Si la URL es muy larga (Outlook) y falla con error 413, usa el botón <strong>Acortar</strong> antes de añadir — los tokens de autenticación se conservan.</div></div>
+                <div class="bg">
+                  <button class="btn btn-p" onclick="addCal()"><i class="ti ti-plus"></i> Add</button>
+                  <button class="btn" onclick="shortenIcsUrl()" id="shorten-btn"><i class="ti ti-link"></i> Acortar URL</button>
+                  <button class="btn" onclick="refreshIcs()"><i class="ti ti-refresh"></i> Refresh all</button>
+                </div>
+                <div class="smsg" id="ics-msg"></div>
+              </div>
+              <div class="scard" style="grid-column:1/-1">
+                <h3><i class="ti ti-robot" style="color:var(--accent)"></i> Asistente IA</h3>
+                <ol class="steps">
+                  <li>Crea cuenta gratuita en <a href="https://console.groq.com" target="_blank">console.groq.com</a> (no requiere nada instalado, funciona desde cualquier dispositivo).</li>
+                  <li>Ve a <strong>API Keys</strong> → <strong>Create API Key</strong> → copia la clave (empieza por <code>gsk_</code>).</li>
+                  <li>Pégala abajo y pulsa <em>Guardar</em>. Aparecerá el botón <i class="ti ti-robot" style="color:var(--accent)"></i> flotante en todas las pestañas.</li>
+                  <li><strong>Portátil de empresa:</strong> deja la clave vacía (sin asistente) o pon la URL del LLM interno en el campo Endpoint.</li>
+                </ol>
+                <div class="sf">
+                  <label>Groq API Key</label>
+                  <input type="password" id="s-ai-key" placeholder="gsk_xxxxxxxxxxxx"/>
+                  <div class="snote">Guardada solo en <em>este</em> navegador — nunca va al Gist ni a ningún servidor salvo al enviar una pregunta.</div>
+                </div>
+                <div class="sf">
+                  <label>Endpoint <span style="font-weight:400;color:var(--text3)">(opcional — deja vacío para usar Groq)</span></label>
+                  <input type="url" id="s-ai-endpoint" placeholder="https://api.groq.com/openai/v1/chat/completions"/>
+                  <div class="snote">Cámbialo si tu empresa tiene su propio LLM compatible con la API de OpenAI.</div>
+                </div>
+                <div class="sf">
+                  <label>Modelo <span style="font-weight:400;color:var(--text3)">(opcional — deja vacío para el predeterminado)</span></label>
+                  <input type="text" id="s-ai-model" placeholder="llama-3.3-70b-versatile"/>
+                </div>
+                <div class="bg">
+                  <button class="btn btn-p" onclick="saveAICfg()"><i class="ti ti-check"></i> Guardar</button>
+                  <button class="btn" onclick="clearAICfg()"><i class="ti ti-x"></i> Eliminar clave</button>
+                </div>
+                <div class="smsg" id="ai-cfg-msg"></div>
+              </div>
             </div>
-            <div class="smsg" id="gist-msg"></div>
           </div>
-          <div class="scard">
-            <h3><i class="ti ti-calendar-event" style="color:var(--blue)"></i> External calendars (ICS)</h3>
-            <p>Paste the secret ICS link from Google Calendar or Outlook. Events appear read-only in week and month views.</p>
-            <ol class="steps">
-              <li><strong>Google:</strong> calendar.google.com → Settings → your calendar → <em>Secret address in iCal format</em></li>
-              <li><strong>Outlook.com:</strong> Settings → Calendar → Shared calendars → Publish → copy ICS link</li>
-            </ol>
-            <div class="cal-list" id="cal-list"></div>
-            <div class="sf"><label>Calendar name</label><input type="text" id="ics-name" placeholder="Work, Personal…"/></div>
-            <div class="sf"><label>ICS URL</label><input type="url" id="ics-url" placeholder="https://calendar.google.com/calendar/ical/…"/><div class="snote">Si la URL es muy larga (Outlook) y falla con error 413, usa el botón <strong>Acortar</strong> antes de añadir — los tokens de autenticación se conservan.</div></div>
-            <div class="bg">
-              <button class="btn btn-p" onclick="addCal()"><i class="ti ti-plus"></i> Add</button>
-              <button class="btn" onclick="shortenIcsUrl()" id="shorten-btn"><i class="ti ti-link"></i> Acortar URL</button>
-              <button class="btn" onclick="refreshIcs()"><i class="ti ti-refresh"></i> Refresh all</button>
+          <div class="setup-side">
+            <div class="setup-side-title">Información</div>
+            <div class="scard">
+              <h3><i class="ti ti-brand-github"></i> GitHub Gist sync</h3>
+              <p>Your data is saved as JSON in a private Gist and synced across all devices.</p>
             </div>
-            <div class="smsg" id="ics-msg"></div>
-          </div>
-          <div class="scard">
-            <h3><i class="ti ti-arrow-forward" style="color:var(--amber)"></i> Task rollover</h3>
-            <p>To-dos not completed before today are automatically moved to today on app load. They show a <span style="font-size:10px;background:var(--amber-l);color:var(--amber);border-radius:8px;padding:0 5px">↩</span> badge and keep their original date as reference.</p>
-          </div>
-          <div class="scard">
-            <h3><i class="ti ti-info-circle" style="color:var(--text2)"></i> ICS & CORS note</h3>
-            <p>Browsers block direct ICS fetches. The app first checks the GitHub Action's calendar cache, then tries a direct request (works with self-hosted or CORS-enabled calendars), then falls back through free public proxies automatically. No login needed.</p>
-          </div>
-          <div class="scard" style="grid-column:1/-1">
-            <h3><i class="ti ti-robot" style="color:var(--accent)"></i> Asistente IA</h3>
-            <p>Conecta un LLM gratuito que conoce todo tu planner. Tus datos se envían <strong>solo cuando tú preguntas</strong> y nunca se almacenan en servidores de IA.</p>
-            <ol class="steps">
-              <li>Crea cuenta gratuita en <a href="https://console.groq.com" target="_blank">console.groq.com</a> (no requiere nada instalado, funciona desde cualquier dispositivo).</li>
-              <li>Ve a <strong>API Keys</strong> → <strong>Create API Key</strong> → copia la clave (empieza por <code>gsk_</code>).</li>
-              <li>Pégala abajo y pulsa <em>Guardar</em>. Aparecerá el botón <i class="ti ti-robot" style="color:var(--accent)"></i> flotante en todas las pestañas.</li>
-              <li><strong>Portátil de empresa:</strong> deja la clave vacía (sin asistente) o pon la URL del LLM interno en el campo Endpoint.</li>
-            </ol>
-            <div class="sf">
-              <label>Groq API Key</label>
-              <input type="password" id="s-ai-key" placeholder="gsk_xxxxxxxxxxxx"/>
-              <div class="snote">Guardada solo en <em>este</em> navegador — nunca va al Gist ni a ningún servidor salvo al enviar una pregunta.</div>
+            <div class="scard">
+              <h3><i class="ti ti-calendar-event" style="color:var(--blue)"></i> External calendars (ICS)</h3>
+              <p>Paste the secret ICS link from Google Calendar or Outlook. Events appear read-only in week and month views.</p>
             </div>
-            <div class="sf">
-              <label>Endpoint <span style="font-weight:400;color:var(--text3)">(opcional — deja vacío para usar Groq)</span></label>
-              <input type="url" id="s-ai-endpoint" placeholder="https://api.groq.com/openai/v1/chat/completions"/>
-              <div class="snote">Cámbialo si tu empresa tiene su propio LLM compatible con la API de OpenAI.</div>
+            <div class="scard">
+              <h3><i class="ti ti-arrow-forward" style="color:var(--amber)"></i> Task rollover</h3>
+              <p>To-dos not completed before today are automatically moved to today on app load. They show a <span style="font-size:10px;background:var(--amber-l);color:var(--amber);border-radius:8px;padding:0 5px">↩</span> badge and keep their original date as reference.</p>
             </div>
-            <div class="sf">
-              <label>Modelo <span style="font-weight:400;color:var(--text3)">(opcional — deja vacío para el predeterminado)</span></label>
-              <input type="text" id="s-ai-model" placeholder="llama-3.3-70b-versatile"/>
+            <div class="scard">
+              <h3><i class="ti ti-info-circle" style="color:var(--text2)"></i> ICS & CORS note</h3>
+              <p>Browsers block direct ICS fetches. The app first checks the GitHub Action's calendar cache, then tries a direct request (works with self-hosted or CORS-enabled calendars), then falls back through free public proxies automatically. No login needed.</p>
             </div>
-            <div class="bg">
-              <button class="btn btn-p" onclick="saveAICfg()"><i class="ti ti-check"></i> Guardar</button>
-              <button class="btn" onclick="clearAICfg()"><i class="ti ti-x"></i> Eliminar clave</button>
+            <div class="scard">
+              <h3><i class="ti ti-robot" style="color:var(--accent)"></i> Asistente IA</h3>
+              <p>Conecta un LLM gratuito que conoce todo tu planner. Tus datos se envían <strong>solo cuando tú preguntas</strong> y nunca se almacenan en servidores de IA.</p>
             </div>
-            <div class="smsg" id="ai-cfg-msg"></div>
           </div>
         </div>
       </div>
