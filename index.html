@@ -1050,9 +1050,16 @@ async function loadGist(){
     if(!r.ok)throw new Error(r.status);
     const g=await r.json();
     const file=g.files['planner.json'];
-    if(file&&file.content&&file.content.trim()!=='{}'){
+    let plannerContent=file&&file.content;
+    if(file&&file.truncated&&file.raw_url){
       try{
-        const p=JSON.parse(file.content);
+        const rr=await fetch(file.raw_url);
+        if(rr.ok)plannerContent=await rr.text();
+      }catch(e){}
+    }
+    if(file&&plannerContent&&plannerContent.trim()!=='{}'){
+      try{
+        const p=JSON.parse(plannerContent);
         if(p){
           D.events=p.events||D.events;D.todos=p.todos||D.todos;D.projects=p.projects||D.projects;
           D.timeblocks=p.timeblocks||D.timeblocks;D.topics=p.topics||D.topics;
@@ -1068,8 +1075,15 @@ async function loadGist(){
       }catch(e){setSS('err','Corrupt data in Gist');return}
     }
     const cacheFile=g.files['calendar-cache.json'];
-    if(cacheFile&&cacheFile.content){
-      try{CAL_CACHE=JSON.parse(cacheFile.content);}catch(e){CAL_CACHE=null;}
+    let cacheContent=cacheFile&&cacheFile.content;
+    if(cacheFile&&cacheFile.truncated&&cacheFile.raw_url){
+      try{
+        const rr=await fetch(cacheFile.raw_url);
+        if(rr.ok)cacheContent=await rr.text();
+      }catch(e){}
+    }
+    if(cacheContent){
+      try{CAL_CACHE=JSON.parse(cacheContent);}catch(e){CAL_CACHE=null;}
     }
     // Check if localStorage has unsaved changes newer than the last Gist save
     try{
