@@ -1946,7 +1946,7 @@ function renderProjects(){
         const accH=Math.round((p.manualEntries||[]).filter(e=>e.desc===t.title).reduce((s,e)=>s+e.hours,0)*10)/10;
         return`<div style="font-size:10px;color:${t.done?'var(--text3)':'var(--text2)'};display:flex;align-items:center;gap:4px;padding:2px 0${t.done?';opacity:.7':''}">
         <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${t.done?'text-decoration:line-through':''}">${t.done?'✓':'○'} ${t.title}${t.date?` <span style="color:var(--text3);font-size:9px">${fmtS(new Date(t.date))}</span>`:'<span style="color:var(--text3);font-size:9px"> · sin fecha</span>'}</span>
-        ${accH>0?`<span style="flex-shrink:0;font-weight:600;color:var(--text3);font-size:10px">${accH}h</span>`:''}
+        <span style="flex-shrink:0;font-weight:600;color:var(--text3);font-size:10px">${accH}h</span>
         <button class="btn-del" onclick="unassignTask(${t.id})" title="Desasignar" style="font-size:10px;padding:1px 2px"><i class="ti ti-x"></i></button>
       </div>`;}).join('')}
     </div>`:'';
