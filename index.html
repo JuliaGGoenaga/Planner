@@ -2358,32 +2358,63 @@ function injectHashCalendars(){
 }
 
 // ── MONTHLY REPORT ─────────────────────────────────────────────────────────
-function buildReportCSV(year,month){
+const MESES=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+function buildReportRows(year,month){
   const pfx=`${year}-${String(month).padStart(2,'0')}`;
   const header=['Fecha','Proyecto','Tipo','Descripción / Tarea','Horas'];
   const rows=[];
-  // Tasks with duration
-  D.todos.filter(t=>t.duration&&t.date.startsWith(pfx)).forEach(t=>{
+  D.todos.filter(t=>t.duration&&t.date&&t.date.startsWith(pfx)).forEach(t=>{
     const proj=t.projectId?D.projects.find(p=>p.id===t.projectId):null;
     rows.push([t.date,proj?proj.name:'Sin proyecto','Tarea',t.title,t.duration]);
   });
-  // Manual hour entries
   D.projects.forEach(p=>{
-    (p.manualEntries||[]).filter(e=>e.date.startsWith(pfx)).forEach(e=>{
+    (p.manualEntries||[]).filter(e=>e.date&&e.date.startsWith(pfx)).forEach(e=>{
       rows.push([e.date,p.name,'Manual',e.desc||'',e.hours]);
     });
   });
+  D.timeblocks.filter(tb=>tb.projectId&&tb.date&&tb.date.startsWith(pfx)&&tb.duration).forEach(tb=>{
+    const proj=D.projects.find(p=>p.id===tb.projectId);
+    rows.push([tb.date,proj?proj.name:'Sin proyecto','Bloque',tb.startTime||'',tb.duration]);
+  });
+  D.events.filter(e=>e.projectId&&e.date&&e.date.startsWith(pfx)&&e.duration).forEach(e=>{
+    const proj=D.projects.find(p=>p.id===e.projectId);
+    rows.push([e.date,proj?proj.name:'Sin proyecto','Evento',e.title,e.duration]);
+  });
   rows.sort((a,b)=>a[0].localeCompare(b[0]));
-  const totalH=rows.reduce((s,r)=>s+Number(r[4]),0);
-  rows.push(['','','','TOTAL',Math.round(totalH*10)/10]);
-  const csv=[header,...rows].map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\r\n');
-  return'﻿'+csv; // BOM for Excel UTF-8
+  const totalH=Math.round(rows.reduce((s,r)=>s+Number(r[4]),0)*10)/10;
+  rows.push(['','','','TOTAL',totalH]);
+  return{header,rows};
 }
-function downloadCSV(csv,filename){
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
-  a.download=filename;a.click();
-  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+function buildReportCSV(year,month){
+  const{header,rows}=buildReportRows(year,month);
+  const csv=[header,...rows].map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\r\n');
+  return'﻿'+csv;
+}
+let _xlsxLoading=null;
+async function loadXLSX(){
+  if(window.XLSX)return;
+  if(!_xlsxLoading)_xlsxLoading=new Promise((resolve,reject)=>{
+    const s=document.createElement('script');
+    s.src='https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+    s.onload=resolve;s.onerror=()=>reject(new Error('No se pudo cargar la librería XLSX. Comprueba tu conexión.'));
+    document.head.appendChild(s);
+  });
+  await _xlsxLoading;
+}
+async function downloadXLSX(year,month){
+  await loadXLSX();
+  const{header,rows}=buildReportRows(year,month);
+  const ws=XLSX.utils.aoa_to_sheet([header,...rows]);
+  ws['!cols']=[{wch:12},{wch:22},{wch:10},{wch:42},{wch:8}];
+  // Bold header row
+  const range=XLSX.utils.decode_range(ws['!ref']);
+  for(let c=range.s.c;c<=range.e.c;c++){
+    const cell=ws[XLSX.utils.encode_cell({r:0,c})];
+    if(cell)cell.s={font:{bold:true}};
+  }
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,`${MESES[month-1]} ${year}`);
+  XLSX.writeFile(wb,`planner_${year}_${String(month).padStart(2,'0')}_${MESES[month-1]}.xlsx`);
 }
 async function saveReportToGist(year,month,csv){
   if(!CFG.token||!CFG.gistId)return false;
@@ -2398,33 +2429,28 @@ async function saveReportToGist(year,month,csv){
   }catch(e){return false}
 }
 async function exportMonth(year,month){
-  const csv=buildReportCSV(year,month);
-  const filename=`planner_report_${year}_${String(month).padStart(2,'0')}.csv`;
-  downloadCSV(csv,filename);
   const el=document.getElementById('report-msg');
-  if(!CFG.token||!CFG.gistId){
-    if(el){el.className='smsg info';el.textContent='Descargado — configura GitHub Gist para guardar también en la nube.'}
-    return;
+  try{
+    if(el){el.className='smsg saving';el.textContent='Generando XLSX…';}
+    await downloadXLSX(year,month);
+    if(el){el.className='smsg ok';el.textContent=`✓ ${MESES[month-1]} ${year} descargado`;}
+  }catch(e){
+    if(el){el.className='smsg err';el.textContent='Error: '+e.message;}
   }
-  if(el){el.className='smsg saving';el.textContent='Guardando en GitHub…'}
-  const saved=await saveReportToGist(year,month,csv);
-  if(el){el.className='smsg '+(saved?'ok':'err');el.textContent=saved?`✓ ${saved} guardado en tu Gist`:'Descargado, pero falló el guardado en GitHub.';}
-  if(saved)lss(`exported_${year}_${String(month).padStart(2,'0')}`,'1');
 }
 async function exportMonthUI(offset){
   const d=new Date();d.setDate(1);d.setMonth(d.getMonth()+offset);
   await exportMonth(d.getFullYear(),d.getMonth()+1);
 }
 async function checkAutoExport(){
-  // Run any time the app loads — exports previous month if not yet done
   const now=new Date();
   const d=new Date(now.getFullYear(),now.getMonth()-1,1);
   const y=d.getFullYear(),m=d.getMonth()+1;
   const key=`exported_${y}_${String(m).padStart(2,'0')}`;
-  if(ls(key))return; // already exported this month
+  if(ls(key))return;
   const csv=buildReportCSV(y,m);
   const saved=await saveReportToGist(y,m,csv);
-  if(saved){lss(key,'1');setSS('ok',`Reporte ${MFULL[m-1]} guardado automáticamente en GitHub`);}
+  if(saved){lss(key,'1');setSS('ok',`Reporte ${MESES[m-1]} guardado automáticamente en GitHub`);}
 }
 
 // ── TODAY PANEL (Month view right column) ─────────────────────────────────
