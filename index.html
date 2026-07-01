@@ -218,6 +218,12 @@ html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
 .plan-bubble:hover{filter:brightness(1.12)}
 .mcell.plan-drop-hover{outline:2px dashed var(--accent)!important;outline-offset:-2px}
 .mc-badge{font-size:8px;padding:1px 3px;border-radius:3px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+.mc-hours{font-size:9px;font-weight:700;margin-top:3px;line-height:1}
+.task-pick-list{border:1px solid var(--border2);border-radius:6px;overflow:hidden;max-height:220px;overflow-y:auto}
+.task-pick-row{display:flex;align-items:center;gap:8px;padding:8px 10px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .12s}
+.task-pick-row:last-child{border-bottom:none}
+.task-pick-row:hover{background:var(--surface2)}
+.task-pick-row.sel{background:var(--accent-l)}
 .mc-hol{color:var(--amber)}
 .mc-vac{color:var(--blue);font-weight:600}
 .mvac-row{font-size:11px;color:var(--text2);padding:10px 4px 4px;display:flex;align-items:center;gap:6px}
@@ -1638,7 +1644,11 @@ function renderMonth(){
     const cellPlans=om?[]:(D.plans||[]).filter(p=>p.days&&p.days.includes(ds));
     const planBubbles=cellPlans.map(p=>`<div class="plan-bubble" style="background:${p.color}" ${isMob?'':` onclick="event.stopPropagation();removePlanFromDay(${p.id},'${ds}')"`} title="${(p.title||'').replace(/"/g,'&quot;')}">${(p.title||'').replace(/</g,'&lt;')}</div>`).join('');
     const dragHandlers=`ondragover="event.preventDefault();this.classList.add('plan-drop-hover')" ondragleave="if(!this.contains(event.relatedTarget))this.classList.remove('plan-drop-hover')" ondrop="dropPlanOnDay(event,'${ds}')"`;
-    return`<div class="${cellCls}" ${clickAttr} ${dragHandlers}><div class="mc-n${isT?' tn':''}">${cur.getDate()}</div><div class="mcdots">${dots}</div>${holBadge}${cusBadge}${vacBadge}${planBubbles}</div>`;
+    const goalH=!om?dayGoalHours(ds):0;
+    const logH2=goalH>0?dayLoggedH(ds):0;
+    const hColor=logH2>=goalH&&goalH>0?'var(--green)':logH2>0?'var(--amber)':'var(--text3)';
+    const hoursEl=goalH>0?`<div class="mc-hours" style="color:${hColor}">${logH2}/${goalH}h</div>`:'';
+    return`<div class="${cellCls}" ${clickAttr} ${dragHandlers}><div class="mc-n${isT?' tn':''}">${cur.getDate()}</div><div class="mcdots">${dots}</div>${holBadge}${cusBadge}${vacBadge}${planBubbles}${hoursEl}</div>`;
   }
 
   if(window.innerWidth<701){
@@ -1698,7 +1708,10 @@ function renderMonth(){
         const clickAttr=paint
           ?`onclick="toggleDayState('${ds}')" title="1 clic: vacaciones · 2 clics: festivo · 3 clics: quitar"`
           :`onclick="selectMonthDay('${ds}')" title="Ver detalles del día"`;
-        html+=`<div class="${cellCls}" data-ym="${cellYm}" ${clickAttr} ${dragHandlers}><div class="mc-n${isT?' tn':''}">${cur.getDate()}</div><div class="mcdots">${dots}</div>${holBadge}${cusBadge}${vacBadge}${planBubbles}</div>`;
+        const dGoalH=dayGoalHours(ds);const dLogH=dGoalH>0?dayLoggedH(ds):0;
+        const dHColor=dLogH>=dGoalH&&dGoalH>0?'var(--green)':dLogH>0?'var(--amber)':'var(--text3)';
+        const dHoursEl=dGoalH>0?`<div class="mc-hours" style="color:${dHColor}">${dLogH}/${dGoalH}h</div>`:'';
+        html+=`<div class="${cellCls}" data-ym="${cellYm}" ${clickAttr} ${dragHandlers}><div class="mc-n${isT?' tn':''}">${cur.getDate()}</div><div class="mcdots">${dots}</div>${holBadge}${cusBadge}${vacBadge}${planBubbles}${dHoursEl}</div>`;
         cur.setDate(cur.getDate()+1);
       }
       html+=`</div>`;
@@ -1883,6 +1896,28 @@ function monthlyGoalHours(year,month,excludeDays=[]){
   }
   return Math.round(total*10)/10;
 }
+function dayGoalHours(ds){
+  const d=new Date(ds+'T00:00:00');const dow=d.getDay();
+  if(dow===0||dow===6)return 0;
+  if(dow===5)return 6;
+  const m=d.getMonth()+1;
+  return(m===7||m===8)?7.5:8.75;
+}
+function dayLoggedH(ds){
+  let h=0;
+  D.projects.forEach(p=>{
+    D.todos.filter(t=>t.projectId===p.id&&t.date===ds&&t.duration).forEach(t=>h+=t.duration||0);
+    (p.manualEntries||[]).filter(e=>e.date===ds).forEach(e=>h+=e.hours||0);
+    D.timeblocks.filter(tb=>tb.projectId===p.id&&tb.date===ds).forEach(tb=>h+=tb.duration||0);
+    D.events.filter(e=>e.projectId===p.id&&e.date===ds&&e.duration).forEach(e=>h+=e.duration||0);
+  });
+  return Math.round(h*10)/10;
+}
+function pickTask(el,id){
+  el.closest('.task-pick-list').querySelectorAll('.task-pick-row').forEach(r=>r.classList.remove('sel'));
+  el.classList.add('sel');
+  document.getElementById('m-task').value=id;
+}
 function renderProjects(){
   const g=document.getElementById('proj-grid');
   if(!D.projects.length){g.innerHTML=`<div style="color:var(--text3);font-size:12px">No projects yet.</div>`;return}
@@ -1907,11 +1942,13 @@ function renderProjects(){
     const pct=goal>0?Math.min(100,Math.round(totalH/goal*100)):0;
     const taskRows=allProjectTasks.length?`<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:7px">
       <div style="font-size:9px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">Tareas</div>
-      ${allProjectTasks.map(t=>`<div style="font-size:10px;color:${t.done?'var(--text3)':'var(--text2)'};display:flex;align-items:center;gap:4px;padding:2px 0${t.done?';opacity:.7':''}">
-        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${t.done?'text-decoration:line-through':''}">${t.done?'✓':'○'} ${t.title}${t.date?` <span style="color:var(--text3);font-size:9px">${fmtS(new Date(t.date))}${t.time?' '+t.time:''}</span>`:'<span style="color:var(--text3);font-size:9px"> · sin fecha</span>'}</span>
-        <input type="number" value="${t.duration||''}" min="0" step="0.25" placeholder="h" style="width:42px;padding:2px 3px;border:1px solid var(--border2);border-radius:3px;background:var(--bg);color:var(--text);font-size:10px;font-family:inherit;text-align:center" onchange="updateTaskHours(${t.id},this.value)" onclick="event.stopPropagation()" title="Horas este mes">
+      ${allProjectTasks.map(t=>{
+        const accH=Math.round((p.manualEntries||[]).filter(e=>e.date.startsWith(monthPfx)&&e.desc===t.title).reduce((s,e)=>s+e.hours,0)*10)/10;
+        return`<div style="font-size:10px;color:${t.done?'var(--text3)':'var(--text2)'};display:flex;align-items:center;gap:4px;padding:2px 0${t.done?';opacity:.7':''}">
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${t.done?'text-decoration:line-through':''}">${t.done?'✓':'○'} ${t.title}${t.date?` <span style="color:var(--text3);font-size:9px">${fmtS(new Date(t.date))}</span>`:'<span style="color:var(--text3);font-size:9px"> · sin fecha</span>'}</span>
+        ${accH>0?`<span style="flex-shrink:0;font-weight:600;color:var(--text3);font-size:10px">${accH}h</span>`:''}
         <button class="btn-del" onclick="unassignTask(${t.id})" title="Desasignar" style="font-size:10px;padding:1px 2px"><i class="ti ti-x"></i></button>
-      </div>`).join('')}
+      </div>`;}).join('')}
     </div>`:'';
     const manualRows=manualEntries.length?`<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:7px">
       <div style="font-size:9px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">Registros manuales</div>
@@ -2175,12 +2212,16 @@ function buildM(){
     <div class="ff"><label>Horas</label><input id="m-dur" type="number" min="0.25" step="0.25" placeholder="ej. 2"/></div>
     <div class="ff"><label>Descripción</label><input id="m-t" placeholder="En qué trabajaste…"/></div>`;
   else if(type==='logdaytask'){
+    document.querySelector('.mbox').style.maxWidth='480px';
     const now2=new Date();const mPfx=`${now2.getFullYear()}-${String(now2.getMonth()+1).padStart(2,'0')}`;
     const avail=D.todos.filter(t=>!t.done&&(!t.date||t.date>=mPfx));
-    const taskOpts=avail.map(t=>`<option value="${t.id}">${(t.title||'').replace(/</g,'&lt;')}${t.date?' · '+fmtS(new Date(t.date)):' · Sin fecha'}</option>`).join('');
+    const taskRows2=avail.map(t=>`<div class="task-pick-row" onclick="pickTask(this,${t.id})"><div class="udot u-${t.urgency}" style="flex-shrink:0"></div><span style="flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${(t.title||'').replace(/</g,'&lt;')}</span><span style="font-size:11px;color:var(--text3);flex-shrink:0">${t.date?fmtS(new Date(t.date)):'Sin fecha'}</span></div>`).join('');
     const projOpts2=D.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
     b=`
-    <div class="ff"><label>Tarea</label><select id="m-task">${taskOpts||'<option value="">No hay tareas este mes</option>'}</select></div>
+    <div class="ff"><label>Tarea</label>
+      <div class="task-pick-list">${taskRows2||'<div style="padding:12px;font-size:12px;color:var(--text3)">No hay tareas disponibles para este mes.</div>'}</div>
+      <input type="hidden" id="m-task" value="">
+    </div>
     ${projOpts2?`<div class="ff"><label>Proyecto</label><select id="m-proj">${projOpts2}</select></div>`:'<div style="font-size:11px;color:var(--text3);margin-bottom:8px">Crea un proyecto primero en la pestaña Proyectos.</div>'}
     <div class="ff"><label>Horas</label><input id="m-dur" type="number" min="0.25" step="0.25" value="1" placeholder="ej. 1.5"/></div>`;}
   else if(type==='timeblock'){const po=D.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');b=`
@@ -2533,7 +2574,17 @@ function renderTodayPanel(){
     <button onclick="shiftSelDay(1)" class="mtp-nav-btn" title="Día siguiente"><i class="ti ti-chevron-right"></i></button>
     ${!isToday?`<button onclick="jumpToToday()" style="margin-left:auto;background:none;border:none;cursor:pointer;color:var(--accent);font-size:9px;text-decoration:underline;padding:0">hoy</button>`:''}
   </div>`;
-  if(assignedH>0)html+=`<div style="font-size:10px;color:var(--text2);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:4px"><i class="ti ti-clock" style="font-size:10px"></i>${assignedH}h asignadas</div>`;
+  const goalH=dayGoalHours(sel);
+  if(goalH>0||assignedH>0){const pct=goalH>0?Math.min(100,Math.round(assignedH/goalH*100)):100;const hc=assignedH>=goalH&&goalH>0?'var(--green)':assignedH>0?'var(--amber)':'var(--text3)';
+  html+=`<div style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border)">
+    <div style="display:flex;align-items:center;gap:5px;margin-bottom:4px;font-size:11px">
+      <i class="ti ti-clock" style="font-size:11px;color:var(--text3)"></i>
+      <span style="font-weight:700;color:${hc}">${assignedH}h</span>
+      ${goalH>0?`<span style="color:var(--text3)">/ ${goalH}h</span><span style="margin-left:auto;font-size:10px;font-weight:600;color:${hc}">${pct}%</span>`:''}
+    </div>
+    ${goalH>0?`<div style="height:4px;background:var(--border2);border-radius:2px"><div style="height:100%;width:${pct}%;background:${hc};border-radius:2px;transition:width .3s"></div></div>`:''}
+  </div>`;}
+
   if(!allItems.length){
     html+=`<div style="font-size:11px;color:var(--text3);text-align:center;padding:14px 0;line-height:1.6"><i class="ti ti-checks" style="font-size:18px;display:block;margin-bottom:4px;opacity:.3"></i>Sin eventos este día</div>`;
   } else {
