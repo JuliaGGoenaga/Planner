@@ -1646,7 +1646,7 @@ function renderMonth(){
     const dragHandlers=`ondragover="event.preventDefault();this.classList.add('plan-drop-hover')" ondragleave="if(!this.contains(event.relatedTarget))this.classList.remove('plan-drop-hover')" ondrop="dropPlanOnDay(event,'${ds}')"`;
     const goalH=!om?dayGoalHours(ds):0;
     const logH2=goalH>0?dayLoggedH(ds):0;
-    const hColor=logH2>=goalH&&goalH>0?'var(--green)':logH2>0?'var(--amber)':'var(--text3)';
+    const hColor=logH2>0?'var(--amber)':'var(--text3)';
     const hoursEl=goalH>0?`<div class="mc-hours" style="color:${hColor}">${logH2}/${goalH}h</div>`:'';
     return`<div class="${cellCls}" ${clickAttr} ${dragHandlers}><div class="mc-n${isT?' tn':''}">${cur.getDate()}</div><div class="mcdots">${dots}</div>${holBadge}${cusBadge}${vacBadge}${planBubbles}${hoursEl}</div>`;
   }
@@ -1709,7 +1709,7 @@ function renderMonth(){
           ?`onclick="toggleDayState('${ds}')" title="1 clic: vacaciones · 2 clics: festivo · 3 clics: quitar"`
           :`onclick="selectMonthDay('${ds}')" title="Ver detalles del día"`;
         const dGoalH=dayGoalHours(ds);const dLogH=dGoalH>0?dayLoggedH(ds):0;
-        const dHColor=dLogH>=dGoalH&&dGoalH>0?'var(--green)':dLogH>0?'var(--amber)':'var(--text3)';
+        const dHColor=dLogH>0?'var(--amber)':'var(--text3)';
         const dHoursEl=dGoalH>0?`<div class="mc-hours" style="color:${dHColor}">${dLogH}/${dGoalH}h</div>`:'';
         html+=`<div class="${cellCls}" data-ym="${cellYm}" ${clickAttr} ${dragHandlers}><div class="mc-n${isT?' tn':''}">${cur.getDate()}</div><div class="mcdots">${dots}</div>${holBadge}${cusBadge}${vacBadge}${planBubbles}${dHoursEl}</div>`;
         cur.setDate(cur.getDate()+1);
@@ -2575,7 +2575,7 @@ function renderTodayPanel(){
     ${!isToday?`<button onclick="jumpToToday()" style="margin-left:auto;background:none;border:none;cursor:pointer;color:var(--accent);font-size:9px;text-decoration:underline;padding:0">hoy</button>`:''}
   </div>`;
   const goalH=dayGoalHours(sel);
-  if(goalH>0||assignedH>0){const pct=goalH>0?Math.min(100,Math.round(assignedH/goalH*100)):100;const hc=assignedH>=goalH&&goalH>0?'var(--green)':assignedH>0?'var(--amber)':'var(--text3)';
+  if(goalH>0||assignedH>0){const pct=goalH>0?Math.min(100,Math.round(assignedH/goalH*100)):100;const hc=assignedH>0?'var(--amber)':'var(--text3)';
   html+=`<div style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border)">
     <div style="display:flex;align-items:center;gap:5px;margin-bottom:4px;font-size:11px">
       <i class="ti ti-clock" style="font-size:11px;color:var(--text3)"></i>
