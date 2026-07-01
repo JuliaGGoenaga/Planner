@@ -1940,10 +1940,7 @@ function renderProjects(){
     const evH=Math.round(evEntries.reduce((s,e)=>s+(e.duration||0),0)*10)/10;
     const totalH=Math.round((taskH+manualH+tbH+evH)*10)/10;
     const pct=goal>0?Math.min(100,Math.round(totalH/goal*100)):0;
-    const allTbH=Math.round(D.timeblocks.filter(tb=>tb.projectId===p.id).reduce((s,tb)=>s+(tb.duration||0),0)*10)/10;
-    const allEvH=Math.round(D.events.filter(e=>e.projectId===p.id&&e.duration).reduce((s,e)=>s+(e.duration||0),0)*10)/10;
-    const unassignedH=Math.round((allTbH+allEvH)*10)/10;
-    const taskRows=(allProjectTasks.length||unassignedH>0)?`<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:7px">
+    const taskRows=(allProjectTasks.length||tbEntries.length||evEntries.length)?`<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:7px">
       <div style="font-size:9px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">Tareas</div>
       ${allProjectTasks.map(t=>{
         const accH=Math.round((p.manualEntries||[]).filter(e=>e.desc===t.title).reduce((s,e)=>s+e.hours,0)*10)/10;
@@ -1952,10 +1949,16 @@ function renderProjects(){
         <span style="flex-shrink:0;font-weight:600;color:var(--text3);font-size:10px">${accH}h</span>
         <button class="btn-del" onclick="unassignTask(${t.id})" title="Desasignar" style="font-size:10px;padding:1px 2px"><i class="ti ti-x"></i></button>
       </div>`;}).join('')}
-      ${unassignedH>0?`<div style="font-size:10px;color:var(--text3);display:flex;align-items:center;gap:4px;padding:2px 0;opacity:.8">
-        <span style="flex:1"><i class="ti ti-clock" style="font-size:9px"></i> Bloques y eventos${allTbH>0&&allEvH>0?` (${allTbH}h + ${allEvH}h)`:''}</span>
-        <span style="flex-shrink:0;font-weight:600;font-size:10px">${unassignedH}h</span>
-      </div>`:''}
+      ${tbEntries.map(tb=>`<div style="font-size:10px;color:var(--text3);display:flex;align-items:center;gap:4px;padding:2px 0">
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><i class="ti ti-clock" style="font-size:9px"></i> ${tb.date}${tb.startTime?' '+tb.startTime:''}</span>
+        <span style="flex-shrink:0;font-weight:600;font-size:10px">${tb.duration}h</span>
+        <button class="btn-del" onclick="delTimeblock(${tb.id})" title="Eliminar" style="font-size:10px;padding:1px 2px"><i class="ti ti-x"></i></button>
+      </div>`).join('')}
+      ${evEntries.map(e=>`<div style="font-size:10px;color:var(--text3);display:flex;align-items:center;gap:4px;padding:2px 0">
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><i class="ti ti-calendar" style="font-size:9px"></i> ${e.title}${e.time?' · '+e.time:''}</span>
+        <span style="flex-shrink:0;font-weight:600;font-size:10px">${e.duration?e.duration+'h':''}</span>
+        <button class="btn-del" onclick="unassignEvent(${e.id})" title="Desasignar" style="font-size:10px;padding:1px 2px"><i class="ti ti-x"></i></button>
+      </div>`).join('')}
     </div>`:'';
     const manualRows=manualEntries.length?`<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:7px">
       <div style="font-size:9px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">Registros manuales</div>
@@ -1965,14 +1968,7 @@ function renderProjects(){
         <button class="btn-del" onclick="delManual(${p.id},${e.id})" style="font-size:10px;padding:1px 2px"><i class="ti ti-x"></i></button>
       </div>`).join('')}
     </div>`:'';
-    const tbRows=tbEntries.length?`<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:7px">
-      <div style="font-size:9px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">Bloques de tiempo</div>
-      ${tbEntries.map(tb=>`<div style="font-size:10px;color:var(--text2);display:flex;align-items:center;gap:4px;padding:1px 0">
-        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${tb.date} ${tb.startTime}</span>
-        <span style="flex-shrink:0;color:var(--text3)">${tb.duration}h</span>
-        <button class="btn-del" onclick="delTimeblock(${tb.id})" title="Eliminar" style="font-size:10px;padding:1px 2px"><i class="ti ti-x"></i></button>
-      </div>`).join('')}
-    </div>`:'';
+
     return`<div class="pcard" ondragover="event.preventDefault();this.classList.add('drop-over')" ondragleave="if(!this.contains(event.relatedTarget))this.classList.remove('drop-over')" ondrop="dropTask(event,${p.id})"><div class="pstrip" style="background:${p.color}"></div>
       <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-top:8px">
         <div class="pname" style="margin-top:0">${p.name}</div>
@@ -1988,14 +1984,7 @@ function renderProjects(){
       <div class="pacts">
         <button class="btn btn-sm" onclick="logH(${p.id})"><i class="ti ti-plus"></i> Horas manuales</button>
       </div>
-      ${taskRows}${manualRows}${tbRows}${evEntries.length?`<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:7px">
-      <div style="font-size:9px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">Eventos</div>
-      ${evEntries.map(e=>`<div style="font-size:10px;color:var(--text2);display:flex;align-items:center;gap:4px;padding:1px 0">
-        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.date}${e.time?' · '+e.time+(e.endTime?'–'+e.endTime:''):''} · ${e.title}</span>
-        <span style="flex-shrink:0;color:var(--text3)">${e.duration?e.duration+'h':''}</span>
-        <button class="btn-del" onclick="unassignEvent(${e.id})" title="Desasignar" style="font-size:10px;padding:1px 2px"><i class="ti ti-x"></i></button>
-      </div>`).join('')}
-    </div>`:''}
+      ${taskRows}${manualRows}
     </div>`;
   }).join('');
   renderTaskPanel();
