@@ -2220,6 +2220,15 @@ function buildM(){
     </div>
     ${projOpts2?`<div class="ff"><label>Proyecto</label><select id="m-proj">${projOpts2}</select></div>`:'<div style="font-size:11px;color:var(--text3);margin-bottom:8px">Crea un proyecto primero en la pestaña Proyectos.</div>'}
     <div class="ff"><label>Horas</label><input id="m-dur" type="number" min="0.25" step="0.25" value="1" placeholder="ej. 1.5"/></div>`;}
+  else if(type==='assignevent'){
+    const ev=D.events.find(e=>e.id===S.mEventId);if(!ev)return;
+    const projOpts=D.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+    const hasDur=ev.duration?`Duración actual: ${ev.duration}h`:'Sin duración';
+    b=`
+    <div class="ff"><label>Evento: ${(ev.title||'').replace(/</g,'&lt;')}</label>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:8px">${hasDur}</div></div>
+    ${projOpts?`<div class="ff"><label>Asignar a proyecto</label><select id="m-proj">${projOpts}</select></div>`:'<div style="font-size:11px;color:var(--text3);margin-bottom:8px">Crea un proyecto primero.</div>'}
+    ${!ev.duration?`<div class="ff"><label>Duración (horas)</label><input id="m-dur" type="number" min="0.25" step="0.25" placeholder="ej. 1.5"/></div>`:''}`;}
   else if(type==='timeblock'){const po=D.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');b=`
     <div class="ff"><label>Date</label><input id="m-d" type="date" value="${day}"/></div>
     <div class="ff"><label>Start time</label><input id="m-time" type="time" value="10:00"/></div>
@@ -2337,6 +2346,12 @@ function saveM(){
       const desc=task?task.title:'Horas de proyecto';
       if(!p.manualEntries)p.manualEntries=[];
       p.manualEntries.push({id,date:S.mDay||todayStr(),hours:dur,desc});
+    }
+    else if(type==='assignevent'){
+      const pid=parseInt(gv('m-proj'));if(!pid)return;
+      const ev=D.events.find(e=>e.id===S.mEventId);if(!ev)return;
+      ev.projectId=pid;
+      if(!ev.duration){const dur=parseFloat(gv('m-dur'));if(dur>0)ev.duration=dur;}
     }
     else if(type==='timeblock'){const pid=parseInt(gv('m-proj'));const dur=parseFloat(gv('m-dur'))||1;D.timeblocks.push({id,date:gv('m-d'),startTime:gv('m-time'),duration:dur,projectId:pid});const p=D.projects.find(p=>p.id===pid);if(p)p.hoursUsed=Math.round((p.hoursUsed+dur)*10)/10;}
     else if(type==='topic'){const n=gv('m-t').trim();if(!n)return;D.topics.push({id,name:n,icon:gv('m-icon')})}
@@ -2552,6 +2567,7 @@ function shiftSelDay(delta){
 }
 function jumpToToday(){S.selDay=todayStr();renderTodayPanel();}
 function logHForDay(ds){S.mProjId=null;S.mType='logdaytask';S.mDay=ds;S.editId=null;buildM();}
+function assignEventToProject(evId,ds){S.mType='assignevent';S.mEventId=evId;S.mDay=ds;S.editId=null;buildM();}
 function dayProjectHours(ds){
   const out=[];
   D.projects.forEach(p=>{
@@ -2607,11 +2623,13 @@ function renderTodayPanel(){
         const c=item.color||(item.source?'var(--blue)':'var(--accent)');
         const dur=item.endTime&&item.time?timeDiff(item.time,item.endTime):null;
         const safeTitle=(item.title||'').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-        html+=`<div class="mtp-item">
+        const isUnassigned=!item.projectId;
+        html+=`<div class="mtp-item"${isUnassigned?` style="cursor:pointer;opacity:.7;border:1px dashed var(--border);border-radius:4px;padding:6px;margin:-4px -2px" onclick="assignEventToProject(${item.id},'${sel}')"`:''}>
           <div class="mtp-time">${item.time||''}</div>
           <div style="width:2px;background:${c};border-radius:1px;flex-shrink:0;align-self:stretch"></div>
           <div class="mtp-title" style="color:${c}" title="${safeTitle}">${safeTitle}</div>
           ${dur?`<div class="mtp-hours">${dur}h</div>`:''}
+          ${isUnassigned?`<div style="font-size:8px;color:var(--text3);margin-left:auto"><i class="ti ti-click"></i></div>`:''}
         </div>`;
       } else {
         const safeTitle=(item.title||'').replace(/</g,'&lt;').replace(/>/g,'&gt;');
