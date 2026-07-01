@@ -2442,40 +2442,28 @@ async function loadXLSX(){
 async function downloadXLSX(year,month){
   await loadXLSX();
   function boldRow(sheet,r,ncols){for(let c=0;c<ncols;c++){const cell=sheet[XLSX.utils.encode_cell({r,c})];if(cell)cell.s={font:{bold:true}};}}
-  function buildMonthSection(y,m){
-    const{rows}=buildReportRows(y,m);
-    const dataRows=rows.slice(0,-1);
-    const totalH=rows[rows.length-1][4];
-    const S=[];
-    S.push([`── ${MESES[m-1]} ${y} ──`,'','']);
-    S.push([]);
-    S.push(['Por proyecto','']);S.push(['Proyecto','Horas']);
-    const byProj={};
-    dataRows.forEach(r=>{const k=r[1]||'Sin proyecto';byProj[k]=Math.round(((byProj[k]||0)+Number(r[4]))*10)/10;});
-    Object.entries(byProj).sort((a,b)=>b[1]-a[1]).forEach(([n,h])=>S.push([n,h]));
-    S.push(['TOTAL',totalH]);S.push([]);
-    S.push(['Por tarea / descripción','','']);S.push(['Tarea / Descripción','Proyecto','Horas']);
-    const byTask={};
-    dataRows.forEach(r=>{const k=`${r[3]}||${r[1]}`;if(!byTask[k])byTask[k]={desc:r[3],proj:r[1],h:0};byTask[k].h=Math.round((byTask[k].h+Number(r[4]))*10)/10;});
-    Object.values(byTask).sort((a,b)=>b.h-a.h).forEach(t=>S.push([t.desc,t.proj,t.h]));
-    S.push(['','TOTAL',totalH]);S.push([]);
-    S.push(['Por día','']);S.push(['Fecha','Horas']);
-    const byDay={};
-    dataRows.forEach(r=>{if(!r[0])return;byDay[r[0]]=Math.round(((byDay[r[0]]||0)+Number(r[4]))*10)/10;});
-    Object.entries(byDay).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([d,h])=>S.push([d,h]));
-    S.push(['TOTAL',totalH]);
-    return{rows:S,totalH};
-  }
-  // Previous month
-  const prevDate=new Date(year,month-2,1);
-  const py=prevDate.getFullYear(),pm=prevDate.getMonth()+1;
-  const cur=buildMonthSection(year,month);
-  const prev=buildMonthSection(py,pm);
-  const allRows=[...cur.rows,[],[],['','',''],...prev.rows];
-  const ws=XLSX.utils.aoa_to_sheet(allRows);
+  const{rows}=buildReportRows(year,month);
+  const dataRows=rows.slice(0,-1);
+  const totalH=rows[rows.length-1][4];
+  const S=[];
+  S.push(['Por proyecto','']);S.push(['Proyecto','Horas']);
+  const byProj={};
+  dataRows.forEach(r=>{const k=r[1]||'Sin proyecto';byProj[k]=Math.round(((byProj[k]||0)+Number(r[4]))*10)/10;});
+  Object.entries(byProj).sort((a,b)=>b[1]-a[1]).forEach(([n,h])=>S.push([n,h]));
+  S.push(['TOTAL',totalH]);S.push([]);
+  S.push(['Por tarea / descripción','','']);S.push(['Tarea / Descripción','Proyecto','Horas']);
+  const byTask={};
+  dataRows.forEach(r=>{const k=`${r[3]}||${r[1]}`;if(!byTask[k])byTask[k]={desc:r[3],proj:r[1],h:0};byTask[k].h=Math.round((byTask[k].h+Number(r[4]))*10)/10;});
+  Object.values(byTask).sort((a,b)=>b.h-a.h).forEach(t=>S.push([t.desc,t.proj,t.h]));
+  S.push(['','TOTAL',totalH]);S.push([]);
+  S.push(['Por día','']);S.push(['Fecha','Horas']);
+  const byDay={};
+  dataRows.forEach(r=>{if(!r[0])return;byDay[r[0]]=Math.round(((byDay[r[0]]||0)+Number(r[4]))*10)/10;});
+  Object.entries(byDay).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([d,h])=>S.push([d,h]));
+  S.push(['TOTAL',totalH]);
+  const ws=XLSX.utils.aoa_to_sheet(S);
   ws['!cols']=[{wch:40},{wch:25},{wch:10}];
-  allRows.forEach((row,i)=>{
-    if(typeof row[0]==='string'&&row[0].startsWith('──'))boldRow(ws,i,3);
+  S.forEach((row,i)=>{
     if(row[0]==='Por proyecto'||row[0]==='Por tarea / descripción'||row[0]==='Por día')boldRow(ws,i,3);
     if(row[0]==='Proyecto'||row[0]==='Tarea / Descripción'||row[0]==='Fecha')boldRow(ws,i,3);
     if(row[0]==='TOTAL'||row[1]==='TOTAL')boldRow(ws,i,3);
