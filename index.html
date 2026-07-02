@@ -1912,7 +1912,7 @@ function dayLoggedH(ds){
   return Math.round(h*10)/10;
 }
 function pickTask(el,id){
-  el.closest('.task-pick-list').querySelectorAll('.task-pick-row').forEach(r=>r.classList.remove('sel'));
+  document.querySelectorAll('#mbody .task-pick-row.sel').forEach(r=>r.classList.remove('sel'));
   el.classList.add('sel');
   document.getElementById('m-task').value=id;
   const nt=document.getElementById('m-newtask');if(nt)nt.value='';
@@ -2222,14 +2222,29 @@ function buildM(){
     <div class="ff"><label>Horas</label><input id="m-dur" type="number" min="0.25" step="0.25" placeholder="ej. 2"/></div>
     <div class="ff"><label>Descripción</label><input id="m-t" placeholder="En qué trabajaste…"/></div>`;
   else if(type==='logdaytask'){
-    document.querySelector('.mbox').style.maxWidth='480px';
+    document.querySelector('.mbox').style.maxWidth='680px';
     const now2=new Date();const mPfx=`${now2.getFullYear()}-${String(now2.getMonth()+1).padStart(2,'0')}`;
-    const avail=D.todos.filter(t=>!t.done&&(!t.date||t.date>=mPfx));
-    const taskRows2=avail.map(t=>`<div class="task-pick-row" onclick="pickTask(this,${t.id})"><div class="udot u-${t.urgency}" style="flex-shrink:0"></div><span style="flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${(t.title||'').replace(/</g,'&lt;')}</span><span style="font-size:11px;color:var(--text3);flex-shrink:0">${t.date?fmtS(new Date(t.date)):'Sin fecha'}</span></div>`).join('');
+    const taskRow=t=>{
+      const accH=Math.round(D.projects.reduce((s,p)=>s+(p.manualEntries||[]).filter(e=>e.desc===t.title).reduce((a,e)=>a+(e.hours||0),0),0)*10)/10;
+      return`<div class="task-pick-row" onclick="pickTask(this,${t.id})"><div class="udot u-${t.urgency}" style="flex-shrink:0"></div><span style="flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap${t.done?';text-decoration:line-through;opacity:.75':''}">${(t.title||'').replace(/</g,'&lt;')}</span>${accH>0?`<span style="font-size:10px;color:var(--green);flex-shrink:0;font-style:italic">${accH}h asignadas</span>`:''}<span style="font-size:11px;color:var(--text3);flex-shrink:0">${t.date?fmtS(new Date(t.date)):'Sin fecha'}</span></div>`;
+    };
+    const pending=D.todos.filter(t=>!t.done&&(!t.date||t.date>=mPfx));
+    const completed=D.todos.filter(t=>t.done&&(!t.date||t.date>=mPfx));
+    const pendRows=pending.map(taskRow).join('');
+    const doneRows=completed.map(taskRow).join('');
     const projOpts2=D.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
     b=`
     <div class="ff"><label>Tarea</label>
-      <div class="task-pick-list">${taskRows2||'<div style="padding:12px;font-size:12px;color:var(--text3)">No hay tareas disponibles para este mes.</div>'}</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <div style="flex:1;min-width:210px">
+          <div style="font-size:9px;font-weight:700;color:var(--text3);letter-spacing:.05em;text-transform:uppercase;margin-bottom:3px">Por completar</div>
+          <div class="task-pick-list">${pendRows||'<div style="padding:12px;font-size:12px;color:var(--text3)">Ninguna</div>'}</div>
+        </div>
+        <div style="flex:1;min-width:210px">
+          <div style="font-size:9px;font-weight:700;color:var(--text3);letter-spacing:.05em;text-transform:uppercase;margin-bottom:3px">Completadas</div>
+          <div class="task-pick-list">${doneRows||'<div style="padding:12px;font-size:12px;color:var(--text3)">Ninguna</div>'}</div>
+        </div>
+      </div>
       <input type="hidden" id="m-task" value="">
       <button type="button" id="new-task-btn" onclick="showNewTaskInput()" style="margin-top:6px;background:none;border:1px dashed var(--border);border-radius:4px;color:var(--accent);font-size:12px;cursor:pointer;padding:6px 8px;width:100%;text-align:left"><i class="ti ti-plus"></i> Nueva tarea (no está en To-dos)</button>
       <input id="m-newtask" placeholder="Nombre de la tarea nueva…" style="display:none;margin-top:6px" oninput="onNewTaskInput()"/>
