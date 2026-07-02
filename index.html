@@ -1455,7 +1455,7 @@ function renderWeek(){
       const noteIcon=hasNotes?`<i class="ti ti-notes mn-ev-noted"></i>`:'';      
       const click=S.meetingNotesMode
         ?` onclick="openMeetingNotes(${eid})"`
-        :(isExt?` onclick="promoteIcsEvent(${eid})"`:ev.projectId?` onclick="openEdit('event',${ev.id})"`:` onclick="openEventAssign(${ev.id})"`);
+        :` onclick="openEventAssign(${eid})"`;
       const del=!isExt?`<button class="btn-del" onclick="event.stopPropagation();delEvent(${ev.id})" style="font-size:9px;padding:0 1px"><i class="ti ti-x"></i></button>`:isPromoted?`<i class="ti ti-bookmark-filled" style="font-size:9px;opacity:.8;padding:0 2px" title="Registrado en proyecto"></i>`:`<button class="btn-del" onclick="event.stopPropagation();promoteIcsEvent(${eid})" style="font-size:9px;padding:0 1px" title="Añadir a proyecto"><i class="ti ti-tag"></i></button>`;
       const tLabel=ev.endTime?`${ev.time}–${ev.endTime}`:ev.time;
       const cursorStyle=isExt?'cursor:pointer;':'';
@@ -2173,7 +2173,7 @@ function openEdit(type,id){
 function buildM(){
   const type=S.mType,day=S.mDay||(type==='todo'?'':todayStr()),ed=S.editId;
   const addT={todo:'Add to-do',event:'Add event',project:'New project',timeblock:'Add time block',topic:'New topic',idea:'New idea',note:'Nueva nota',plan:'Nuevo plan',assigntask:'Asignar tarea al proyecto',loghours:'Registrar horas manuales',logdaytask:'Registrar horas del día',assignevent:'Asignar evento a proyecto'};
-  const edtT={todo:'Edit to-do',event:'Edit event',project:'Edit project',topic:'Edit topic',idea:'Edit idea',note:'Editar nota'};
+  const edtT={todo:'Edit to-do',event:'Edit event',project:'Edit project',topic:'Edit topic',idea:'Edit idea',note:'Editar nota',assignevent:'Asignar evento a proyecto'};
   document.getElementById('mtitle').textContent=(ed?edtT[type]:addT[type])||'Add';
   const projOpts='<option value="">— None —</option>'+D.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
   let b='';
@@ -2221,11 +2221,12 @@ function buildM(){
     ${projOpts2?`<div class="ff"><label>Proyecto</label><select id="m-proj">${projOpts2}</select></div>`:'<div style="font-size:11px;color:var(--text3);margin-bottom:8px">Crea un proyecto primero en la pestaña Proyectos.</div>'}
     <div class="ff"><label>Horas</label><input id="m-dur" type="number" min="0.25" step="0.25" value="1" placeholder="ej. 1.5"/></div>`;}
   else if(type==='assignevent'){
-    const ev=D.events.find(e=>e.id===S.mEventId);if(!ev)return;
-    const projOpts=D.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+    const ev=D.events.find(e=>e.id===S.mEventId)||EXT.find(e=>e.id===S.mEventId);if(!ev)return;
+    const projOpts='<option value="">— Sin proyecto —</option>'+D.projects.map(p=>`<option value="${p.id}"${p.id===ev.projectId?' selected':''}>${p.name}</option>`).join('');
+    const info=`${ev.date||''}${ev.time?' · '+ev.time+(ev.endTime?'–'+ev.endTime:''):''}${ev.source?' · '+ev.source:''}`;
     b=`
-    <div class="ff"><label>Evento</label><div style="font-size:12px;color:var(--text2);padding:6px;background:var(--surface2);border-radius:4px">${(ev.title||'').replace(/</g,'&lt;')}</div></div>
-    <div class="ff"><label>Proyecto</label><select id="m-proj">${projOpts||'<option value="">Crea un proyecto primero</option>'}</select></div>
+    <div class="ff"><label>Evento</label><div style="font-size:12px;color:var(--text2);padding:6px;background:var(--surface2);border-radius:4px">${(ev.title||'').replace(/</g,'&lt;')}<div style="font-size:10px;color:var(--text3);margin-top:2px">${info}</div></div></div>
+    <div class="ff"><label>Proyecto</label><select id="m-proj">${D.projects.length?projOpts:'<option value="">Crea un proyecto primero</option>'}</select></div>
     <div class="ff"><label>Duración (horas)</label><input id="m-dur" type="number" min="0.25" step="0.25" value="${ev.duration||''}" placeholder="ej. 1.5"/></div>`;}
   else if(type==='timeblock'){const po=D.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');b=`
     <div class="ff"><label>Date</label><input id="m-d" type="date" value="${day}"/></div>
@@ -2316,18 +2317,23 @@ function saveM(){
       if(category)n.category=category;else delete n.category;
       if(projectId)n.projectId=projectId;else delete n.projectId;
     }else if(type==='assignevent'){
-      const pid=parseInt(gv('m-proj'));if(!pid)return;
+      const pid=parseInt(gv('m-proj'))||null;
       let ev=D.events.find(e=>e.id===S.mEventId);
       // If event not in D.events, it's from calendar (EXT) - promote it first
       if(!ev){
+        if(!pid)return; // nothing to do: unassigning a calendar event that was never assigned
         const extEv=EXT.find(e=>e.id===S.mEventId);if(!extEv)return;
-        const dur=extEv.endTime&&extEv.time?timeDiff(extEv.time,extEv.endTime):null;
-        ev={id:nid(),title:extEv.title,date:extEv.date,time:extEv.time||'',endTime:extEv.endTime||'',duration:dur||null,type:'ical',fromIcs:true,icsRef:extEv.id};
+        const dur0=extEv.endTime&&extEv.time?timeDiff(extEv.time,extEv.endTime):null;
+        ev={id:nid(),title:extEv.title,date:extEv.date,time:extEv.time||'',endTime:extEv.endTime||'',duration:dur0||null,type:'ical',fromIcs:true,icsRef:extEv.id};
         D.events.push(ev);
       }
-      ev.projectId=pid;
-      const dur=parseFloat(gv('m-dur'));
-      if(dur>0)ev.duration=dur;
+      if(pid){
+        ev.projectId=pid;
+        const dur=parseFloat(gv('m-dur'));
+        if(dur>0)ev.duration=dur;
+      }else{
+        delete ev.projectId;delete ev.duration;
+      }
     }
   } else {
     const id=nid();
@@ -2628,11 +2634,10 @@ function renderTodayPanel(){
         const c=item.color||(item.source?'var(--blue)':'var(--accent)');
         const dur=item.endTime&&item.time?timeDiff(item.time,item.endTime):null;
         const safeTitle=(item.title||'').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-        const isExt=!!item.source;
         const isUnassigned=!item.projectId;
         const eid=JSON.stringify(item.id).replace(/"/g,'&quot;');
-        const click=isExt?`onclick="promoteIcsEvent(${eid})"`:item.projectId?`onclick="openEdit('event',${item.id})"`:`onclick="openEventAssign(${item.id})"`;
-        html+=`<div class="mtp-item" ${click}${isUnassigned?` style="cursor:pointer;opacity:.7;border:1px dashed var(--border);border-radius:4px;padding:6px;margin:-4px -2px"`:''}>          <div class="mtp-time">${item.time||''}</div>
+        const click=`onclick="openEventAssign(${eid})"`;
+        html+=`<div class="mtp-item" ${click} style="cursor:pointer${isUnassigned?';opacity:.7;border:1px dashed var(--border);border-radius:4px;padding:6px;margin:-4px -2px':''}">          <div class="mtp-time">${item.time||''}</div>
           <div style="width:2px;background:${c};border-radius:1px;flex-shrink:0;align-self:stretch"></div>
           <div class="mtp-title" style="color:${c}" title="${safeTitle}">${safeTitle}</div>
           ${dur?`<div class="mtp-hours">${dur}h</div>`:''}
