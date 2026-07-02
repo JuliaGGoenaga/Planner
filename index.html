@@ -2317,7 +2317,14 @@ function saveM(){
       if(projectId)n.projectId=projectId;else delete n.projectId;
     }else if(type==='assignevent'){
       const pid=parseInt(gv('m-proj'));if(!pid)return;
-      const ev=D.events.find(e=>e.id===S.mEventId);if(!ev)return;
+      let ev=D.events.find(e=>e.id===S.mEventId);
+      // If event not in D.events, it's from calendar (EXT) - promote it first
+      if(!ev){
+        const extEv=EXT.find(e=>e.id===S.mEventId);if(!extEv)return;
+        const dur=extEv.endTime&&extEv.time?timeDiff(extEv.time,extEv.endTime):null;
+        ev={id:nid(),title:extEv.title,date:extEv.date,time:extEv.time||'',endTime:extEv.endTime||'',duration:dur||null,type:'ical',fromIcs:true,icsRef:extEv.id};
+        D.events.push(ev);
+      }
       ev.projectId=pid;
       const dur=parseFloat(gv('m-dur'));
       if(dur>0)ev.duration=dur;
@@ -2565,7 +2572,7 @@ function shiftSelDay(delta){
 }
 function jumpToToday(){S.selDay=todayStr();renderTodayPanel();}
 function logHForDay(ds){S.mProjId=null;S.mType='logdaytask';S.mDay=ds;S.editId=null;buildM();}
-function openEventAssign(eventId){const ev=D.events.find(e=>e.id===eventId);if(!ev)return;S.mType='assignevent';S.mEventId=eventId;S.mDay=ev.date;S.editId=eventId;buildM();}
+function openEventAssign(eventId){const ev=D.events.find(e=>e.id===eventId)||EXT.find(e=>e.id===eventId);if(!ev)return;S.mType='assignevent';S.mEventId=eventId;S.mDay=ev.date;S.editId=eventId;buildM();}
 function assignEventClick(el){openEventAssign(el.dataset.eventId);}function assignEventToProject(evId,ds){S.mType='assignevent';S.mEventId=evId;S.mDay=ds;S.editId=null;buildM();}
 function dayProjectHours(ds){
   const out=[];
