@@ -1931,7 +1931,7 @@ function renderProjects(){
   const goal=monthlyGoalHours(year,month,excludeDays);
   g.innerHTML=D.projects.map(p=>{
     const allProjectTasks=D.todos.filter(t=>t.projectId===p.id&&!(t.done&&t.date&&t.date<monthPfx));
-    const taskH=Math.round(D.todos.filter(t=>t.projectId===p.id&&t.duration&&(!t.date||t.date.startsWith(monthPfx))).reduce((s,t)=>s+(t.duration||0),0)*10)/10;
+    const taskH=Math.round(D.todos.filter(t=>t.projectId===p.id&&t.duration&&t.date&&t.date.startsWith(monthPfx)).reduce((s,t)=>s+(t.duration||0),0)*10)/10;
     const manualEntries=(p.manualEntries||[]).filter(e=>e.date&&e.date.startsWith(monthPfx));
     const manualH=Math.round(manualEntries.reduce((s,e)=>s+e.hours,0)*10)/10;
     const tbEntries=D.timeblocks.filter(tb=>tb.projectId===p.id&&tb.date&&tb.date.startsWith(monthPfx));
