@@ -2572,8 +2572,7 @@ function shiftSelDay(delta){
 }
 function jumpToToday(){S.selDay=todayStr();renderTodayPanel();}
 function logHForDay(ds){S.mProjId=null;S.mType='logdaytask';S.mDay=ds;S.editId=null;buildM();}
-function openEventAssign(eventId){const ev=D.events.find(e=>e.id===eventId)||EXT.find(e=>e.id===eventId);if(!ev)return;S.mType='assignevent';S.mEventId=eventId;S.mDay=ev.date;S.editId=eventId;buildM();}
-function assignEventClick(el){openEventAssign(el.dataset.eventId);}function assignEventToProject(evId,ds){S.mType='assignevent';S.mEventId=evId;S.mDay=ds;S.editId=null;buildM();}
+function openEventAssign(eventId){const ev=D.events.find(e=>e.id===eventId)||EXT.find(e=>e.id===eventId);if(!ev)return;S.mType='assignevent';S.mEventId=eventId;S.mDay=ev.date;S.editId=eventId;buildM();}function assignEventClick(el){openEventAssign(el.dataset.eventId);}function assignEventToProject(evId,ds){S.mType='assignevent';S.mEventId=evId;S.mDay=ds;S.editId=null;buildM();}
 function dayProjectHours(ds){
   const out=[];
   D.projects.forEach(p=>{
