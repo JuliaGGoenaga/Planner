@@ -2625,8 +2625,7 @@ function renderTodayPanel(){
         const dur=item.endTime&&item.time?timeDiff(item.time,item.endTime):null;
         const safeTitle=(item.title||'').replace(/</g,'&lt;').replace(/>/g,'&gt;');
         const isUnassigned=!item.projectId;
-        html+=`<div class="mtp-item"${isUnassigned?` style="cursor:pointer;opacity:.7;border:1px dashed var(--border);border-radius:4px;padding:6px;margin:-4px -2px" data-event-id="${item.id}" data-event-date="${sel}"`:''}${isUnassigned?' onclick="assignEventClick(this)"':''}>
-          <div class="mtp-time">${item.time||''}</div>
+        html+=`<div class="mtp-item"${isUnassigned?` style="cursor:pointer;opacity:.7;border:1px dashed var(--border);border-radius:4px;padding:6px;margin:-4px -2px" data-event-id="${item.id}" data-event-date="${sel}" onclick="assignEventClick(this)"`:''}>          <div class="mtp-time">${item.time||''}</div>
           <div style="width:2px;background:${c};border-radius:1px;flex-shrink:0;align-self:stretch"></div>
           <div class="mtp-title" style="color:${c}" title="${safeTitle}">${safeTitle}</div>
           ${dur?`<div class="mtp-hours">${dur}h</div>`:''}
