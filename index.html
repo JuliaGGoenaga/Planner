@@ -1917,6 +1917,8 @@ function pickTask(el,id){
   el.classList.add('sel');
   document.getElementById('m-task').value=id;
   const nt=document.getElementById('m-newtask');if(nt)nt.value='';
+  const t=D.todos.find(t=>t.id===id);const mp=document.getElementById('m-proj');
+  if(t&&t.projectId&&mp&&mp.querySelector(`option[value="${t.projectId}"]`))mp.value=t.projectId;
 }
 function showNewTaskInput(){
   const inp=document.getElementById('m-newtask');const btn=document.getElementById('new-task-btn');
@@ -1975,9 +1977,10 @@ function renderProjects(){
     const manualRows=manualEntries.length?`<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:7px">
       <div style="font-size:9px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">Registros manuales</div>
       ${manualEntries.map(e=>`<div style="font-size:10px;color:var(--text2);display:flex;align-items:center;gap:4px;padding:1px 0">
-        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.desc||e.date}</span>
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.desc||e.date} <span style="color:var(--text3);font-size:9px">${e.date?fmtS(new Date(e.date+'T00:00:00')):''}</span></span>
         <span style="flex-shrink:0;color:var(--text3)">${e.hours}h</span>
-        <button class="btn-del" onclick="delManual(${p.id},${e.id})" style="font-size:10px;padding:1px 2px"><i class="ti ti-x"></i></button>
+        <button class="btn-del" onclick="openEditManual(${p.id},${e.id})" title="Editar" style="font-size:10px;padding:1px 2px"><i class="ti ti-pencil"></i></button>
+        <button class="btn-del" onclick="delManual(${p.id},${e.id})" title="Eliminar" style="font-size:10px;padding:1px 2px"><i class="ti ti-x"></i></button>
       </div>`).join('')}
     </div>`:'';
 
@@ -2071,6 +2074,7 @@ function dropTask(event,projId){
 function openAssign(projId){S.mProjId=projId;S.mType='assigntask';S.mDay=null;S.editId=null;buildM()}
 function logH(projId){S.mProjId=projId;S.mType='loghours';S.mDay=null;S.editId=null;buildM()}
 function delManual(projId,entryId){const p=D.projects.find(p=>p.id===projId);if(!p)return;p.manualEntries=(p.manualEntries||[]).filter(e=>e.id!==entryId);sched();renderProjects()}
+function openEditManual(projId,entryId){S.mType='editmanual';S.mProjId=projId;S.editId=entryId;S.mDay=null;buildM();}
 function unassignTask(taskId){const t=D.todos.find(t=>t.id===taskId);if(!t)return;delete t.projectId;delete t.duration;sched();renderProjects()}
 function updateTaskHours(taskId,val){const t=D.todos.find(t=>t.id===taskId);if(!t)return;const h=parseFloat(val)||0;if(h>0)t.duration=h;else delete t.duration;sched();renderProjects()}
 function unassignEvent(eventId){const e=D.events.find(e=>e.id===eventId);if(!e)return;delete e.projectId;delete e.duration;sched();renderProjects()}
@@ -2185,7 +2189,7 @@ function openEdit(type,id){
 function buildM(){
   const type=S.mType,day=S.mDay||(type==='todo'?'':todayStr()),ed=S.editId;
   const addT={todo:'Add to-do',event:'Add event',project:'New project',timeblock:'Add time block',topic:'New topic',idea:'New idea',note:'Nueva nota',plan:'Nuevo plan',assigntask:'Asignar tarea al proyecto',loghours:'Registrar horas manuales',logdaytask:'Registrar horas del día',assignevent:'Asignar evento a proyecto'};
-  const edtT={todo:'Edit to-do',event:'Edit event',project:'Edit project',topic:'Edit topic',idea:'Edit idea',note:'Editar nota',assignevent:'Asignar evento a proyecto'};
+  const edtT={todo:'Edit to-do',event:'Edit event',project:'Edit project',topic:'Edit topic',idea:'Edit idea',note:'Editar nota',assignevent:'Asignar evento a proyecto',editmanual:'Editar registro de horas'};
   document.getElementById('mtitle').textContent=(ed?edtT[type]:addT[type])||'Add';
   const projOpts='<option value="">— None —</option>'+D.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
   let b='';
@@ -2233,7 +2237,8 @@ function buildM(){
       <input id="m-newtask" placeholder="Nombre de la tarea nueva…" style="display:none;margin-top:6px" oninput="onNewTaskInput()"/>
     </div>
     ${projOpts2?`<div class="ff"><label>Proyecto</label><select id="m-proj">${projOpts2}</select></div>`:'<div style="font-size:11px;color:var(--text3);margin-bottom:8px">Crea un proyecto primero en la pestaña Proyectos.</div>'}
-    <div class="ff"><label>Horas</label><input id="m-dur" type="number" min="0.25" step="0.25" value="1" placeholder="ej. 1.5"/></div>`;}
+    <div class="ff"><label>Horas</label><input id="m-dur" type="number" min="0.25" step="0.25" value="1" placeholder="ej. 1.5"/></div>
+    <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);cursor:pointer;margin-top:2px"><input type="checkbox" id="m-done" style="width:auto;margin:0"/> Marcar la tarea como completada</label>`;}
   else if(type==='assignevent'){
     const ev=D.events.find(e=>e.id===S.mEventId)||EXT.find(e=>e.id===S.mEventId);if(!ev)return;
     const projOpts='<option value="">— Sin proyecto —</option>'+D.projects.map(p=>`<option value="${p.id}"${p.id===ev.projectId?' selected':''}>${p.name}</option>`).join('');
@@ -2242,6 +2247,14 @@ function buildM(){
     <div class="ff"><label>Evento</label><div style="font-size:12px;color:var(--text2);padding:6px;background:var(--surface2);border-radius:4px">${(ev.title||'').replace(/</g,'&lt;')}<div style="font-size:10px;color:var(--text3);margin-top:2px">${info}</div></div></div>
     <div class="ff"><label>Proyecto</label><select id="m-proj">${D.projects.length?projOpts:'<option value="">Crea un proyecto primero</option>'}</select></div>
     <div class="ff"><label>Duración (horas)</label><input id="m-dur" type="number" min="0.25" step="0.25" value="${ev.duration||''}" placeholder="ej. 1.5"/></div>`;}
+  else if(type==='editmanual'){
+    const p=D.projects.find(p=>p.id===S.mProjId);const e=p&&(p.manualEntries||[]).find(x=>x.id===ed);if(!e)return;
+    const projOpts=D.projects.map(pp=>`<option value="${pp.id}"${pp.id===S.mProjId?' selected':''}>${pp.name}</option>`).join('');
+    b=`
+    <div class="ff"><label>Proyecto</label><select id="m-proj">${projOpts}</select></div>
+    <div class="ff"><label>Descripción</label><input id="m-t" value="${(e.desc||'').replace(/"/g,'&quot;')}" placeholder="En qué trabajaste…"/></div>
+    <div class="ff"><label>Fecha</label><input id="m-d" type="date" value="${e.date||''}"/></div>
+    <div class="ff"><label>Horas</label><input id="m-dur" type="number" min="0.25" step="0.25" value="${e.hours||''}" placeholder="ej. 1.5"/></div>`;}
   else if(type==='timeblock'){const po=D.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');b=`
     <div class="ff"><label>Date</label><input id="m-d" type="date" value="${day}"/></div>
     <div class="ff"><label>Start time</label><input id="m-time" type="time" value="10:00"/></div>
@@ -2348,6 +2361,19 @@ function saveM(){
       }else{
         delete ev.projectId;delete ev.duration;
       }
+    }else if(type==='editmanual'){
+      const dur=parseFloat(gv('m-dur'))||0;if(!dur)return;
+      const oldP=D.projects.find(p=>p.id===S.mProjId);if(!oldP)return;
+      const entry=(oldP.manualEntries||[]).find(x=>x.id===eid);if(!entry)return;
+      const newPid=parseInt(gv('m-proj'))||S.mProjId;
+      const updated={...entry,desc:gv('m-t').trim(),date:gv('m-d')||entry.date,hours:dur};
+      if(newPid!==S.mProjId){
+        // moved to a different project
+        oldP.manualEntries=(oldP.manualEntries||[]).filter(x=>x.id!==eid);
+        const newP=D.projects.find(p=>p.id===newPid);if(newP){if(!newP.manualEntries)newP.manualEntries=[];newP.manualEntries.push(updated);}
+      }else{
+        Object.assign(entry,updated);
+      }
     }
   } else {
     const id=nid();
@@ -2373,15 +2399,17 @@ function saveM(){
       const pid=parseInt(gv('m-proj'));
       const p=D.projects.find(p=>p.id===pid);if(!p)return;
       const newTitle=gv('m-newtask').trim();
+      const doneEl=document.getElementById('m-done');const markDone=!!(doneEl&&doneEl.checked);
       let desc;
       if(newTitle){
         // create a brand-new task assigned to this project on this day
-        D.todos.push({id:nid(),title:newTitle,date:S.mDay||todayStr(),urgency:'med',done:false,projectId:pid,createdAt:new Date().toISOString()});
+        D.todos.push({id:nid(),title:newTitle,date:S.mDay||todayStr(),urgency:'med',done:markDone,projectId:pid,createdAt:new Date().toISOString()});
         desc=newTitle;
       }else{
         const tid=parseInt(gv('m-task'));
         const task=D.todos.find(t=>t.id===tid);
         desc=task?task.title:'Horas de proyecto';
+        if(task&&markDone)task.done=true;
       }
       if(!p.manualEntries)p.manualEntries=[];
       p.manualEntries.push({id,date:S.mDay||todayStr(),hours:dur,desc});
@@ -2626,10 +2654,12 @@ function renderTodayPanel(){
     ...evs.map(e=>({...e,_kind:'ev'})),
     ...tasks.map(t=>({...t,_kind:'task'}))
   ].sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));
-  const assignedH=Math.round([
-    ...D.todos.filter(t=>t.date===sel&&t.duration),
-    ...D.events.filter(e=>e.date===sel&&e.duration&&(!e.fromIcs||e.projectId))
-  ].reduce((s,i)=>s+(i.duration||0),0)*10)/10;
+  const assignedH=Math.round((
+    D.todos.filter(t=>t.date===sel&&t.duration).reduce((s,t)=>s+(t.duration||0),0)
+    +D.projects.reduce((s,p)=>s+(p.manualEntries||[]).filter(e=>e.date===sel).reduce((a,e)=>a+(e.hours||0),0),0)
+    +D.timeblocks.filter(tb=>tb.date===sel).reduce((s,tb)=>s+(tb.duration||0),0)
+    +D.events.filter(e=>e.date===sel&&e.duration&&(!e.fromIcs||e.projectId)).reduce((s,e)=>s+(e.duration||0),0)
+  )*10)/10;
   let html=`<div class="mtp-head">
     <i class="ti ti-calendar-today" style="font-size:11px"></i>
     <button onclick="shiftSelDay(-1)" class="mtp-nav-btn" title="Día anterior"><i class="ti ti-chevron-left"></i></button>
