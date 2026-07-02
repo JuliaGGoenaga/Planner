@@ -2315,6 +2315,12 @@ function saveM(){
       Object.assign(n,{title:gv('m-t').trim()||'Sin título',body,updatedAt:new Date().toISOString()});
       if(category)n.category=category;else delete n.category;
       if(projectId)n.projectId=projectId;else delete n.projectId;
+    }else if(type==='assignevent'){
+      const pid=parseInt(gv('m-proj'));if(!pid)return;
+      const ev=D.events.find(e=>e.id===S.mEventId);if(!ev)return;
+      ev.projectId=pid;
+      const dur=parseFloat(gv('m-dur'));
+      if(dur>0)ev.duration=dur;
     }
   } else {
     const id=nid();
@@ -2344,13 +2350,6 @@ function saveM(){
       const desc=task?task.title:'Horas de proyecto';
       if(!p.manualEntries)p.manualEntries=[];
       p.manualEntries.push({id,date:S.mDay||todayStr(),hours:dur,desc});
-    }
-    else if(type==='assignevent'){
-      const pid=parseInt(gv('m-proj'));if(!pid)return;
-      const ev=D.events.find(e=>e.id===S.mEventId);if(!ev)return;
-      ev.projectId=pid;
-      const dur=parseFloat(gv('m-dur'));
-      if(dur>0)ev.duration=dur;
     }
     else if(type==='timeblock'){const pid=parseInt(gv('m-proj'));const dur=parseFloat(gv('m-dur'))||1;D.timeblocks.push({id,date:gv('m-d'),startTime:gv('m-time'),duration:dur,projectId:pid});const p=D.projects.find(p=>p.id===pid);if(p)p.hoursUsed=Math.round((p.hoursUsed+dur)*10)/10;}
     else if(type==='topic'){const n=gv('m-t').trim();if(!n)return;D.topics.push({id,name:n,icon:gv('m-icon')})}
@@ -2566,7 +2565,7 @@ function shiftSelDay(delta){
 }
 function jumpToToday(){S.selDay=todayStr();renderTodayPanel();}
 function logHForDay(ds){S.mProjId=null;S.mType='logdaytask';S.mDay=ds;S.editId=null;buildM();}
-function openEventAssign(eventId){const ev=D.events.find(e=>e.id===eventId);if(!ev)return;S.mType='assignevent';S.mEventId=eventId;S.mDay=ev.date;S.editId=null;buildM();}
+function openEventAssign(eventId){const ev=D.events.find(e=>e.id===eventId);if(!ev)return;S.mType='assignevent';S.mEventId=eventId;S.mDay=ev.date;S.editId=eventId;buildM();}
 function assignEventClick(el){openEventAssign(el.dataset.eventId);}function assignEventToProject(evId,ds){S.mType='assignevent';S.mEventId=evId;S.mDay=ds;S.editId=null;buildM();}
 function dayProjectHours(ds){
   const out=[];
