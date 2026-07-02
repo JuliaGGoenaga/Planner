@@ -2634,10 +2634,10 @@ function dayProjectHours(ds){
   D.projects.forEach(p=>{
     let h=0;
     const items=[];
-    D.todos.filter(t=>t.projectId===p.id&&t.date===ds&&t.duration).forEach(t=>{h+=t.duration;items.push({text:t.title,kind:'task'})});
-    (p.manualEntries||[]).filter(e=>e.date===ds).forEach(e=>{h+=e.hours;items.push({text:e.desc||'Horas manuales',kind:'manual'})});
-    D.timeblocks.filter(tb=>tb.projectId===p.id&&tb.date===ds).forEach(tb=>{h+=(tb.duration||0);items.push({text:'Bloque de tiempo',kind:'block'})});
-    D.events.filter(e=>e.projectId===p.id&&e.date===ds&&e.duration).forEach(e=>{h+=e.duration;items.push({text:e.title,kind:'event'})});
+    D.todos.filter(t=>t.projectId===p.id&&t.date===ds&&t.duration).forEach(t=>{h+=t.duration;items.push({text:t.title,kind:'task',id:t.id,projId:p.id,hours:t.duration})});
+    (p.manualEntries||[]).filter(e=>e.date===ds).forEach(e=>{h+=e.hours;items.push({text:e.desc||'Horas manuales',kind:'manual',id:e.id,projId:p.id,hours:e.hours})});
+    D.timeblocks.filter(tb=>tb.projectId===p.id&&tb.date===ds).forEach(tb=>{h+=(tb.duration||0);items.push({text:'Bloque de tiempo',kind:'block',id:tb.id,projId:p.id,hours:tb.duration||0})});
+    D.events.filter(e=>e.projectId===p.id&&e.date===ds&&e.duration).forEach(e=>{h+=e.duration;items.push({text:e.title,kind:'event',id:e.id,projId:p.id,hours:e.duration})});
     if(h>0)out.push({name:p.name,color:p.color,hours:Math.round(h*10)/10,items});
   });
   return out;
@@ -2721,7 +2721,14 @@ function renderTodayPanel(){
         const isEv=it.kind==='event';
         const evStyle=isEv?'font-style:italic;color:var(--green)':'';
         const icon=isEv?'<i class="ti ti-calendar-event" style="font-size:8px;margin-right:2px"></i>':'· ';
-        return`<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${evStyle}" title="${s}">${icon}${s}</div>`;
+        const eid=JSON.stringify(it.id).replace(/"/g,'&quot;');
+        let onclick='';
+        if(it.kind==='manual')onclick=`onclick="openEditManual(${it.projId},${eid})"`;
+        else if(it.kind==='event')onclick=`onclick="openEventAssign(${eid})"`;
+        else if(it.kind==='task')onclick=`onclick="openEdit('todo',${eid})"`;
+        const cur=onclick?';cursor:pointer':'';
+        const pencil=onclick?' <i class="ti ti-pencil" style="font-size:8px;opacity:.5"></i>':'';
+        return`<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${evStyle}${cur}" ${onclick} title="Editar: ${s}">${icon}${s} <span style="opacity:.7">(${it.hours}h)</span>${pencil}</div>`;
       }).join('');
       html+=`<div style="display:flex;align-items:flex-start;gap:6px;padding:2px 0;font-size:11px">
         <span style="width:7px;height:7px;border-radius:50%;background:${ph.color};flex-shrink:0;margin-top:3px"></span>
