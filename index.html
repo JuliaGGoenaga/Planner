@@ -2584,10 +2584,10 @@ function dayProjectHours(ds){
   D.projects.forEach(p=>{
     let h=0;
     const items=[];
-    D.todos.filter(t=>t.projectId===p.id&&t.date===ds&&t.duration).forEach(t=>{h+=t.duration;items.push(t.title)});
-    (p.manualEntries||[]).filter(e=>e.date===ds).forEach(e=>{h+=e.hours;items.push(e.desc||'Horas manuales')});
-    D.timeblocks.filter(tb=>tb.projectId===p.id&&tb.date===ds).forEach(tb=>{h+=(tb.duration||0);items.push('Bloque de tiempo')});
-    D.events.filter(e=>e.projectId===p.id&&e.date===ds&&e.duration).forEach(e=>{h+=e.duration;items.push(e.title)});
+    D.todos.filter(t=>t.projectId===p.id&&t.date===ds&&t.duration).forEach(t=>{h+=t.duration;items.push({text:t.title,kind:'task'})});
+    (p.manualEntries||[]).filter(e=>e.date===ds).forEach(e=>{h+=e.hours;items.push({text:e.desc||'Horas manuales',kind:'manual'})});
+    D.timeblocks.filter(tb=>tb.projectId===p.id&&tb.date===ds).forEach(tb=>{h+=(tb.duration||0);items.push({text:'Bloque de tiempo',kind:'block'})});
+    D.events.filter(e=>e.projectId===p.id&&e.date===ds&&e.duration).forEach(e=>{h+=e.duration;items.push({text:e.title,kind:'event'})});
     if(h>0)out.push({name:p.name,color:p.color,hours:Math.round(h*10)/10,items});
   });
   return out;
@@ -2664,8 +2664,13 @@ function renderTodayPanel(){
     html+=`<div style="font-size:10px;color:var(--text3);font-style:italic;padding:2px 0 4px">Sin horas registradas.</div>`;
   } else {
     projHours.forEach(ph=>{
-      const safeItems=(ph.items||[]).map(s=>(s||'').replace(/</g,'&lt;').replace(/>/g,'&gt;'));
-      const subtitle=safeItems.map(s=>`<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${s}">· ${s}</div>`).join('');
+      const subtitle=(ph.items||[]).map(it=>{
+        const s=(it.text||'').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        const isEv=it.kind==='event';
+        const evStyle=isEv?'font-style:italic;color:var(--green)':'';
+        const icon=isEv?'<i class="ti ti-calendar-event" style="font-size:8px;margin-right:2px"></i>':'· ';
+        return`<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${evStyle}" title="${s}">${icon}${s}</div>`;
+      }).join('');
       html+=`<div style="display:flex;align-items:flex-start;gap:6px;padding:2px 0;font-size:11px">
         <span style="width:7px;height:7px;border-radius:50%;background:${ph.color};flex-shrink:0;margin-top:3px"></span>
         <div style="flex:1;min-width:0">
