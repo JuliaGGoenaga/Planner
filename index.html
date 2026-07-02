@@ -1955,7 +1955,7 @@ function renderProjects(){
         <button class="btn-del" onclick="delTimeblock(${tb.id})" title="Eliminar" style="font-size:10px;padding:1px 2px"><i class="ti ti-x"></i></button>
       </div>`).join('')}
       ${evEntries.map(e=>`<div style="font-size:10px;color:var(--green);font-style:italic;display:flex;align-items:center;gap:4px;padding:2px 0">
-        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><i class="ti ti-calendar-event" style="font-size:9px"></i> ${e.title}${e.time?' · '+e.time:''}</span>
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><i class="ti ti-calendar-event" style="font-size:9px"></i> ${e.title}${e.date?' · '+fmtS(new Date(e.date+'T00:00:00')):''}${e.time?' '+e.time:''}</span>
         <span style="flex-shrink:0;font-weight:600;font-size:10px">${e.duration?e.duration+'h':''}</span>
         <button class="btn-del" onclick="unassignEvent(${e.id})" title="Desasignar" style="font-size:10px;padding:1px 2px"><i class="ti ti-x"></i></button>
       </div>`).join('')}
