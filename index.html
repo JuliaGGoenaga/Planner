@@ -2172,7 +2172,7 @@ function openEdit(type,id){
 }
 function buildM(){
   const type=S.mType,day=S.mDay||(type==='todo'?'':todayStr()),ed=S.editId;
-  const addT={todo:'Add to-do',event:'Add event',project:'New project',timeblock:'Add time block',topic:'New topic',idea:'New idea',note:'Nueva nota',plan:'Nuevo plan',assigntask:'Asignar tarea al proyecto',loghours:'Registrar horas manuales',logdaytask:'Registrar horas del día'};
+  const addT={todo:'Add to-do',event:'Add event',project:'New project',timeblock:'Add time block',topic:'New topic',idea:'New idea',note:'Nueva nota',plan:'Nuevo plan',assigntask:'Asignar tarea al proyecto',loghours:'Registrar horas manuales',logdaytask:'Registrar horas del día',assignevent:'Asignar evento a proyecto'};
   const edtT={todo:'Edit to-do',event:'Edit event',project:'Edit project',topic:'Edit topic',idea:'Edit idea',note:'Editar nota'};
   document.getElementById('mtitle').textContent=(ed?edtT[type]:addT[type])||'Add';
   const projOpts='<option value="">— None —</option>'+D.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
@@ -2315,6 +2315,19 @@ function saveM(){
       Object.assign(n,{title:gv('m-t').trim()||'Sin título',body,updatedAt:new Date().toISOString()});
       if(category)n.category=category;else delete n.category;
       if(projectId)n.projectId=projectId;else delete n.projectId;
+    }else if(type==='assignevent'){
+      const pid=parseInt(gv('m-proj'));if(!pid)return;
+      let ev=D.events.find(e=>e.id===S.mEventId);
+      // If event not in D.events, it's from calendar (EXT) - promote it first
+      if(!ev){
+        const extEv=EXT.find(e=>e.id===S.mEventId);if(!extEv)return;
+        const dur=extEv.endTime&&extEv.time?timeDiff(extEv.time,extEv.endTime):null;
+        ev={id:nid(),title:extEv.title,date:extEv.date,time:extEv.time||'',endTime:extEv.endTime||'',duration:dur||null,type:'ical',fromIcs:true,icsRef:extEv.id};
+        D.events.push(ev);
+      }
+      ev.projectId=pid;
+      const dur=parseFloat(gv('m-dur'));
+      if(dur>0)ev.duration=dur;
     }
   } else {
     const id=nid();
@@ -2344,13 +2357,6 @@ function saveM(){
       const desc=task?task.title:'Horas de proyecto';
       if(!p.manualEntries)p.manualEntries=[];
       p.manualEntries.push({id,date:S.mDay||todayStr(),hours:dur,desc});
-    }
-    else if(type==='assignevent'){
-      const pid=parseInt(gv('m-proj'));if(!pid)return;
-      const ev=D.events.find(e=>e.id===S.mEventId);if(!ev)return;
-      ev.projectId=pid;
-      const dur=parseFloat(gv('m-dur'));
-      if(dur>0)ev.duration=dur;
     }
     else if(type==='timeblock'){const pid=parseInt(gv('m-proj'));const dur=parseFloat(gv('m-dur'))||1;D.timeblocks.push({id,date:gv('m-d'),startTime:gv('m-time'),duration:dur,projectId:pid});const p=D.projects.find(p=>p.id===pid);if(p)p.hoursUsed=Math.round((p.hoursUsed+dur)*10)/10;}
     else if(type==='topic'){const n=gv('m-t').trim();if(!n)return;D.topics.push({id,name:n,icon:gv('m-icon')})}
@@ -2566,8 +2572,7 @@ function shiftSelDay(delta){
 }
 function jumpToToday(){S.selDay=todayStr();renderTodayPanel();}
 function logHForDay(ds){S.mProjId=null;S.mType='logdaytask';S.mDay=ds;S.editId=null;buildM();}
-function openEventAssign(eventId){const ev=D.events.find(e=>e.id===eventId);if(!ev)return;S.mType='assignevent';S.mEventId=eventId;S.mDay=ev.date;S.editId=null;buildM();}
-function assignEventClick(el){openEventAssign(el.dataset.eventId);}function assignEventToProject(evId,ds){S.mType='assignevent';S.mEventId=evId;S.mDay=ds;S.editId=null;buildM();}
+function openEventAssign(eventId){const ev=D.events.find(e=>e.id===eventId)||EXT.find(e=>e.id===eventId);if(!ev)return;S.mType='assignevent';S.mEventId=eventId;S.mDay=ev.date;S.editId=eventId;buildM();}function assignEventClick(el){openEventAssign(el.dataset.eventId);}function assignEventToProject(evId,ds){S.mType='assignevent';S.mEventId=evId;S.mDay=ds;S.editId=null;buildM();}
 function dayProjectHours(ds){
   const out=[];
   D.projects.forEach(p=>{
