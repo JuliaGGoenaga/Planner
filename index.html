@@ -1455,7 +1455,7 @@ function renderWeek(){
       const noteIcon=hasNotes?`<i class="ti ti-notes mn-ev-noted"></i>`:'';      
       const click=S.meetingNotesMode
         ?` onclick="openMeetingNotes(${eid})"`
-        :(isExt?` onclick="promoteIcsEvent(${eid})"`:` onclick="openEdit('event',${ev.id})"`);
+        :(isExt?` onclick="promoteIcsEvent(${eid})"`:ev.projectId?` onclick="openEdit('event',${ev.id})"`:` onclick="openEventAssign(${ev.id})"`);
       const del=!isExt?`<button class="btn-del" onclick="event.stopPropagation();delEvent(${ev.id})" style="font-size:9px;padding:0 1px"><i class="ti ti-x"></i></button>`:isPromoted?`<i class="ti ti-bookmark-filled" style="font-size:9px;opacity:.8;padding:0 2px" title="Registrado en proyecto"></i>`:`<button class="btn-del" onclick="event.stopPropagation();promoteIcsEvent(${eid})" style="font-size:9px;padding:0 1px" title="Añadir a proyecto"><i class="ti ti-tag"></i></button>`;
       const tLabel=ev.endTime?`${ev.time}–${ev.endTime}`:ev.time;
       const cursorStyle=isExt?'cursor:pointer;':'';
@@ -2566,7 +2566,8 @@ function shiftSelDay(delta){
 }
 function jumpToToday(){S.selDay=todayStr();renderTodayPanel();}
 function logHForDay(ds){S.mProjId=null;S.mType='logdaytask';S.mDay=ds;S.editId=null;buildM();}
-function assignEventClick(el){const evId=el.dataset.eventId;const ev=D.events.find(e=>e.id===evId);if(!ev)return;S.mType='assignevent';S.mEventId=evId;S.mDay=ev.date;S.editId=null;buildM();}
+function openEventAssign(eventId){const ev=D.events.find(e=>e.id===eventId);if(!ev)return;S.mType='assignevent';S.mEventId=eventId;S.mDay=ev.date;S.editId=null;buildM();}
+function assignEventClick(el){openEventAssign(el.dataset.eventId);}
 function assignEventToProject(evId,ds){S.mType='assignevent';S.mEventId=evId;S.mDay=ds;S.editId=null;buildM();}
 function dayProjectHours(ds){
   const out=[];
