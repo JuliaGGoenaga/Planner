@@ -1325,6 +1325,11 @@ function parseIcs(text,cal){
 function doRollover(){
   const today=todayStr();let changed=false;
   D.todos.forEach(t=>{if(!t.done&&t.date&&t.date<today){if(!t.rolledFrom)t.rolledFrom=t.date;t.date=today;changed=true;}});
+  // Purge events older than 3 months to keep the stored JSON small
+  const cut=new Date();cut.setMonth(cut.getMonth()-3);const cutStr=dStr(cut);
+  const before=D.events.length;
+  D.events=D.events.filter(e=>!e.date||e.date>=cutStr);
+  if(D.events.length!==before){changed=true;console.log(`Purged ${before-D.events.length} events older than ${cutStr}`);}
   if(changed)sched();
 }
 
