@@ -27,7 +27,19 @@ async function main() {
   const gist = await gistRes.json();
   const plannerFile = gist.files['planner.json'];
   if (!plannerFile) throw new Error('planner.json not found in gist');
-  const planner = JSON.parse(plannerFile.content);
+  // The Gist API truncates inline file content above ~1MB; fetch raw_url for the full file.
+  let content = plannerFile.content;
+  if ((plannerFile.truncated || !content) && plannerFile.raw_url) {
+    const rr = await fetchWithTimeout(plannerFile.raw_url, {});
+    if (rr.ok) content = await rr.text();
+  }
+  if (!content) throw new Error('planner.json content is empty');
+  let planner;
+  try {
+    planner = JSON.parse(content);
+  } catch (e) {
+    throw new Error(`planner.json is not valid JSON (len ${content.length}): ${e.message}`);
+  }
   const calendars = planner.calendars || [];
 
   const result = { updatedAt: new Date().toISOString(), calendars: {} };
