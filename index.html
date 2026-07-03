@@ -1345,7 +1345,14 @@ function addDays(d,n){const r=new Date(d);r.setDate(r.getDate()+n);return r}
 function dStr(d){return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
 function fmtS(d){return`${d.getDate()} ${MFULL[d.getMonth()].slice(0,3)}`}
 function getMonday(d){const day=d.getDay(),diff=d.getDate()-day+(day===0?-6:1);return new Date(new Date(d).setDate(diff))}
-function allEvFor(ds){return[...D.events.filter(e=>e.date===ds),...EXT.filter(e=>e.date===ds)].sort((a,b)=>(a.time||'').localeCompare(b.time||''))}
+function allEvFor(ds){
+  const ext=EXT.filter(e=>e.date===ds);
+  const extIds=new Set(ext.map(e=>e.id));
+  // Show manual events, plus promoted calendar copies only when their live calendar
+  // original isn't already present — avoids showing the same event twice.
+  const own=D.events.filter(e=>e.date===ds&&(!e.fromIcs||!extIds.has(e.icsRef)));
+  return[...own,...ext].sort((a,b)=>(a.time||'').localeCompare(b.time||''));
+}
 function timeDiff(start,end){
   if(!start||!end)return null;
   const[sh,sm]=start.split(':').map(Number);
