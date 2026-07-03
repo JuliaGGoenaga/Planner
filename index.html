@@ -1454,7 +1454,8 @@ function renderWeek(){
   for(let i=0;i<7;i++){
     const d=addDays(s,i),ds=dStr(d),isT=ds===today;
     const isW=d.getDay()===0||d.getDay()===6;
-    const timedEvs=[...D.events.filter(e=>e.date===ds&&e.time&&!e.fromIcs),...EXT.filter(e=>e.date===ds&&e.time)];
+    const extDay=EXT.filter(e=>e.date===ds&&e.time);const extDayIds=new Set(extDay.map(e=>e.id));
+    const timedEvs=[...D.events.filter(e=>e.date===ds&&e.time&&(!e.fromIcs||!extDayIds.has(e.icsRef))),...extDay];
     const timedTasks=D.todos.filter(t=>t.date===ds&&t.time&&!t.fromIcs);
     html+=`<div class="wt-daycol${isT?' wt-today-col':''}${isW?' wt-weekend-col':''}" ondragover="event.preventDefault();event.dataTransfer.dropEffect='move'" ondrop="dropOnTime(event,'${ds}')">`;
     for(let h=HS;h<HE;h++) html+=`<div class="wt-slot" onclick="openMDTime('event','${ds}','${String(h).padStart(2,'0')}:00')"></div>`;
@@ -2679,7 +2680,8 @@ function renderTodayPanel(){
   const sel=S.selDay||today;
   const selD=new Date(sel+'T00:00:00');
   const isToday=sel===today;
-  const evs=[...D.events.filter(e=>e.date===sel&&e.time&&!e.fromIcs),...EXT.filter(e=>e.date===sel&&e.time)].sort((a,b)=>(a.time||'').localeCompare(b.time||''));
+  const extSel=EXT.filter(e=>e.date===sel&&e.time);const extSelIds=new Set(extSel.map(e=>e.id));
+  const evs=[...D.events.filter(e=>e.date===sel&&e.time&&(!e.fromIcs||!extSelIds.has(e.icsRef))),...extSel].sort((a,b)=>(a.time||'').localeCompare(b.time||''));
   const tasks=D.todos.filter(t=>t.date===sel&&!t.done);
   const allItems=[
     ...evs.map(e=>({...e,_kind:'ev'})),
