@@ -1041,12 +1041,12 @@ async function saveGistNow(){
   if(!CFG.token||!CFG.gistId){setSS('','Not configured');return}
   setSS('saving','Saving…');
   try{
-    const files={'planner.json':{content:JSON.stringify({...D,nextId:S.nextId},null,2)}};
+    const files={'planner.json':{content:JSON.stringify({...D,nextId:S.nextId})}};
     const r=await fetch(`https://api.github.com/gists/${CFG.gistId}`,{method:'PATCH',headers:{Authorization:`token ${CFG.token}`,Accept:'application/vnd.github.v3+json','Content-Type':'application/json'},body:JSON.stringify({files})});
-    if(!r.ok)throw new Error(r.status);
+    if(!r.ok)throw new Error('HTTP '+r.status);
     lss('planner_gist_at',Date.now().toString());
     setSS('ok','Saved ✓');
-  }catch(e){setSS('err','Save failed');console.error(e)}
+  }catch(e){setSS('err','Save failed ('+(e.message||e)+')');console.error(e)}
 }
 function _localSave(){try{lss('planner_data_v1',JSON.stringify({...D,nextId:S.nextId,_savedAt:Date.now()}));}catch(e){}}
 function sched(){_localSave();clearTimeout(saveTimer);saveTimer=setTimeout(saveGistNow,800)}
@@ -1169,16 +1169,18 @@ function promoteIcsEvent(icsId){
 async function refreshIcs(){
   if(!D.calendars.length)return;
   setSS('saving','Syncing calendars…');
-  EXT=[];
   const res=await Promise.allSettled(D.calendars.map(fetchIcs));
-  let failed=0;
+  const collected=[];let failed=0;
   res.forEach((r,i)=>{
-    if(r.status==='fulfilled')EXT.push(...r.value);
+    if(r.status==='fulfilled')collected.push(...r.value);
     else{failed++;console.warn('ICS fail',D.calendars[i]?.name,r.reason);}
   });
-  if(failed>0&&EXT.length===0)setSS('err',`Calendar sync failed — check Setup`);
-  else if(failed>0)setSS('ok',`Synced ✓ (${EXT.length} events, ${failed} failed)`);
-  else setSS('ok',`Synced ✓ (${EXT.length} events)`);
+  // Only replace the in-memory events if we actually got some, or nothing failed —
+  // a transient proxy failure must not wipe the calendar or raise a red error.
+  if(collected.length||failed===0)EXT=collected;
+  if(failed>0&&collected.length===0)setSS('ok',`Calendario sin cambios (sync no disponible ahora)`);
+  else if(failed>0)setSS('ok',`Synced ✓ (${EXT.length} eventos, ${failed} no disponibles)`);
+  else setSS('ok',`Synced ✓ (${EXT.length} eventos)`);
   refreshPage();
 }
 const PROXIES=[
@@ -1849,7 +1851,7 @@ function renderTodosByProject(items,today){
       <button class="btn-del" onclick="delTodo(${t.id})" title="Delete"><i class="ti ti-x"></i></button>
     </div>`;
   };
-  const colHtml=(label,color,colItems)=>{
+  const colHtml=(label,color,colItems,projId)=>{
     const todayItems=colItems.filter(t=>!t.done&&t.date===today).sort((a,b)=>URG_RANK[a.urgency]-URG_RANK[b.urgency]);
     const undatedItems=colItems.filter(t=>!t.done&&!t.date).sort((a,b)=>URG_RANK[a.urgency]-URG_RANK[b.urgency]);
     const futureItems=colItems.filter(t=>!t.done&&t.date&&t.date>today).sort((a,b)=>(a.date||'').localeCompare(b.date||'')||URG_RANK[a.urgency]-URG_RANK[b.urgency]);
@@ -1860,18 +1862,20 @@ function renderTodosByProject(items,today){
     if(futureItems.length){body+=`<div class="tpc-sub">Próximas</div>`;futureItems.forEach(t=>body+=tb(t));}
     if(pastOrDone.length){body+=`<div class="tpc-sub">Pasadas / Completadas</div>`;pastOrDone.forEach(t=>body+=tb(t));}
     if(!body)body=`<div style="color:var(--text3);font-size:11px;padding:0.5rem 0">Sin tareas.</div>`;
+    const addBtn=`<button class="btn-del" onclick="addTaskToProject(${projId==null?'null':projId})" title="Añadir tarea a ${(label||'').replace(/"/g,'&quot;')}" style="color:var(--accent)"><i class="ti ti-plus"></i></button>`;
     return`<div class="todos-proj-col">
-      <div class="tpc-head"><span class="tpc-dot" style="background:${color}"></span>${label}<span class="tpc-count">${colItems.length}</span></div>
+      <div class="tpc-head"><span class="tpc-dot" style="background:${color}"></span>${label}<span class="tpc-count">${colItems.length}</span>${addBtn}</div>
       <div class="tpc-body">${body}</div>
     </div>`;
   };
   let html='';
   D.projects.forEach(p=>{
-    html+=colHtml(p.name,p.color,items.filter(t=>t.projectId===p.id));
+    html+=colHtml(p.name,p.color,items.filter(t=>t.projectId===p.id),p.id);
   });
-  html+=colHtml('Sin proyecto','var(--text3)',items.filter(t=>!t.projectId));
+  html+=colHtml('Sin proyecto','var(--text3)',items.filter(t=>!t.projectId),null);
   document.getElementById('todos-list').innerHTML=`<div class="todos-proj-cols">${html}</div>`;
 }
+function addTaskToProject(projId){S.newTodoProj=projId||null;S.mType='todo';S.mDay=null;S.editId=null;buildM();}
 function toggleTodo(id,re){const t=D.todos.find(t=>t.id===id);if(t){t.done=!t.done;sched()}if(re)renderTodos();else renderWeek()}
 function delTodo(id){
   D.todos=D.todos.filter(t=>t.id!==id);
@@ -2305,6 +2309,7 @@ function buildM(){
     </div>
     <div style="font-size:10px;color:var(--text3);margin-top:6px;line-height:1.5">Tras crearlo, arrástralo desde el panel lateral sobre los días del mes donde aplica. Clic sobre el bubble en el día para quitarlo de ese día.</div>`;
   document.getElementById('mbody').innerHTML=b;
+  if(type==='todo'&&S.newTodoProj){const mp=document.getElementById('m-proj');if(mp)mp.value=S.newTodoProj;S.newTodoProj=null;}
   document.getElementById('mo').classList.add('open');
   setTimeout(()=>{const f=document.querySelector('#mbody input,#mbody textarea,#mbody [contenteditable]');if(f)f.focus()},80);
 }
