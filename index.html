@@ -1330,6 +1330,11 @@ function doRollover(){
   const before=D.events.length;
   D.events=D.events.filter(e=>!e.date||e.date>=cutStr);
   if(D.events.length!==before){changed=true;console.log(`Purged ${before-D.events.length} events older than ${cutStr}`);}
+  // De-duplicate promoted calendar events sharing an icsRef (prefer the assigned copy)
+  const refMap=new Map();
+  D.events.forEach(e=>{if(!e.icsRef)return;const cur=refMap.get(e.icsRef);if(!cur||((e.projectId?1:0)>(cur.projectId?1:0)))refMap.set(e.icsRef,e);});
+  const dedup=D.events.filter(e=>!e.icsRef||refMap.get(e.icsRef)===e);
+  if(dedup.length!==D.events.length){console.log(`Removed ${D.events.length-dedup.length} duplicate events`);D.events=dedup;changed=true;}
   if(changed)sched();
 }
 
@@ -2262,7 +2267,7 @@ function buildM(){
     <div class="ff"><label>Horas</label><input id="m-dur" type="number" min="0.25" step="0.25" value="1" placeholder="ej. 1.5"/></div>
     <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);cursor:pointer;margin-top:2px"><input type="checkbox" id="m-done" style="width:auto;margin:0"/> Marcar la tarea como completada</label>`;}
   else if(type==='assignevent'){
-    const ev=D.events.find(e=>e.id===S.mEventId)||EXT.find(e=>e.id===S.mEventId);if(!ev)return;
+    const ev=D.events.find(e=>e.id===S.mEventId)||D.events.find(e=>e.icsRef===S.mEventId)||EXT.find(e=>e.id===S.mEventId);if(!ev)return;
     const projOpts='<option value="">— Sin proyecto —</option>'+D.projects.map(p=>`<option value="${p.id}"${p.id===ev.projectId?' selected':''}>${p.name}</option>`).join('');
     const info=`${ev.date||''}${ev.time?' · '+ev.time+(ev.endTime?'–'+ev.endTime:''):''}${ev.source?' · '+ev.source:''}`;
     b=`
@@ -2368,8 +2373,9 @@ function saveM(){
       if(projectId)n.projectId=projectId;else delete n.projectId;
     }else if(type==='assignevent'){
       const pid=parseInt(gv('m-proj'))||null;
-      let ev=D.events.find(e=>e.id===S.mEventId);
-      // If event not in D.events, it's from calendar (EXT) - promote it first
+      // Reuse an existing copy: match by own id, or by icsRef to a calendar event already promoted
+      let ev=D.events.find(e=>e.id===S.mEventId)||D.events.find(e=>e.icsRef===S.mEventId);
+      // If still not found, it's a calendar (EXT) event not yet promoted - promote it once
       if(!ev){
         if(!pid)return; // nothing to do: unassigning a calendar event that was never assigned
         const extEv=EXT.find(e=>e.id===S.mEventId);if(!extEv)return;
