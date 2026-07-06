@@ -859,7 +859,7 @@ html.dark .cpick{box-shadow:0 0 0 1px rgba(255,255,255,0.2)}
   <div class="mbox">
     <h3 id="mtitle">Add</h3>
     <div id="mbody"></div>
-    <div class="macts">
+    <div class="macts" id="macts">
       <button class="btn" onclick="closeM()">Cancel</button>
       <button class="btn btn-p" onclick="saveM()">Save</button>
     </div>
@@ -2286,9 +2286,9 @@ function buildM(){
     const p=D.projects.find(p=>p.id===t.projectId);
     b=`
     <div class="ff"><label>Tarea completada</label><div style="font-size:12px;color:var(--text2);padding:6px;background:var(--surface2);border-radius:4px">${(t.title||'').replace(/</g,'&lt;')}${p?` <span style="color:${p.color}">· ${p.name}</span>`:''}</div></div>
-    <div class="ff"><label>Horas dedicadas</label><input id="m-dur" type="number" min="0" step="0.25" value="1" placeholder="ej. 1.5"/></div>
+    <div class="ff"><label>Horas dedicadas</label><input id="m-dur" type="number" min="0" step="0.25" value="0" placeholder="ej. 1.5"/></div>
     <div class="ff"><label>Día</label><input id="m-d" type="date" value="${S.mDay||todayStr()}"/></div>
-    <div style="font-size:10px;color:var(--text3);margin-top:4px">Se registrará en ${p?p.name:'el proyecto'} y aparecerá en la tarjeta del día. Deja 0 para solo marcarla como completada.</div>`;}
+    <div style="font-size:10px;color:var(--text3);margin-top:4px">Se registrará en ${p?p.name:'el proyecto'} y aparecerá en la tarjeta del día.</div>`;}
   else if(type==='assignevent'){
     const ev=D.events.find(e=>e.id===S.mEventId)||D.events.find(e=>e.icsRef===S.mEventId)||EXT.find(e=>e.id===S.mEventId);if(!ev)return;
     const projOpts='<option value="">— Sin proyecto —</option>'+D.projects.map(p=>`<option value="${p.id}"${p.id===ev.projectId?' selected':''}>${p.name}</option>`).join('');
@@ -2343,6 +2343,10 @@ function buildM(){
     <div style="font-size:10px;color:var(--text3);margin-top:6px;line-height:1.5">Tras crearlo, arrástralo desde el panel lateral sobre los días del mes donde aplica. Clic sobre el bubble en el día para quitarlo de ese día.</div>`;
   document.getElementById('mbody').innerHTML=b;
   if(type==='todo'&&S.newTodoProj){const mp=document.getElementById('m-proj');if(mp)mp.value=S.newTodoProj;S.newTodoProj=null;}
+  const macts=document.getElementById('macts');
+  if(macts)macts.innerHTML=type==='completetask'
+    ?`<button class="btn" onclick="closeM()">Cancelar</button><button class="btn" onclick="document.getElementById('m-dur').value='0';saveM()">Completar sin horas</button><button class="btn btn-p" onclick="saveM()">Registrar horas</button>`
+    :`<button class="btn" onclick="closeM()">Cancel</button><button class="btn btn-p" onclick="saveM()">Save</button>`;
   document.getElementById('mo').classList.add('open');
   setTimeout(()=>{const f=document.querySelector('#mbody input,#mbody textarea,#mbody [contenteditable]');if(f)f.focus()},80);
 }
