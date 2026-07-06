@@ -2576,34 +2576,45 @@ async function loadXLSX(){
 async function downloadXLSX(year,month){
   await loadXLSX();
   function boldRow(sheet,r,ncols){for(let c=0;c<ncols;c++){const cell=sheet[XLSX.utils.encode_cell({r,c})];if(cell)cell.s={font:{bold:true}};}}
+  // Build one sheet from a header + data rows + a TOTAL row (a real, filterable table)
+  function makeSheet(header,dataRows,cols,totalCol,totalH){
+    const aoa=[header,...dataRows];
+    const totalRow=header.map(()=>'');
+    totalRow[Math.max(0,totalCol-1)]='TOTAL';totalRow[totalCol]=totalH;
+    aoa.push(totalRow);
+    const ws=XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols']=cols;
+    boldRow(ws,0,header.length);           // header
+    boldRow(ws,aoa.length-1,header.length); // total
+    ws['!autofilter']={ref:XLSX.utils.encode_range({s:{r:0,c:0},e:{r:dataRows.length,c:header.length-1}})};
+    return ws;
+  }
   const{rows}=buildReportRows(year,month);
   const dataRows=rows.slice(0,-1);
   const totalH=rows[rows.length-1][4];
-  const S=[];
-  S.push(['Por proyecto','']);S.push(['Proyecto','Horas']);
+  const wb=XLSX.utils.book_new();
+  // Detalle — every entry, granular
+  XLSX.utils.book_append_sheet(wb,makeSheet(
+    ['Fecha','Proyecto','Tipo','Descripción / Tarea','Horas'],dataRows,
+    [{wch:12},{wch:24},{wch:10},{wch:40},{wch:8}],4,totalH),'Detalle');
+  // Por proyecto
   const byProj={};
   dataRows.forEach(r=>{const k=r[1]||'Sin proyecto';byProj[k]=Math.round(((byProj[k]||0)+Number(r[4]))*10)/10;});
-  Object.entries(byProj).sort((a,b)=>b[1]-a[1]).forEach(([n,h])=>S.push([n,h]));
-  S.push(['TOTAL',totalH]);S.push([]);
-  S.push(['Por tarea / descripción','','']);S.push(['Tarea / Descripción','Proyecto','Horas']);
+  XLSX.utils.book_append_sheet(wb,makeSheet(
+    ['Proyecto','Horas'],Object.entries(byProj).sort((a,b)=>b[1]-a[1]),
+    [{wch:28},{wch:8}],1,totalH),'Por proyecto');
+  // Por tarea / descripción
   const byTask={};
   dataRows.forEach(r=>{const k=`${r[3]}||${r[1]}`;if(!byTask[k])byTask[k]={desc:r[3],proj:r[1],h:0};byTask[k].h=Math.round((byTask[k].h+Number(r[4]))*10)/10;});
-  Object.values(byTask).sort((a,b)=>b.h-a.h).forEach(t=>S.push([t.desc,t.proj,t.h]));
-  S.push(['','TOTAL',totalH]);S.push([]);
-  S.push(['Por día','']);S.push(['Fecha','Horas']);
+  XLSX.utils.book_append_sheet(wb,makeSheet(
+    ['Tarea / Descripción','Proyecto','Horas'],Object.values(byTask).sort((a,b)=>b.h-a.h).map(t=>[t.desc,t.proj,t.h]),
+    [{wch:40},{wch:24},{wch:8}],2,totalH),'Por tarea');
+  // Por día
   const byDay={};
   dataRows.forEach(r=>{if(!r[0])return;byDay[r[0]]=Math.round(((byDay[r[0]]||0)+Number(r[4]))*10)/10;});
-  Object.entries(byDay).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([d,h])=>S.push([d,h]));
-  S.push(['TOTAL',totalH]);
-  const ws=XLSX.utils.aoa_to_sheet(S);
-  ws['!cols']=[{wch:40},{wch:25},{wch:10}];
-  S.forEach((row,i)=>{
-    if(row[0]==='Por proyecto'||row[0]==='Por tarea / descripción'||row[0]==='Por día')boldRow(ws,i,3);
-    if(row[0]==='Proyecto'||row[0]==='Tarea / Descripción'||row[0]==='Fecha')boldRow(ws,i,3);
-    if(row[0]==='TOTAL'||row[1]==='TOTAL')boldRow(ws,i,3);
-  });
-  const wb=XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb,ws,'Resumen');
+  XLSX.utils.book_append_sheet(wb,makeSheet(
+    ['Fecha','Horas'],Object.entries(byDay).sort((a,b)=>a[0].localeCompare(b[0])),
+    [{wch:12},{wch:8}],1,totalH),'Por día');
   XLSX.writeFile(wb,`planner_${year}_${String(month).padStart(2,'0')}_${MESES[month-1]}.xlsx`);
 }
 async function saveReportToGist(year,month,csv){
