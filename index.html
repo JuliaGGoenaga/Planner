@@ -1360,6 +1360,13 @@ function taskDot(t,extra){
   const style=`${p?`background:${p.color};`:''}${extra||''}`;
   return`<div class="${cls}"${style?` style="${style}"`:''}></div>`;
 }
+// Small H/M/L circle showing task urgency
+function urgencyBadge(t){
+  if(t.fromIcs)return'';
+  const map={high:['H','#E24B4A'],med:['M','#EF9F27'],low:['L','#639922']};
+  const m=map[t.urgency];if(!m)return'';
+  return`<span style="display:inline-flex;align-items:center;justify-content:center;width:13px;height:13px;border-radius:50%;background:${m[1]};color:#fff;font-size:8px;font-weight:700;line-height:1;flex-shrink:0" title="${t.urgency==='high'?'Urgente':t.urgency==='med'?'Media':'Baja'}">${m[0]}</span>`;
+}
 function timeDiff(start,end){
   if(!start||!end)return null;
   const[sh,sm]=start.split(':').map(Number);
@@ -1432,7 +1439,7 @@ function renderWeek(){
   // helper: render a task chip for the right column
   function rtask(t){
     const badge=t.fromIcs&&t.hours?`${t.hours}h`:t.date?(t.time?t.time:t.date.slice(5)):'';
-    const dot=t.fromIcs?`<i class="ti ti-calendar-event" style="font-size:10px;color:var(--blue);flex-shrink:0"></i>`:taskDot(t,'flex-shrink:0');
+    const dot=t.fromIcs?`<i class="ti ti-calendar-event" style="font-size:10px;color:var(--blue);flex-shrink:0"></i>`:`${urgencyBadge(t)}${taskDot(t,'flex-shrink:0')}`;
     return`<div class="wt-rtask" draggable="true" ondragstart="startTimeDrag(event,'task',${t.id});this.classList.add('dragging')" ondragend="this.classList.remove('dragging');this.style.opacity='';_timeDrag={kind:null,id:null}" onclick="openEdit('todo',${t.id})">${dot}<span class="wt-rtask-title">${t.title}</span>${badge?`<span class="wt-rtask-badge">${badge}</span>`:''}</div>`;
   }
   let html=`<div class="wt-wrap">`;
@@ -1451,7 +1458,7 @@ function renderWeek(){
   for(let i=0;i<7;i++){
     const d=addDays(s,i),ds=dStr(d);
     const untimedTasks=D.todos.filter(t=>t.date===ds&&!t.time&&!t.done&&!t.fromIcs);
-    html+=`<div class="wt-allday-cell" ondragover="event.preventDefault()" ondrop="dropOnAllDay(event,'${ds}')">${untimedTasks.map(t=>`<div class="wt-allday-chip" draggable="true" ondragstart="startTimeDrag(event,'task',${t.id})" ondragend="this.style.opacity='';_timeDrag={kind:null,id:null}" onclick="openEdit('todo',${t.id})" title="${(t.title||'').replace(/"/g,'&quot;')}">${taskDot(t,'flex-shrink:0')}<span>${t.title}${t.rolledFrom?' <span class="rolled">↩</span>':''}</span></div>`).join('')}</div>`;
+    html+=`<div class="wt-allday-cell" ondragover="event.preventDefault()" ondrop="dropOnAllDay(event,'${ds}')">${untimedTasks.map(t=>`<div class="wt-allday-chip" draggable="true" ondragstart="startTimeDrag(event,'task',${t.id})" ondragend="this.style.opacity='';_timeDrag={kind:null,id:null}" onclick="openEdit('todo',${t.id})" title="${(t.title||'').replace(/"/g,'&quot;')}">${urgencyBadge(t)}${taskDot(t,'flex-shrink:0')}<span>${t.title}${t.rolledFrom?' <span class="rolled">↩</span>':''}</span></div>`).join('')}</div>`;
   }
   html+=`</div>`;
   // Time body — slots sized by flex (fill height, no scroll)
@@ -1533,7 +1540,7 @@ function renderWeekMobile(){
             :`<div class="ev" style="display:flex;align-items:flex-start;gap:3px"><div style="flex:1"><span class="ev-time">${ev.time||'all-day'}</span>${ev.title}</div>${mnBtn}<button class="btn-del" onclick="openEdit('event',${ev.id})" style="font-size:10px;padding:1px 2px"><i class="ti ti-pencil"></i></button><button class="btn-del" onclick="delEvent(${ev.id})" style="font-size:10px;padding:1px 2px"><i class="ti ti-x"></i></button></div>`;
         }).join('')}
         ${tbs.map(tb=>{const p=D.projects.find(p=>p.id===tb.projectId);const c=p?p.color:'var(--accent)';return`<div class="ev" style="border-left-color:${c};background:${c}18;color:${c};display:flex;align-items:flex-start;gap:3px"><div style="flex:1"><span class="ev-time">${tb.startTime} · ${tb.duration}h</span>${p?p.name:'Bloque'}</div><button class="btn-del" onclick="delTimeblock(${tb.id})" style="font-size:10px;padding:1px 2px;color:${c}"><i class="ti ti-x"></i></button></div>`;}).join('')}
-        ${tds.map(t=>`<div class="tr"><div class="chk${t.done?' on':''}" onclick="toggleTodo(${t.id})"></div>${taskDot(t,'')}<div class="tl${t.done?' done':''}" style="flex:1">${t.title}${t.rolledFrom?'<span class="rolled">↩</span>':''}</div><button class="btn-del" onclick="openEdit('todo',${t.id})" style="font-size:9px;padding:1px 2px"><i class="ti ti-pencil"></i></button></div>`).join('')}
+        ${tds.map(t=>`<div class="tr"><div class="chk${t.done?' on':''}" onclick="toggleTodo(${t.id})"></div>${urgencyBadge(t)}${taskDot(t,'')}<div class="tl${t.done?' done':''}" style="flex:1">${t.title}${t.rolledFrom?'<span class="rolled">↩</span>':''}</div><button class="btn-del" onclick="openEdit('todo',${t.id})" style="font-size:9px;padding:1px 2px"><i class="ti ti-pencil"></i></button></div>`).join('')}
         <div class="day-adds">
           <button class="dadd" onclick="openMD('todo','${ds}')"><i class="ti ti-plus" style="font-size:9px"></i> task</button>
           <button class="dadd" onclick="openMD('event','${ds}')"><i class="ti ti-plus" style="font-size:9px"></i> event</button>
