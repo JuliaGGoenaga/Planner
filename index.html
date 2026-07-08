@@ -1497,7 +1497,7 @@ function renderWeek(){
     timedTasks.forEach(t=>{
       const[th,tm]=(t.time||'00:00').split(':').map(Number);
       const topPct=Math.max(0,(th+tm/60-HS)/numH*100);
-      html+=`<div class="wt-ev wt-task-ev" draggable="true" ondragstart="startTimeDrag(event,'task',${t.id})" ondragend="this.style.opacity='';_timeDrag={kind:null,id:null}" onclick="openEdit('todo',${t.id})" style="top:${topPct.toFixed(2)}%"><span class="wt-evtime">${t.time}</span><span class="wt-evtitle">${t.title}</span><div class="wt-evacts"><button class="btn-del" onclick="event.stopPropagation();toggleTodo(${t.id})" style="font-size:9px;padding:0 1px;color:var(--amber)" title="Completar"><i class="ti ti-check"></i></button></div></div>`;
+      html+=`<div class="wt-ev wt-task-ev" draggable="true" ondragstart="startTimeDrag(event,'task',${t.id})" ondragend="this.style.opacity='';_timeDrag={kind:null,id:null}" onclick="openEdit('todo',${t.id})" style="top:${topPct.toFixed(2)}%"><span class="wt-evtime">${t.time}</span>${urgencyBadge(t)}${taskDot(t,'margin-top:0')}<span class="wt-evtitle">${t.title}</span><div class="wt-evacts"><button class="btn-del" onclick="event.stopPropagation();toggleTodo(${t.id})" style="font-size:9px;padding:0 1px;color:var(--amber)" title="Completar"><i class="ti ti-check"></i></button></div></div>`;
     });
     html+=`</div></div>`;
   }
