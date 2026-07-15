@@ -191,7 +191,12 @@ html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
 .wt-evacts{display:flex;gap:1px;flex-shrink:0;opacity:0;transition:opacity .1s;position:absolute;top:1px;right:2px}
 .wt-ev:hover .wt-evacts{opacity:1}
 /* task chips in the grid: flat row, fixed height */
-.wt-task-ev{border-left-color:var(--amber) !important;background:var(--amber-l) !important;color:var(--amber) !important;flex-direction:row !important;align-items:center !important;height:18px !important}
+.wt-schedbar{display:flex;align-items:center;gap:6px;padding:6px 8px;margin-top:6px;font-size:11px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text2);flex-shrink:0}
+.wt-task-ev{border-left-color:var(--amber) !important;background:var(--amber-l) !important;color:var(--amber) !important;flex-direction:row !important;align-items:center !important;min-height:16px}
+.wt-evsched{font-size:8px;opacity:.8;font-weight:700;margin-left:auto;flex-shrink:0;padding-right:2px}
+.wt-resize{position:absolute;left:0;right:0;bottom:0;height:7px;cursor:ns-resize;display:flex;align-items:flex-end;justify-content:center;pointer-events:auto}
+.wt-resize::after{content:'';width:60%;height:2px;border-radius:1px;background:currentColor;opacity:.35;margin-bottom:1px}
+.wt-task-ev:hover .wt-resize::after{opacity:.7}
 
 /* ── MONTH ── */
 .dow-row{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:3px}
@@ -1324,7 +1329,7 @@ function parseIcs(text,cal){
 // ── ROLLOVER ───────────────────────────────────────────────────────────────
 function doRollover(){
   const today=todayStr();let changed=false;
-  D.todos.forEach(t=>{if(!t.done&&t.date&&t.date<today){if(!t.rolledFrom)t.rolledFrom=t.date;t.date=today;if(t.time){delete t.time;delete t.endTime;}changed=true;}});
+  D.todos.forEach(t=>{if(!t.done&&t.date&&t.date<today){if(!t.rolledFrom)t.rolledFrom=t.date;t.date=today;if(t.time){delete t.time;delete t.endTime;delete t.schedH;}changed=true;}});
   // Purge events older than 3 months to keep the stored JSON small
   const cut=new Date();cut.setMonth(cut.getMonth()-3);const cutStr=dStr(cut);
   const before=D.events.length;
@@ -1499,11 +1504,23 @@ function renderWeek(){
     timedTasks.forEach(t=>{
       const[th,tm]=(t.time||'00:00').split(':').map(Number);
       const topPct=Math.max(0,(th+tm/60-HS)/numH*100);
-      html+=`<div class="wt-ev wt-task-ev" draggable="true" ondragstart="startTimeDrag(event,'task',${t.id})" ondragend="this.style.opacity='';_timeDrag={kind:null,id:null}" onclick="openEdit('todo',${t.id})" style="top:${topPct.toFixed(2)}%"><span class="wt-evtime">${t.time}</span>${urgencyBadge(t)}${taskDot(t,'margin-top:0')}<span class="wt-evtitle">${ttIcon(t)}${t.title}</span><div class="wt-evacts"><button class="btn-del" onclick="event.stopPropagation();toggleTodo(${t.id})" style="font-size:9px;padding:0 1px;color:var(--amber)" title="Completar"><i class="ti ti-check"></i></button></div></div>`;
+      const sh=t.schedH||0.5;
+      const hPct=Math.max(100/numH*0.4,sh/numH*100);
+      html+=`<div class="wt-ev wt-task-ev" draggable="true" ondragstart="startTimeDrag(event,'task',${t.id})" ondragend="this.style.opacity='';_timeDrag={kind:null,id:null}" onclick="openEdit('todo',${t.id})" style="top:${topPct.toFixed(2)}%;height:${hPct.toFixed(2)}%"><span class="wt-evtime">${t.time}</span>${urgencyBadge(t)}${taskDot(t,'margin-top:0')}<span class="wt-evtitle">${ttIcon(t)}${t.title}</span><span class="wt-evsched">${sh}h</span><div class="wt-evacts"><button class="btn-del" onclick="event.stopPropagation();toggleTodo(${t.id})" style="font-size:9px;padding:0 1px;color:var(--amber)" title="Completar"><i class="ti ti-check"></i></button></div><div class="wt-resize" draggable="false" onclick="event.stopPropagation()" onmousedown="startTaskResize(event,${t.id})" ontouchstart="startTaskResize(event,${t.id})"></div></div>`;
     });
     html+=`</div></div>`;
   }
   html+=`</div>`; // end .wt-body
+  // Scheduled vs estimated hours for the visible week
+  const weekDays=Array.from({length:7},(_,i)=>dStr(addDays(s,i)));
+  const weekTasks=D.todos.filter(t=>!t.done&&weekDays.includes(t.date));
+  const schedSum=Math.round(weekTasks.filter(t=>t.time).reduce((a,t)=>a+(t.schedH||0),0)*10)/10;
+  const estSum=Math.round(weekTasks.reduce((a,t)=>a+(t.estimateH||0),0)*10)/10;
+  if(estSum>0||schedSum>0){
+    const pct=estSum>0?Math.min(100,Math.round(schedSum/estSum*100)):0;
+    const col=schedSum>=estSum&&estSum>0?'var(--green)':'var(--amber)';
+    html+=`<div class="wt-schedbar"><i class="ti ti-clock-hour-4" style="font-size:12px"></i><span style="font-weight:700;color:${col}">${schedSum}h</span><span style="color:var(--text3)">/ ${estSum}h asignadas</span>${estSum>0?`<span style="margin-left:auto;font-size:10px;font-weight:600;color:${col}">${pct}%</span>`:''}</div>`;
+  }
   html+=`</div>`; // end .wt-left
   // ── RIGHT: Project cards column ─────────────────────────────
   html+=`<div class="wt-right">`;
@@ -1559,6 +1576,40 @@ function startTimeDrag(e,kind,id){
   e.dataTransfer.setData('text/plain',`${kind}:${id}`);
   e.currentTarget.style.opacity='.35';
 }
+let _taskResize=null;
+function startTaskResize(e,id){
+  e.preventDefault();e.stopPropagation();
+  const block=e.currentTarget.closest('.wt-ev');const layer=block&&block.parentElement;if(!layer)return;
+  const todo=D.todos.find(t=>t.id===id);if(!todo)return;
+  const numH=21-8; // HE-HS
+  _taskResize={id,startY:(e.touches?e.touches[0].clientY:e.clientY),startSched:todo.schedH||0.5,layerH:layer.clientHeight,numH,block,newSched:todo.schedH||0.5};
+  document.addEventListener('mousemove',onTaskResize);
+  document.addEventListener('mouseup',endTaskResize);
+  document.addEventListener('touchmove',onTaskResize,{passive:false});
+  document.addEventListener('touchend',endTaskResize);
+}
+function onTaskResize(e){
+  if(!_taskResize)return;
+  if(e.cancelable)e.preventDefault();
+  const y=(e.touches?e.touches[0].clientY:e.clientY);
+  const dH=(y-_taskResize.startY)/_taskResize.layerH*_taskResize.numH;
+  let sh=Math.round((_taskResize.startSched+dH)*4)/4;
+  sh=Math.max(0.25,Math.min(_taskResize.numH,sh));
+  _taskResize.newSched=sh;
+  const hPct=Math.max(100/_taskResize.numH*0.4,sh/_taskResize.numH*100);
+  _taskResize.block.style.height=hPct.toFixed(2)+'%';
+  const lbl=_taskResize.block.querySelector('.wt-evsched');if(lbl)lbl.textContent=sh+'h';
+}
+function endTaskResize(){
+  if(!_taskResize)return;
+  document.removeEventListener('mousemove',onTaskResize);
+  document.removeEventListener('mouseup',endTaskResize);
+  document.removeEventListener('touchmove',onTaskResize);
+  document.removeEventListener('touchend',endTaskResize);
+  const{id,newSched,startSched}=_taskResize;_taskResize=null;
+  const todo=D.todos.find(t=>t.id===id);
+  if(todo&&newSched&&newSched!==startSched){todo.schedH=newSched;sched();renderWeek();if(document.querySelector('#page-projects.active'))renderProjects();}
+}
 function dropOnTime(e,ds){
   e.preventDefault();
   const{kind,id}=_timeDrag;
@@ -1572,7 +1623,7 @@ function dropOnTime(e,ds){
   const t=`${String(hour).padStart(2,'0')}:${String(mins).padStart(2,'0')}`;
   if(kind==='ev'){const ev=D.events.find(e=>e.id===id);if(ev){ev.date=ds;ev.time=t;}}
   else if(kind==='tb'){const tb=D.timeblocks.find(tb=>tb.id===id);if(tb){tb.date=ds;tb.startTime=t;}}
-  else if(kind==='task'){const todo=D.todos.find(t=>t.id===id);if(todo){todo.date=ds;todo.time=t;}}
+  else if(kind==='task'){const todo=D.todos.find(t=>t.id===id);if(todo){todo.date=ds;todo.time=t;if(!todo.schedH)todo.schedH=todo.estimateH||0.5;}}
   _timeDrag={kind:null,id:null};
   sched();renderWeek();
   if(document.querySelector('#page-projects.active'))renderProjects();
@@ -1602,7 +1653,7 @@ function dropOnAllDay(e,ds){
   const{kind,id}=_timeDrag;
   if(kind!=='task')return;
   const todo=D.todos.find(t=>t.id===id);
-  if(todo){todo.date=ds;delete todo.time;}
+  if(todo){todo.date=ds;delete todo.time;delete todo.schedH;}
   _timeDrag={kind:null,id:null};
   sched();renderWeek();
 }
@@ -1997,6 +2048,7 @@ function renderProjects(){
     const evEntries=D.events.filter(e=>e.projectId===p.id&&e.date&&e.date.startsWith(monthPfx));
     const evH=Math.round(evEntries.reduce((s,e)=>s+(e.duration||0),0)*10)/10;
     const totalH=Math.round((manualH+tbH+evH)*10)/10;
+    const estH=Math.round(allProjectTasks.reduce((s,t)=>s+(t.estimateH||0),0)*10)/10;
     const pct=goal>0?Math.min(100,Math.round(totalH/goal*100)):0;
     const taskRows=(allProjectTasks.length||tbEntries.length||evEntries.length)?`<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:7px">
       <div style="font-size:9px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">Tareas</div>
@@ -2038,6 +2090,7 @@ function renderProjects(){
       <div class="pdesc">${p.desc||''}</div>
       <div class="phrow"><span style="font-weight:600;color:${p.color}">${totalH}h este mes</span><span>${goal>0?`meta ${goal}h`:'agosto'}</span></div>
       ${(manualH>0||tbH>0||evH>0)?`<div style="font-size:10px;color:var(--text3);margin-top:-4px;margin-bottom:4px">${manualH}h manuales${tbH>0?` · ${tbH}h bloques`:''}${evH>0?` · ${evH}h eventos`:''}</div>`:''}
+      ${estH>0?`<div style="font-size:10px;color:var(--text3);margin-top:-2px;margin-bottom:4px"><i class="ti ti-target-arrow" style="font-size:10px"></i> ${totalH}h / ${estH}h previstas</div>`:''}
       <div class="hbar"><div class="hfill" style="width:${pct}%;background:${p.color}"></div></div>
       <div class="pacts">
         <button class="btn btn-sm" onclick="logH(${p.id})"><i class="ti ti-plus"></i> Horas manuales</button>
@@ -2199,6 +2252,7 @@ function openEdit(type,id){
     document.getElementById('m-d').value=t.date||'';
     document.getElementById('m-u').value=t.urgency;
     const mtt=document.getElementById('m-ttype');if(mtt)mtt.value=t.ttype||'';
+    const mest=document.getElementById('m-est');if(mest)mest.value=t.estimateH||'';
     const mp=document.getElementById('m-proj');if(mp)mp.value=t.projectId||'';
     const md=document.getElementById('m-dur');if(md)md.value=t.duration||'';
   }else if(type==='event'){
@@ -2242,6 +2296,7 @@ function buildM(){
     <div class="ff"><label>Fecha <span style="font-size:10px;color:var(--text3);font-weight:400">(opcional — puedes arrastrarla al día después)</span></label><input id="m-d" type="date" value="${day}"/></div>
     <div class="ff"><label>Urgencia</label><select id="m-u"><option value="high">Urgente</option><option value="med" selected>Normal</option><option value="low">Baja</option></select></div>
     <div class="ff"><label>Tipo</label><select id="m-ttype"><option value="">Sin tipo</option><option value="mgmt">📋 Gestión</option><option value="work">💻 Trabajo</option></select></div>
+    <div class="ff"><label>Previsión de horas <span style="font-size:10px;color:var(--text3);font-weight:400">(opcional — cuántas crees que le dedicarás)</span></label><input id="m-est" type="number" min="0" step="0.25" placeholder="ej. 3"/></div>
     <div class="ff"><label>Proyecto (opcional)</label><select id="m-proj">${projOpts}</select></div>`;
   else if(type==='event')b=`
     <div class="ff"><label>Título</label><input id="m-t" placeholder="Nombre del evento"/></div>
@@ -2381,7 +2436,8 @@ function todoFromForm(id){
   const date=gv('m-d')||null;
   const pid=parseInt(gv('m-proj'))||null;
   const tt=gv('m-ttype');
-  return{id,title:t,date,urgency:gv('m-u'),done:false,ttype:tt||undefined,...(pid?{projectId:pid}:{})};
+  const est=parseFloat(gv('m-est'))||0;
+  return{id,title:t,date,urgency:gv('m-u'),done:false,ttype:tt||undefined,estimateH:est||undefined,...(pid?{projectId:pid}:{})};
 }
 function saveM(){
   const type=S.mType,eid=S.editId;
@@ -2389,7 +2445,7 @@ function saveM(){
     if(type==='todo'){
       const t=D.todos.find(t=>t.id===eid);if(!t)return;
       const u=todoFromForm(eid);if(!u)return;
-      Object.assign(t,{title:u.title,date:u.date,urgency:u.urgency,duration:u.duration,projectId:u.projectId,ttype:u.ttype,updatedAt:new Date().toISOString()});
+      Object.assign(t,{title:u.title,date:u.date,urgency:u.urgency,duration:u.duration,projectId:u.projectId,ttype:u.ttype,estimateH:u.estimateH,updatedAt:new Date().toISOString()});
     }else if(type==='event'){
       const e=D.events.find(e=>e.id===eid);if(!e)return;
       const t=gv('m-t').trim();if(!t)return;
