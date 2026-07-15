@@ -2135,8 +2135,8 @@ function renderProjects(){
         <span style="flex-shrink:0;font-weight:600;font-size:10px">${tb.duration}h</span>
         <button class="btn-del" onclick="delTimeblock(${tb.id})" title="Eliminar" style="font-size:10px;padding:1px 2px"><i class="ti ti-x"></i></button>
       </div>`).join('')}
-      ${orphanEntries.map(([desc,hrs])=>`<div style="font-size:10px;color:var(--text2);display:flex;align-items:center;gap:4px;padding:2px 0">
-        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">○ ${(desc||'').replace(/</g,'&lt;')}</span>
+      ${orphanEntries.map(([desc,hrs])=>`<div style="font-size:10px;color:var(--text3);display:flex;align-items:center;gap:4px;padding:2px 0;opacity:.7">
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-decoration:line-through">✓ ${(desc||'').replace(/</g,'&lt;')}</span>
         <span style="flex-shrink:0;font-weight:600;color:var(--text3);font-size:10px">${hrs}h</span>
       </div>`).join('')}
     </div>`:'';
@@ -2534,8 +2534,11 @@ function saveM(){
       const doneEl=document.getElementById('m-done');const markDone=!!(doneEl&&doneEl.checked);
       let desc;
       if(newTitle){
-        // create a brand-new task assigned to this project on this day
-        D.todos.push({id:nid(),title:newTitle,date:S.mDay||todayStr(),urgency:'med',done:markDone,projectId:pid,createdAt:new Date().toISOString()});
+        // Reuse an existing task with the same name in this project so hours sum
+        // into one task instead of duplicating; new ones default to completed.
+        let task=D.todos.find(t=>t.title===newTitle&&t.projectId===pid);
+        if(!task){task={id:nid(),title:newTitle,date:S.mDay||todayStr(),urgency:'med',done:true,projectId:pid,createdAt:new Date().toISOString()};D.todos.push(task);}
+        else{task.done=true;}
         desc=newTitle;
       }else{
         const tid=parseInt(gv('m-task'));
