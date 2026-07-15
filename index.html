@@ -199,8 +199,10 @@ html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
 .mchip.urg-h.selected{border-color:#E24B4A;background:#E24B4A22;color:#E24B4A}
 .mchip.urg-m.selected{border-color:#EF9F27;background:#EF9F2722;color:#B87400}
 .mchip.urg-l.selected{border-color:#639922;background:#63992222;color:#4A7A17}
-.wt-task-ev{border-left-color:var(--amber) !important;background:var(--amber-l) !important;color:var(--amber) !important;flex-direction:row !important;align-items:center !important;min-height:16px}
-.wt-evsched{font-size:8px;opacity:.8;font-weight:700;margin-left:auto;flex-shrink:0;padding-right:2px}
+.wt-task-ev{border-left-color:var(--amber) !important;background:var(--amber-l) !important;color:var(--amber) !important;min-height:16px}
+.wt-evline1{display:flex;align-items:center;gap:3px;overflow:hidden;max-width:100%}
+.wt-evline2{display:flex;align-items:center;gap:4px;font-size:8px;font-weight:600;opacity:.9;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.wt-evsched{font-size:8px;font-weight:700;flex-shrink:0}
 .wt-resize{position:absolute;left:0;right:0;bottom:0;height:7px;cursor:ns-resize;display:flex;align-items:flex-end;justify-content:center;pointer-events:auto}
 .wt-resize::after{content:'';width:60%;height:2px;border-radius:1px;background:currentColor;opacity:.35;margin-bottom:1px}
 .wt-task-ev:hover .wt-resize::after{opacity:.7}
@@ -1384,6 +1386,16 @@ function taskDot(t,extra){
 function ttIcon(t){return t&&t.ttype==='mgmt'?'📋 ':t&&t.ttype==='work'?'💻 ':'';}
 // A task is overdue when today is past its due date and it isn't done
 function isOverdue(t){return!!(t&&!t.done&&t.dueDate&&todayStr()>t.dueDate);}
+// Hours logged to a task (sum of manual entries whose description matches its title)
+function taskLoggedH(t){return Math.round(D.projects.reduce((s,p)=>s+(p.manualEntries||[]).filter(e=>e.desc===t.title).reduce((a,e)=>a+(e.hours||0),0),0)*10)/10;}
+// Second info line for a task card: logged/estimated hours and due date
+function taskMeta2(t){
+  const parts=[];
+  const accH=taskLoggedH(t);
+  if(t.estimateH||accH>0)parts.push(`<span><i class="ti ti-clock-hour-4" style="font-size:9px"></i> ${accH}h${t.estimateH?` / ${t.estimateH}h prev.`:''}</span>`);
+  if(t.dueDate)parts.push(`<span style="${isOverdue(t)?'color:#E24B4A;font-weight:600':''}"><i class="ti ti-flag" style="font-size:9px"></i> ${fmtS(new Date(t.dueDate+'T00:00:00'))}</span>`);
+  return parts.length?`<div class="tc-m" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:1px">${parts.join('')}</div>`:'';
+}
 // Red text style for overdue tasks in lists
 function overdueStyle(t){return isOverdue(t)?'color:#E24B4A':'';}
 // Small H/M/L circle showing task urgency (red when overdue)
@@ -1529,8 +1541,9 @@ function renderWeek(){
       const topPct=Math.max(0,(th+tm/60-HS)/numH*100);
       const sh=b.schedH||0.5;
       const hPct=Math.max(100/numH*0.4,sh/numH*100);
-      const tkTitle=`${ttIcon(t)}${t.title} · ${b.time} · ${sh}h`.replace(/"/g,'&quot;');
-      html+=`<div class="wt-ev wt-task-ev" draggable="true" ondragstart="startTimeDrag(event,'task',${t.id},${b.id})" ondragend="this.style.opacity='';_timeDrag={kind:null,id:null}" onclick="openEdit('todo',${t.id})" title="${tkTitle}" style="top:${topPct.toFixed(2)}%;height:${hPct.toFixed(2)}%"><span class="wt-evtime">${b.time}</span>${urgencyBadge(t)}${taskDot(t,'margin-top:0')}<span class="wt-evtitle">${ttIcon(t)}${t.title}</span><span class="wt-evsched">${sh}h</span><div class="wt-evacts"><button class="btn-del" onclick="event.stopPropagation();openCompleteTask(${t.id})" style="font-size:9px;padding:0 1px;color:var(--amber)" title="Registrar horas / completar"><i class="ti ti-check"></i></button><button class="btn-del" onclick="event.stopPropagation();removeSchedBlock(${t.id},${b.id})" style="font-size:9px;padding:0 1px" title="Quitar este bloque"><i class="ti ti-x"></i></button></div><div class="wt-resize" draggable="false" onclick="event.stopPropagation()" onmousedown="startTaskResize(event,${t.id},${b.id})" ontouchstart="startTaskResize(event,${t.id},${b.id})"></div></div>`;
+      const tproj=t.projectId?D.projects.find(p=>p.id===t.projectId):null;
+      const tkTitle=`${ttIcon(t)}${t.title} · ${b.time} · ${sh}h${t.estimateH?' / '+t.estimateH+'h prev.':''}${tproj?' · '+tproj.name:''}`.replace(/"/g,'&quot;');
+      html+=`<div class="wt-ev wt-task-ev" draggable="true" ondragstart="startTimeDrag(event,'task',${t.id},${b.id})" ondragend="this.style.opacity='';_timeDrag={kind:null,id:null}" onclick="openEdit('todo',${t.id})" title="${tkTitle}" style="top:${topPct.toFixed(2)}%;height:${hPct.toFixed(2)}%"><div class="wt-evline1"><span class="wt-evtime">${b.time}</span>${urgencyBadge(t)}${taskDot(t,'margin-top:0')}<span class="wt-evtitle">${ttIcon(t)}${t.title}</span></div><div class="wt-evline2"><span class="wt-evsched">${sh}h${t.estimateH?` / ${t.estimateH}h`:''}</span>${tproj?`<span style="color:${tproj.color};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">· ${tproj.name}</span>`:''}</div><div class="wt-evacts"><button class="btn-del" onclick="event.stopPropagation();openCompleteTask(${t.id})" style="font-size:9px;padding:0 1px;color:var(--amber)" title="Registrar horas / completar"><i class="ti ti-check"></i></button><button class="btn-del" onclick="event.stopPropagation();removeSchedBlock(${t.id},${b.id})" style="font-size:9px;padding:0 1px" title="Quitar este bloque"><i class="ti ti-x"></i></button></div><div class="wt-resize" draggable="false" onclick="event.stopPropagation()" onmousedown="startTaskResize(event,${t.id},${b.id})" ontouchstart="startTaskResize(event,${t.id},${b.id})"></div></div>`;
     });
     html+=`</div></div>`;
   }
@@ -1911,15 +1924,15 @@ function renderTodos(){
   const tc=t=>{
     const proj=t.projectId?D.projects.find(p=>p.id===t.projectId):null;
     const projTag=proj?` · <span style="color:${proj.color}">${proj.name}</span>`:'';
-    const durTag=t.duration?` · ${t.duration}h`:'';
     const meta=t.date
-      ?`${fmtS(new Date(t.date))}${t.time?` · ${t.time}`:''}${t.rolledFrom?' · fue '+fmtS(new Date(t.rolledFrom)):''}${projTag}${durTag}`
-      :`Sin fecha${projTag}${durTag}`;
+      ?`${fmtS(new Date(t.date))}${t.rolledFrom?' · fue '+fmtS(new Date(t.rolledFrom)):''}${projTag}`
+      :`Sin fecha${projTag}`;
     return`<div class="tcard">
       <div class="bchk${t.done?' on':''}" onclick="toggleTodo(${t.id},true)"></div>
       <div style="flex:1">
         <div class="tc-t" style="${t.done?'text-decoration:line-through;color:var(--text3)':overdueStyle(t)}">${ttIcon(t)}${t.title}${t.rolledFrom&&t.date?`<span class="rolled" style="margin-left:5px">↩</span>`:''}</div>
         <div class="tc-m">${meta}</div>
+        ${taskMeta2(t)}
       </div>
       <span class="ub ub-${t.urgency}">${t.urgency==='high'?'Urgente':t.urgency==='med'?'Normal':'Baja'}</span>
       <button class="btn-del" onclick="openEdit('todo',${t.id})" title="Edit"><i class="ti ti-pencil" style="font-size:12px"></i></button>
@@ -1960,15 +1973,15 @@ function renderTodos(){
 }
 function renderTodosByProject(items,today){
   const tb=t=>{
-    const durTag=t.duration?` · ${t.duration}h`:'';
     const meta=t.date
-      ?`${fmtS(new Date(t.date))}${t.time?` · ${t.time}`:''}${t.rolledFrom?' · fue '+fmtS(new Date(t.rolledFrom)):''}${durTag}`
-      :`Sin fecha${durTag}`;
+      ?`${fmtS(new Date(t.date))}${t.rolledFrom?' · fue '+fmtS(new Date(t.rolledFrom)):''}`
+      :`Sin fecha`;
     return`<div class="tbubble">
       <div class="bchk${t.done?' on':''}" onclick="toggleTodo(${t.id},true)"></div>
       <div style="flex:1;min-width:0">
         <div class="tc-t" style="${t.done?'text-decoration:line-through;color:var(--text3)':overdueStyle(t)}">${ttIcon(t)}${t.title}${t.rolledFrom&&t.date?`<span class="rolled" style="margin-left:5px">↩</span>`:''}</div>
         <div class="tc-m">${meta}</div>
+        ${taskMeta2(t)}
       </div>
       <span class="ub ub-${t.urgency}">${t.urgency==='high'?'Urg':t.urgency==='med'?'Med':'Baja'}</span>
       <button class="btn-del" onclick="openEdit('todo',${t.id})" title="Edit"><i class="ti ti-pencil"></i></button>
@@ -2095,6 +2108,7 @@ function renderProjects(){
     const evH=Math.round(evEntries.reduce((s,e)=>s+(e.duration||0),0)*10)/10;
     const totalH=Math.round((manualH+tbH+evH)*10)/10;
     const estH=Math.round(allProjectTasks.reduce((s,t)=>s+(t.estimateH||0),0)*10)/10;
+    const projReal=Math.round(allProjectTasks.reduce((s,t)=>s+taskLoggedH(t),0)*10)/10;
     const pct=goal>0?Math.min(100,Math.round(totalH/goal*100)):0;
     const taskRows=(allProjectTasks.length||tbEntries.length||evEntries.length)?`<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:7px">
       <div style="font-size:9px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">Tareas</div>
@@ -2135,8 +2149,7 @@ function renderProjects(){
       </div>
       <div class="pdesc">${p.desc||''}</div>
       <div class="phrow"><span style="font-weight:600;color:${p.color}">${totalH}h este mes</span><span>${goal>0?`meta ${goal}h`:'agosto'}</span></div>
-      ${(manualH>0||tbH>0||evH>0)?`<div style="font-size:10px;color:var(--text3);margin-top:-4px;margin-bottom:4px">${manualH}h manuales${tbH>0?` · ${tbH}h bloques`:''}${evH>0?` · ${evH}h eventos`:''}</div>`:''}
-      ${estH>0?`<div style="font-size:10px;color:var(--text3);margin-top:-2px;margin-bottom:4px"><i class="ti ti-target-arrow" style="font-size:10px"></i> ${totalH}h / ${estH}h previstas</div>`:''}
+      ${(manualH>0||tbH>0||evH>0||estH>0)?`<div class="phrow" style="font-size:10px;color:var(--text3);margin-top:-4px;margin-bottom:4px"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${(manualH>0||tbH>0||evH>0)?`${manualH}h manuales${tbH>0?` · ${tbH}h bloques`:''}${evH>0?` · ${evH}h eventos`:''}`:''}</span>${estH>0?`<span style="flex-shrink:0;padding-left:6px">${projReal}h / ${estH}h previstas</span>`:''}</div>`:''}
       <div class="hbar"><div class="hfill" style="width:${pct}%;background:${p.color}"></div></div>
       <div class="pacts">
         <button class="btn btn-sm" onclick="logH(${p.id})"><i class="ti ti-plus"></i> Horas manuales</button>
