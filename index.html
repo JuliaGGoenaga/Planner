@@ -876,7 +876,7 @@ setInterval(applyTimeTheme,60000);
 const DAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const MFULL=['January','February','March','April','May','June','July','August','September','October','November','December'];
 const DOW3=['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
-const PCOLS=['#534AB7','#0F6E56','#D85A30','#D4537E','#185FA5','#BA7517','#639922','#993556'];
+const PCOLS=['#534AB7','#0F6E56','#D85A30','#D4537E','#185FA5','#BA7517','#639922','#993556','#8B7BF7','#22C39A','#FF8C42','#F368A0','#4DABF7','#FACC3D','#8CD94E','#FF6B6B'];
 const TICOS=['ti-bulb','ti-briefcase','ti-plane','ti-heart','ti-home','ti-book','ti-music','ti-star','ti-rocket','ti-camera'];
 const NOTE_CATS=[
   {id:'reflexiones', label:'Reflexiones',      icon:'ti-brain',    color:'var(--accent)'},
@@ -1324,7 +1324,7 @@ function parseIcs(text,cal){
 // ── ROLLOVER ───────────────────────────────────────────────────────────────
 function doRollover(){
   const today=todayStr();let changed=false;
-  D.todos.forEach(t=>{if(!t.done&&t.date&&t.date<today){if(!t.rolledFrom)t.rolledFrom=t.date;t.date=today;changed=true;}});
+  D.todos.forEach(t=>{if(!t.done&&t.date&&t.date<today){if(!t.rolledFrom)t.rolledFrom=t.date;t.date=today;if(t.time){delete t.time;delete t.endTime;}changed=true;}});
   // Purge events older than 3 months to keep the stored JSON small
   const cut=new Date();cut.setMonth(cut.getMonth()-3);const cutStr=dStr(cut);
   const before=D.events.length;
@@ -1360,6 +1360,8 @@ function taskDot(t,extra){
   const style=`${p?`background:${p.color};`:''}${extra||''}`;
   return`<div class="${cls}"${style?` style="${style}"`:''}></div>`;
 }
+// Task type prefix: 📋 gestión, 💻 trabajo, or nothing
+function ttIcon(t){return t&&t.ttype==='mgmt'?'📋 ':t&&t.ttype==='work'?'💻 ':'';}
 // Small H/M/L circle showing task urgency
 function urgencyBadge(t){
   if(t.fromIcs)return'';
@@ -1440,7 +1442,7 @@ function renderWeek(){
   function rtask(t){
     const badge=t.fromIcs&&t.hours?`${t.hours}h`:t.date?(t.time?t.time:t.date.slice(5)):'';
     const dot=t.fromIcs?`<i class="ti ti-calendar-event" style="font-size:10px;color:var(--blue);flex-shrink:0"></i>`:`${urgencyBadge(t)}${taskDot(t,'flex-shrink:0')}`;
-    return`<div class="wt-rtask" draggable="true" ondragstart="startTimeDrag(event,'task',${t.id});this.classList.add('dragging')" ondragend="this.classList.remove('dragging');this.style.opacity='';_timeDrag={kind:null,id:null}" onclick="openEdit('todo',${t.id})">${dot}<span class="wt-rtask-title">${t.title}</span>${badge?`<span class="wt-rtask-badge">${badge}</span>`:''}</div>`;
+    return`<div class="wt-rtask" draggable="true" ondragstart="startTimeDrag(event,'task',${t.id});this.classList.add('dragging')" ondragend="this.classList.remove('dragging');this.style.opacity='';_timeDrag={kind:null,id:null}" onclick="openEdit('todo',${t.id})">${dot}<span class="wt-rtask-title">${ttIcon(t)}${t.title}</span>${badge?`<span class="wt-rtask-badge">${badge}</span>`:''}</div>`;
   }
   let html=`<div class="wt-wrap">`;
   // ── LEFT: Calendar ──────────────────────────────────────────
@@ -1458,7 +1460,7 @@ function renderWeek(){
   for(let i=0;i<7;i++){
     const d=addDays(s,i),ds=dStr(d);
     const untimedTasks=D.todos.filter(t=>t.date===ds&&!t.time&&!t.done&&!t.fromIcs);
-    html+=`<div class="wt-allday-cell" ondragover="event.preventDefault()" ondrop="dropOnAllDay(event,'${ds}')">${untimedTasks.map(t=>`<div class="wt-allday-chip" draggable="true" ondragstart="startTimeDrag(event,'task',${t.id})" ondragend="this.style.opacity='';_timeDrag={kind:null,id:null}" onclick="openEdit('todo',${t.id})" title="${(t.title||'').replace(/"/g,'&quot;')}">${urgencyBadge(t)}${taskDot(t,'flex-shrink:0')}<span>${t.title}${t.rolledFrom?' <span class="rolled">↩</span>':''}</span></div>`).join('')}</div>`;
+    html+=`<div class="wt-allday-cell" ondragover="event.preventDefault()" ondrop="dropOnAllDay(event,'${ds}')">${untimedTasks.map(t=>`<div class="wt-allday-chip" draggable="true" ondragstart="startTimeDrag(event,'task',${t.id})" ondragend="this.style.opacity='';_timeDrag={kind:null,id:null}" onclick="openEdit('todo',${t.id})" title="${(t.title||'').replace(/"/g,'&quot;')}">${urgencyBadge(t)}${taskDot(t,'flex-shrink:0')}<span>${ttIcon(t)}${t.title}${t.rolledFrom?' <span class="rolled">↩</span>':''}</span></div>`).join('')}</div>`;
   }
   html+=`</div>`;
   // Time body — slots sized by flex (fill height, no scroll)
@@ -1497,7 +1499,7 @@ function renderWeek(){
     timedTasks.forEach(t=>{
       const[th,tm]=(t.time||'00:00').split(':').map(Number);
       const topPct=Math.max(0,(th+tm/60-HS)/numH*100);
-      html+=`<div class="wt-ev wt-task-ev" draggable="true" ondragstart="startTimeDrag(event,'task',${t.id})" ondragend="this.style.opacity='';_timeDrag={kind:null,id:null}" onclick="openEdit('todo',${t.id})" style="top:${topPct.toFixed(2)}%"><span class="wt-evtime">${t.time}</span>${urgencyBadge(t)}${taskDot(t,'margin-top:0')}<span class="wt-evtitle">${t.title}</span><div class="wt-evacts"><button class="btn-del" onclick="event.stopPropagation();toggleTodo(${t.id})" style="font-size:9px;padding:0 1px;color:var(--amber)" title="Completar"><i class="ti ti-check"></i></button></div></div>`;
+      html+=`<div class="wt-ev wt-task-ev" draggable="true" ondragstart="startTimeDrag(event,'task',${t.id})" ondragend="this.style.opacity='';_timeDrag={kind:null,id:null}" onclick="openEdit('todo',${t.id})" style="top:${topPct.toFixed(2)}%"><span class="wt-evtime">${t.time}</span>${urgencyBadge(t)}${taskDot(t,'margin-top:0')}<span class="wt-evtitle">${ttIcon(t)}${t.title}</span><div class="wt-evacts"><button class="btn-del" onclick="event.stopPropagation();toggleTodo(${t.id})" style="font-size:9px;padding:0 1px;color:var(--amber)" title="Completar"><i class="ti ti-check"></i></button></div></div>`;
     });
     html+=`</div></div>`;
   }
@@ -1540,7 +1542,7 @@ function renderWeekMobile(){
             :`<div class="ev" style="display:flex;align-items:flex-start;gap:3px"><div style="flex:1"><span class="ev-time">${ev.time||'all-day'}</span>${ev.title}</div>${mnBtn}<button class="btn-del" onclick="openEdit('event',${ev.id})" style="font-size:10px;padding:1px 2px"><i class="ti ti-pencil"></i></button><button class="btn-del" onclick="delEvent(${ev.id})" style="font-size:10px;padding:1px 2px"><i class="ti ti-x"></i></button></div>`;
         }).join('')}
         ${tbs.map(tb=>{const p=D.projects.find(p=>p.id===tb.projectId);const c=p?p.color:'var(--accent)';return`<div class="ev" style="border-left-color:${c};background:${c}18;color:${c};display:flex;align-items:flex-start;gap:3px"><div style="flex:1"><span class="ev-time">${tb.startTime} · ${tb.duration}h</span>${p?p.name:'Bloque'}</div><button class="btn-del" onclick="delTimeblock(${tb.id})" style="font-size:10px;padding:1px 2px;color:${c}"><i class="ti ti-x"></i></button></div>`;}).join('')}
-        ${tds.map(t=>`<div class="tr"><div class="chk${t.done?' on':''}" onclick="toggleTodo(${t.id})"></div>${urgencyBadge(t)}${taskDot(t,'')}<div class="tl${t.done?' done':''}" style="flex:1">${t.title}${t.rolledFrom?'<span class="rolled">↩</span>':''}</div><button class="btn-del" onclick="openEdit('todo',${t.id})" style="font-size:9px;padding:1px 2px"><i class="ti ti-pencil"></i></button></div>`).join('')}
+        ${tds.map(t=>`<div class="tr"><div class="chk${t.done?' on':''}" onclick="toggleTodo(${t.id})"></div>${urgencyBadge(t)}${taskDot(t,'')}<div class="tl${t.done?' done':''}" style="flex:1">${ttIcon(t)}${t.title}${t.rolledFrom?'<span class="rolled">↩</span>':''}</div><button class="btn-del" onclick="openEdit('todo',${t.id})" style="font-size:9px;padding:1px 2px"><i class="ti ti-pencil"></i></button></div>`).join('')}
         <div class="day-adds">
           <button class="dadd" onclick="openMD('todo','${ds}')"><i class="ti ti-plus" style="font-size:9px"></i> task</button>
           <button class="dadd" onclick="openMD('event','${ds}')"><i class="ti ti-plus" style="font-size:9px"></i> event</button>
@@ -1826,7 +1828,7 @@ function renderTodos(){
     return`<div class="tcard">
       <div class="bchk${t.done?' on':''}" onclick="toggleTodo(${t.id},true)"></div>
       <div style="flex:1">
-        <div class="tc-t" style="${t.done?'text-decoration:line-through;color:var(--text3)':''}">${t.title}${t.rolledFrom&&t.date?`<span class="rolled" style="margin-left:5px">↩</span>`:''}</div>
+        <div class="tc-t" style="${t.done?'text-decoration:line-through;color:var(--text3)':''}">${ttIcon(t)}${t.title}${t.rolledFrom&&t.date?`<span class="rolled" style="margin-left:5px">↩</span>`:''}</div>
         <div class="tc-m">${meta}</div>
       </div>
       <span class="ub ub-${t.urgency}">${t.urgency==='high'?'Urgente':t.urgency==='med'?'Normal':'Baja'}</span>
@@ -1875,7 +1877,7 @@ function renderTodosByProject(items,today){
     return`<div class="tbubble">
       <div class="bchk${t.done?' on':''}" onclick="toggleTodo(${t.id},true)"></div>
       <div style="flex:1;min-width:0">
-        <div class="tc-t" style="${t.done?'text-decoration:line-through;color:var(--text3)':''}">${t.title}${t.rolledFrom&&t.date?`<span class="rolled" style="margin-left:5px">↩</span>`:''}</div>
+        <div class="tc-t" style="${t.done?'text-decoration:line-through;color:var(--text3)':''}">${ttIcon(t)}${t.title}${t.rolledFrom&&t.date?`<span class="rolled" style="margin-left:5px">↩</span>`:''}</div>
         <div class="tc-m">${meta}</div>
       </div>
       <span class="ub ub-${t.urgency}">${t.urgency==='high'?'Urg':t.urgency==='med'?'Med':'Baja'}</span>
@@ -2196,6 +2198,7 @@ function openEdit(type,id){
     document.getElementById('m-t').value=t.title;
     document.getElementById('m-d').value=t.date||'';
     document.getElementById('m-u').value=t.urgency;
+    const mtt=document.getElementById('m-ttype');if(mtt)mtt.value=t.ttype||'';
     const mp=document.getElementById('m-proj');if(mp)mp.value=t.projectId||'';
     const md=document.getElementById('m-dur');if(md)md.value=t.duration||'';
   }else if(type==='event'){
@@ -2238,6 +2241,7 @@ function buildM(){
     <div class="ff"><label>Tarea</label><input id="m-t" placeholder="¿Qué hay que hacer?"/></div>
     <div class="ff"><label>Fecha <span style="font-size:10px;color:var(--text3);font-weight:400">(opcional — puedes arrastrarla al día después)</span></label><input id="m-d" type="date" value="${day}"/></div>
     <div class="ff"><label>Urgencia</label><select id="m-u"><option value="high">Urgente</option><option value="med" selected>Normal</option><option value="low">Baja</option></select></div>
+    <div class="ff"><label>Tipo</label><select id="m-ttype"><option value="">Sin tipo</option><option value="mgmt">📋 Gestión</option><option value="work">💻 Trabajo</option></select></div>
     <div class="ff"><label>Proyecto (opcional)</label><select id="m-proj">${projOpts}</select></div>`;
   else if(type==='event')b=`
     <div class="ff"><label>Título</label><input id="m-t" placeholder="Nombre del evento"/></div>
@@ -2376,7 +2380,8 @@ function todoFromForm(id){
   const t=gv('m-t').trim();if(!t)return null;
   const date=gv('m-d')||null;
   const pid=parseInt(gv('m-proj'))||null;
-  return{id,title:t,date,urgency:gv('m-u'),done:false,...(pid?{projectId:pid}:{})};
+  const tt=gv('m-ttype');
+  return{id,title:t,date,urgency:gv('m-u'),done:false,ttype:tt||undefined,...(pid?{projectId:pid}:{})};
 }
 function saveM(){
   const type=S.mType,eid=S.editId;
@@ -2384,7 +2389,7 @@ function saveM(){
     if(type==='todo'){
       const t=D.todos.find(t=>t.id===eid);if(!t)return;
       const u=todoFromForm(eid);if(!u)return;
-      Object.assign(t,{title:u.title,date:u.date,urgency:u.urgency,duration:u.duration,projectId:u.projectId,updatedAt:new Date().toISOString()});
+      Object.assign(t,{title:u.title,date:u.date,urgency:u.urgency,duration:u.duration,projectId:u.projectId,ttype:u.ttype,updatedAt:new Date().toISOString()});
     }else if(type==='event'){
       const e=D.events.find(e=>e.id===eid);if(!e)return;
       const t=gv('m-t').trim();if(!t)return;
@@ -2786,7 +2791,7 @@ function renderTodayPanel(){
         html+=`<div class="mtp-item">
           <div class="mtp-time">${item.time||''}</div>
           <div class="udot u-${item.urgency}" style="margin-top:3px;flex-shrink:0"></div>
-          <div class="mtp-title" title="${safeTitle}">${safeTitle}</div>
+          <div class="mtp-title" title="${safeTitle}">${ttIcon(item)}${safeTitle}</div>
           ${item.duration?`<div class="mtp-hours">${item.duration}h</div>`:''}
         </div>`;
       }
