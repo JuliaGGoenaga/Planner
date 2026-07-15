@@ -692,10 +692,13 @@ html.dark .cpick{box-shadow:0 0 0 1px rgba(255,255,255,0.2)}
           <button class="btn btn-p fab-add-mobile" onclick="openM('todo')"><i class="ti ti-plus"></i><span> Add</span></button>
         </div>
         <div class="tfilters">
-          <button class="fb active" onclick="setF('all',this)">All</button>
-          <button class="fb" onclick="setF('high',this)">Urgent</button>
-          <button class="fb" onclick="setF('pending',this)">Pending</button>
-          <button class="fb" onclick="setF('done',this)">Done</button>
+          <button class="fb sf active" onclick="setF('all',this)">All</button>
+          <button class="fb sf" onclick="setF('high',this)">Urgent</button>
+          <button class="fb sf" onclick="setF('pending',this)">Pending</button>
+          <button class="fb sf" onclick="setF('done',this)">Done</button>
+          <span style="width:1px;background:var(--border);align-self:stretch;margin:0 2px"></span>
+          <button class="fb tf" onclick="setTypeF('mgmt',this)" title="Solo tareas de gestión">📋</button>
+          <button class="fb tf" onclick="setTypeF('work',this)" title="Solo tareas de trabajo">💻</button>
           <button class="fb" id="tg-date" style="margin-left:auto" onclick="setGroupBy('date')"><i class="ti ti-calendar" style="font-size:11px"></i> Por fecha</button>
           <button class="fb active" id="tg-project" onclick="setGroupBy('project')"><i class="ti ti-folder" style="font-size:11px"></i> Por proyecto</button>
         </div>
@@ -900,7 +903,7 @@ const NOTE_CATS=[
 const isMobile=()=>window.innerWidth<=700;
 
 // ── STATE ──────────────────────────────────────────────────────────────────
-let S={weekStart:getMonday(new Date()),monthDate:new Date(),yearDate:new Date(),filter:'all',noteFilter:'all',noteSort:'newest',mType:null,mDay:null,editId:null,mProjId:null,nextId:Date.now(),sidebarCollapsed:false,meetingNotesMode:false,yearPaintMode:false,monthPaintMode:false,selDay:todayStr(),todoGroupBy:'project'};
+let S={weekStart:getMonday(new Date()),monthDate:new Date(),yearDate:new Date(),filter:'all',noteFilter:'all',noteSort:'newest',mType:null,mDay:null,editId:null,mProjId:null,nextId:Date.now(),sidebarCollapsed:false,meetingNotesMode:false,yearPaintMode:false,monthPaintMode:false,selDay:todayStr(),todoGroupBy:'project',typeFilter:'all'};
 let D={events:[],todos:[],projects:[],timeblocks:[],meetingNotes:[],notes:[],topics:[
   {id:1,name:'Work',icon:'ti-briefcase'},
   {id:2,name:'Personal',icon:'ti-heart'},
@@ -1907,7 +1910,8 @@ function changeMonth(d){
 }
 
 // ── TODOS ──────────────────────────────────────────────────────────────────
-function setF(f,btn){S.filter=f;document.querySelectorAll('.fb').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderTodos()}
+function setF(f,btn){S.filter=f;document.querySelectorAll('.sf').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderTodos()}
+function setTypeF(f,btn){const was=btn.classList.contains('active');document.querySelectorAll('.tf').forEach(b=>b.classList.remove('active'));if(was){S.typeFilter='all';}else{S.typeFilter=f;btn.classList.add('active');}renderTodos()}
 function setGroupBy(mode){
   S.todoGroupBy=mode;
   document.getElementById('tg-date').classList.toggle('active',mode==='date');
@@ -1920,6 +1924,8 @@ function renderTodos(){
   if(S.filter==='high')items=items.filter(t=>t.urgency==='high'&&!t.done);
   else if(S.filter==='pending')items=items.filter(t=>!t.done);
   else if(S.filter==='done')items=items.filter(t=>t.done);
+  if(S.typeFilter==='mgmt')items=items.filter(t=>t.ttype==='mgmt');
+  else if(S.typeFilter==='work')items=items.filter(t=>t.ttype==='work');
   if(S.todoGroupBy==='project'){renderTodosByProject(items,today);return}
   const tc=t=>{
     const proj=t.projectId?D.projects.find(p=>p.id===t.projectId):null;
