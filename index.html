@@ -1336,7 +1336,15 @@ function parseIcs(text,cal){
 // ── ROLLOVER ───────────────────────────────────────────────────────────────
 function doRollover(){
   const today=todayStr();let changed=false;
-  D.todos.forEach(t=>{if(!t.done&&t.date&&t.date<today){if(!t.rolledFrom)t.rolledFrom=t.date;t.date=today;if(t.time){delete t.time;delete t.endTime;delete t.schedH;}changed=true;}});
+  D.todos.forEach(t=>{
+    // migrate legacy single time placement to the sched blocks model
+    if(t.time&&!t.sched){t.sched=[{id:nid(),date:t.date,time:t.time,schedH:t.schedH||0.5}];delete t.time;delete t.schedH;delete t.endTime;changed=true;}
+    if(t.done)return;
+    // roll the task's list date forward to today
+    if(t.date&&t.date<today){if(!t.rolledFrom)t.rolledFrom=t.date;t.date=today;changed=true;}
+    // drop scheduled blocks that belong to days already gone
+    if(t.sched&&t.sched.length){const kept=t.sched.filter(b=>b.date&&b.date>=today);if(kept.length!==t.sched.length){if(kept.length)t.sched=kept;else delete t.sched;changed=true;}}
+  });
   // Purge events older than 3 months to keep the stored JSON small
   const cut=new Date();cut.setMonth(cut.getMonth()-3);const cutStr=dStr(cut);
   const before=D.events.length;
@@ -1478,7 +1486,7 @@ function renderWeek(){
   html+=`<div class="wt-allday-row"><div class="wt-allday-label">Sin<br>hora</div>`;
   for(let i=0;i<7;i++){
     const d=addDays(s,i),ds=dStr(d);
-    const untimedTasks=D.todos.filter(t=>t.date===ds&&!t.time&&!t.done&&!t.fromIcs);
+    const untimedTasks=D.todos.filter(t=>t.date===ds&&!(t.sched&&t.sched.length)&&!t.done&&!t.fromIcs);
     html+=`<div class="wt-allday-cell" ondragover="event.preventDefault()" ondrop="dropOnAllDay(event,'${ds}')">${untimedTasks.map(t=>`<div class="wt-allday-chip" draggable="true" ondragstart="startTimeDrag(event,'task',${t.id})" ondragend="this.style.opacity='';_timeDrag={kind:null,id:null}" onclick="openEdit('todo',${t.id})" title="${(t.title||'').replace(/"/g,'&quot;')}">${urgencyBadge(t)}${taskDot(t,'flex-shrink:0')}<span style="${overdueStyle(t)}">${ttIcon(t)}${t.title}${t.rolledFrom?' <span class="rolled">↩</span>':''}</span></div>`).join('')}</div>`;
   }
   html+=`</div>`;
@@ -1491,7 +1499,7 @@ function renderWeek(){
     const isW=d.getDay()===0||d.getDay()===6;
     const extDay=EXT.filter(e=>e.date===ds&&e.time);const extDayIds=new Set(extDay.map(e=>e.id));
     const timedEvs=[...D.events.filter(e=>e.date===ds&&e.time&&(!e.fromIcs||!extDayIds.has(e.icsRef))),...extDay];
-    const timedTasks=D.todos.filter(t=>t.date===ds&&t.time&&!t.fromIcs);
+    const taskBlocks=[];D.todos.forEach(t=>{if(t.done||t.fromIcs)return;(t.sched||[]).forEach(b=>{if(b.date===ds)taskBlocks.push({t,b});});});
     html+=`<div class="wt-daycol${isT?' wt-today-col':''}${isW?' wt-weekend-col':''}" ondragover="event.preventDefault();event.dataTransfer.dropEffect='move'" ondrop="dropOnTime(event,'${ds}')">`;
     for(let h=HS;h<HE;h++) html+=`<div class="wt-slot" onclick="openMDTime('event','${ds}','${String(h).padStart(2,'0')}:00')"></div>`;
     html+=`<div class="wt-evlayer">`;
@@ -1515,19 +1523,19 @@ function renderWeek(){
       const cursorStyle=isExt?'cursor:pointer;':'';
       html+=`<div class="wt-ev"${drag}${click} style="${cursorStyle}top:${topPct.toFixed(2)}%;height:${hPct.toFixed(2)}%;border-left-color:${c};background:${c}18;color:${c}"><span class="wt-evtime">${tLabel}${ev.source?' · '+ev.source:''}</span><span class="wt-evtitle">${ev.title}</span><div class="wt-evacts">${del}</div>${noteIcon}</div>`;
     });
-    timedTasks.forEach(t=>{
-      const[th,tm]=(t.time||'00:00').split(':').map(Number);
+    taskBlocks.forEach(({t,b})=>{
+      const[th,tm]=(b.time||'00:00').split(':').map(Number);
       const topPct=Math.max(0,(th+tm/60-HS)/numH*100);
-      const sh=t.schedH||0.5;
+      const sh=b.schedH||0.5;
       const hPct=Math.max(100/numH*0.4,sh/numH*100);
-      html+=`<div class="wt-ev wt-task-ev" draggable="true" ondragstart="startTimeDrag(event,'task',${t.id})" ondragend="this.style.opacity='';_timeDrag={kind:null,id:null}" onclick="openEdit('todo',${t.id})" style="top:${topPct.toFixed(2)}%;height:${hPct.toFixed(2)}%"><span class="wt-evtime">${t.time}</span>${urgencyBadge(t)}${taskDot(t,'margin-top:0')}<span class="wt-evtitle">${ttIcon(t)}${t.title}</span><span class="wt-evsched">${sh}h</span><div class="wt-evacts"><button class="btn-del" onclick="event.stopPropagation();toggleTodo(${t.id})" style="font-size:9px;padding:0 1px;color:var(--amber)" title="Completar"><i class="ti ti-check"></i></button></div><div class="wt-resize" draggable="false" onclick="event.stopPropagation()" onmousedown="startTaskResize(event,${t.id})" ontouchstart="startTaskResize(event,${t.id})"></div></div>`;
+      html+=`<div class="wt-ev wt-task-ev" draggable="true" ondragstart="startTimeDrag(event,'task',${t.id},${b.id})" ondragend="this.style.opacity='';_timeDrag={kind:null,id:null}" onclick="openEdit('todo',${t.id})" style="top:${topPct.toFixed(2)}%;height:${hPct.toFixed(2)}%"><span class="wt-evtime">${b.time}</span>${urgencyBadge(t)}${taskDot(t,'margin-top:0')}<span class="wt-evtitle">${ttIcon(t)}${t.title}</span><span class="wt-evsched">${sh}h</span><div class="wt-evacts"><button class="btn-del" onclick="event.stopPropagation();toggleTodo(${t.id})" style="font-size:9px;padding:0 1px;color:var(--amber)" title="Completar tarea"><i class="ti ti-check"></i></button><button class="btn-del" onclick="event.stopPropagation();removeSchedBlock(${t.id},${b.id})" style="font-size:9px;padding:0 1px" title="Quitar este bloque"><i class="ti ti-x"></i></button></div><div class="wt-resize" draggable="false" onclick="event.stopPropagation()" onmousedown="startTaskResize(event,${t.id},${b.id})" ontouchstart="startTaskResize(event,${t.id},${b.id})"></div></div>`;
     });
     html+=`</div></div>`;
   }
   html+=`</div>`; // end .wt-body
   // Scheduled vs estimated hours across all pending tasks (total, not just this week)
   const pendAll=D.todos.filter(t=>!t.done);
-  const schedSum=Math.round(pendAll.filter(t=>t.time).reduce((a,t)=>a+(t.schedH||0),0)*10)/10;
+  const schedSum=Math.round(pendAll.reduce((a,t)=>a+((t.sched||[]).reduce((s,b)=>s+(b.schedH||0),0)),0)*10)/10;
   const estSum=Math.round(pendAll.reduce((a,t)=>a+(t.estimateH||0),0)*10)/10;
   if(estSum>0||schedSum>0){
     const pct=estSum>0?Math.min(100,Math.round(schedSum/estSum*100)):0;
@@ -1583,19 +1591,20 @@ function renderWeekMobile(){
   html+='</div>';
   document.getElementById('week-grid').innerHTML=html;
 }
-function startTimeDrag(e,kind,id){
-  _timeDrag={kind,id};
+function startTimeDrag(e,kind,id,bid){
+  _timeDrag={kind,id,bid:(bid==null?null:bid)};
   e.dataTransfer.effectAllowed='move';
   e.dataTransfer.setData('text/plain',`${kind}:${id}`);
   e.currentTarget.style.opacity='.35';
 }
 let _taskResize=null;
-function startTaskResize(e,id){
+function startTaskResize(e,id,bid){
   e.preventDefault();e.stopPropagation();
   const block=e.currentTarget.closest('.wt-ev');const layer=block&&block.parentElement;if(!layer)return;
   const todo=D.todos.find(t=>t.id===id);if(!todo)return;
+  const blk=(todo.sched||[]).find(b=>b.id===bid);if(!blk)return;
   const numH=21-8; // HE-HS
-  _taskResize={id,startY:(e.touches?e.touches[0].clientY:e.clientY),startSched:todo.schedH||0.5,layerH:layer.clientHeight,numH,block,newSched:todo.schedH||0.5};
+  _taskResize={id,bid,startY:(e.touches?e.touches[0].clientY:e.clientY),startSched:blk.schedH||0.5,layerH:layer.clientHeight,numH,block,newSched:blk.schedH||0.5};
   document.addEventListener('mousemove',onTaskResize);
   document.addEventListener('mouseup',endTaskResize);
   document.addEventListener('touchmove',onTaskResize,{passive:false});
@@ -1619,9 +1628,15 @@ function endTaskResize(){
   document.removeEventListener('mouseup',endTaskResize);
   document.removeEventListener('touchmove',onTaskResize);
   document.removeEventListener('touchend',endTaskResize);
-  const{id,newSched,startSched}=_taskResize;_taskResize=null;
+  const{id,bid,newSched,startSched}=_taskResize;_taskResize=null;
   const todo=D.todos.find(t=>t.id===id);
-  if(todo&&newSched&&newSched!==startSched){todo.schedH=newSched;sched();renderWeek();if(document.querySelector('#page-projects.active'))renderProjects();}
+  const blk=todo&&(todo.sched||[]).find(b=>b.id===bid);
+  if(blk&&newSched&&newSched!==startSched){blk.schedH=newSched;sched();renderWeek();if(document.querySelector('#page-projects.active'))renderProjects();}
+}
+function removeSchedBlock(taskId,bid){
+  const t=D.todos.find(t=>t.id===taskId);if(!t||!t.sched)return;
+  t.sched=t.sched.filter(b=>b.id!==bid);if(!t.sched.length)delete t.sched;
+  sched();renderWeek();
 }
 function dropOnTime(e,ds){
   e.preventDefault();
@@ -1636,7 +1651,16 @@ function dropOnTime(e,ds){
   const t=`${String(hour).padStart(2,'0')}:${String(mins).padStart(2,'0')}`;
   if(kind==='ev'){const ev=D.events.find(e=>e.id===id);if(ev){ev.date=ds;ev.time=t;}}
   else if(kind==='tb'){const tb=D.timeblocks.find(tb=>tb.id===id);if(tb){tb.date=ds;tb.startTime=t;}}
-  else if(kind==='task'){const todo=D.todos.find(t=>t.id===id);if(todo){todo.date=ds;todo.time=t;if(!todo.schedH)todo.schedH=todo.estimateH||0.5;}}
+  else if(kind==='task'){
+    const todo=D.todos.find(x=>x.id===id);
+    if(todo){
+      if(!todo.sched)todo.sched=[];
+      const bid=_timeDrag.bid;
+      const existing=bid!=null?todo.sched.find(b=>b.id===bid):null;
+      if(existing){existing.date=ds;existing.time=t;} // move an existing block
+      else{const first=todo.sched.length===0;todo.sched.push({id:nid(),date:ds,time:t,schedH:first?(todo.estimateH||0.5):0.5});} // add a new block (allows multiple slots)
+    }
+  }
   _timeDrag={kind:null,id:null};
   sched();renderWeek();
   if(document.querySelector('#page-projects.active'))renderProjects();
@@ -1666,7 +1690,7 @@ function dropOnAllDay(e,ds){
   const{kind,id}=_timeDrag;
   if(kind!=='task')return;
   const todo=D.todos.find(t=>t.id===id);
-  if(todo){todo.date=ds;delete todo.time;delete todo.schedH;}
+  if(todo){todo.date=ds;delete todo.time;delete todo.schedH;delete todo.sched;}
   _timeDrag={kind:null,id:null};
   sched();renderWeek();
 }
