@@ -192,6 +192,13 @@ html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
 .wt-ev:hover .wt-evacts{opacity:1}
 /* task chips in the grid: flat row, fixed height */
 .wt-schedbar{display:flex;align-items:center;gap:6px;padding:6px 8px;margin-top:6px;font-size:11px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text2);flex-shrink:0}
+.chip-row{display:flex;gap:6px;flex-wrap:wrap}
+.mchip{padding:5px 10px;border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;color:var(--text2);background:var(--surface);user-select:none;display:inline-flex;align-items:center;gap:4px;transition:border-color .1s,background .1s,color .1s}
+.mchip:hover{border-color:var(--text3)}
+.mchip.selected{border-color:var(--accent);background:var(--accent-l);color:var(--text)}
+.mchip.urg-h.selected{border-color:#E24B4A;background:#E24B4A22;color:#E24B4A}
+.mchip.urg-m.selected{border-color:#EF9F27;background:#EF9F2722;color:#B87400}
+.mchip.urg-l.selected{border-color:#639922;background:#63992222;color:#4A7A17}
 .wt-task-ev{border-left-color:var(--amber) !important;background:var(--amber-l) !important;color:var(--amber) !important;flex-direction:row !important;align-items:center !important;min-height:16px}
 .wt-evsched{font-size:8px;opacity:.8;font-weight:700;margin-left:auto;flex-shrink:0;padding-right:2px}
 .wt-resize{position:absolute;left:0;right:0;bottom:0;height:7px;cursor:ns-resize;display:flex;align-items:flex-end;justify-content:center;pointer-events:auto}
@@ -1367,12 +1374,19 @@ function taskDot(t,extra){
 }
 // Task type prefix: 📋 gestión, 💻 trabajo, or nothing
 function ttIcon(t){return t&&t.ttype==='mgmt'?'📋 ':t&&t.ttype==='work'?'💻 ':'';}
-// Small H/M/L circle showing task urgency
+// A task is overdue when today is past its due date and it isn't done
+function isOverdue(t){return!!(t&&!t.done&&t.dueDate&&todayStr()>t.dueDate);}
+// Red text style for overdue tasks in lists
+function overdueStyle(t){return isOverdue(t)?'color:#E24B4A':'';}
+// Small H/M/L circle showing task urgency (red when overdue)
 function urgencyBadge(t){
   if(t.fromIcs)return'';
   const map={high:['H','#E24B4A'],med:['M','#EF9F27'],low:['L','#639922']};
   const m=map[t.urgency];if(!m)return'';
-  return`<span style="display:inline-flex;align-items:center;justify-content:center;width:13px;height:13px;border-radius:50%;background:${m[1]};color:#fff;font-size:8px;font-weight:700;line-height:1;flex-shrink:0" title="${t.urgency==='high'?'Urgente':t.urgency==='med'?'Media':'Baja'}">${m[0]}</span>`;
+  const over=isOverdue(t);
+  const bg=over?'#E24B4A':m[1];
+  const ring=over?';box-shadow:0 0 0 2px #E24B4A66':'';
+  return`<span style="display:inline-flex;align-items:center;justify-content:center;width:13px;height:13px;border-radius:50%;background:${bg};color:#fff;font-size:8px;font-weight:700;line-height:1;flex-shrink:0${ring}" title="${over?'¡Fuera de plazo! ':''}${t.urgency==='high'?'Urgente':t.urgency==='med'?'Media':'Baja'}">${m[0]}</span>`;
 }
 function timeDiff(start,end){
   if(!start||!end)return null;
@@ -1447,7 +1461,7 @@ function renderWeek(){
   function rtask(t){
     const badge=t.fromIcs&&t.hours?`${t.hours}h`:t.date?(t.time?t.time:t.date.slice(5)):'';
     const dot=t.fromIcs?`<i class="ti ti-calendar-event" style="font-size:10px;color:var(--blue);flex-shrink:0"></i>`:`${urgencyBadge(t)}${taskDot(t,'flex-shrink:0')}`;
-    return`<div class="wt-rtask" draggable="true" ondragstart="startTimeDrag(event,'task',${t.id});this.classList.add('dragging')" ondragend="this.classList.remove('dragging');this.style.opacity='';_timeDrag={kind:null,id:null}" onclick="openEdit('todo',${t.id})">${dot}<span class="wt-rtask-title">${ttIcon(t)}${t.title}</span>${badge?`<span class="wt-rtask-badge">${badge}</span>`:''}</div>`;
+    return`<div class="wt-rtask" draggable="true" ondragstart="startTimeDrag(event,'task',${t.id});this.classList.add('dragging')" ondragend="this.classList.remove('dragging');this.style.opacity='';_timeDrag={kind:null,id:null}" onclick="openEdit('todo',${t.id})">${dot}<span class="wt-rtask-title" style="${overdueStyle(t)}">${ttIcon(t)}${t.title}</span>${badge?`<span class="wt-rtask-badge">${badge}</span>`:''}</div>`;
   }
   let html=`<div class="wt-wrap">`;
   // ── LEFT: Calendar ──────────────────────────────────────────
@@ -1465,7 +1479,7 @@ function renderWeek(){
   for(let i=0;i<7;i++){
     const d=addDays(s,i),ds=dStr(d);
     const untimedTasks=D.todos.filter(t=>t.date===ds&&!t.time&&!t.done&&!t.fromIcs);
-    html+=`<div class="wt-allday-cell" ondragover="event.preventDefault()" ondrop="dropOnAllDay(event,'${ds}')">${untimedTasks.map(t=>`<div class="wt-allday-chip" draggable="true" ondragstart="startTimeDrag(event,'task',${t.id})" ondragend="this.style.opacity='';_timeDrag={kind:null,id:null}" onclick="openEdit('todo',${t.id})" title="${(t.title||'').replace(/"/g,'&quot;')}">${urgencyBadge(t)}${taskDot(t,'flex-shrink:0')}<span>${ttIcon(t)}${t.title}${t.rolledFrom?' <span class="rolled">↩</span>':''}</span></div>`).join('')}</div>`;
+    html+=`<div class="wt-allday-cell" ondragover="event.preventDefault()" ondrop="dropOnAllDay(event,'${ds}')">${untimedTasks.map(t=>`<div class="wt-allday-chip" draggable="true" ondragstart="startTimeDrag(event,'task',${t.id})" ondragend="this.style.opacity='';_timeDrag={kind:null,id:null}" onclick="openEdit('todo',${t.id})" title="${(t.title||'').replace(/"/g,'&quot;')}">${urgencyBadge(t)}${taskDot(t,'flex-shrink:0')}<span style="${overdueStyle(t)}">${ttIcon(t)}${t.title}${t.rolledFrom?' <span class="rolled">↩</span>':''}</span></div>`).join('')}</div>`;
   }
   html+=`</div>`;
   // Time body — slots sized by flex (fill height, no scroll)
@@ -1511,11 +1525,10 @@ function renderWeek(){
     html+=`</div></div>`;
   }
   html+=`</div>`; // end .wt-body
-  // Scheduled vs estimated hours for the visible week
-  const weekDays=Array.from({length:7},(_,i)=>dStr(addDays(s,i)));
-  const weekTasks=D.todos.filter(t=>!t.done&&weekDays.includes(t.date));
-  const schedSum=Math.round(weekTasks.filter(t=>t.time).reduce((a,t)=>a+(t.schedH||0),0)*10)/10;
-  const estSum=Math.round(weekTasks.reduce((a,t)=>a+(t.estimateH||0),0)*10)/10;
+  // Scheduled vs estimated hours across all pending tasks (total, not just this week)
+  const pendAll=D.todos.filter(t=>!t.done);
+  const schedSum=Math.round(pendAll.filter(t=>t.time).reduce((a,t)=>a+(t.schedH||0),0)*10)/10;
+  const estSum=Math.round(pendAll.reduce((a,t)=>a+(t.estimateH||0),0)*10)/10;
   if(estSum>0||schedSum>0){
     const pct=estSum>0?Math.min(100,Math.round(schedSum/estSum*100)):0;
     const col=schedSum>=estSum&&estSum>0?'var(--green)':'var(--amber)';
@@ -1559,7 +1572,7 @@ function renderWeekMobile(){
             :`<div class="ev" style="display:flex;align-items:flex-start;gap:3px"><div style="flex:1"><span class="ev-time">${ev.time||'all-day'}</span>${ev.title}</div>${mnBtn}<button class="btn-del" onclick="openEdit('event',${ev.id})" style="font-size:10px;padding:1px 2px"><i class="ti ti-pencil"></i></button><button class="btn-del" onclick="delEvent(${ev.id})" style="font-size:10px;padding:1px 2px"><i class="ti ti-x"></i></button></div>`;
         }).join('')}
         ${tbs.map(tb=>{const p=D.projects.find(p=>p.id===tb.projectId);const c=p?p.color:'var(--accent)';return`<div class="ev" style="border-left-color:${c};background:${c}18;color:${c};display:flex;align-items:flex-start;gap:3px"><div style="flex:1"><span class="ev-time">${tb.startTime} · ${tb.duration}h</span>${p?p.name:'Bloque'}</div><button class="btn-del" onclick="delTimeblock(${tb.id})" style="font-size:10px;padding:1px 2px;color:${c}"><i class="ti ti-x"></i></button></div>`;}).join('')}
-        ${tds.map(t=>`<div class="tr"><div class="chk${t.done?' on':''}" onclick="toggleTodo(${t.id})"></div>${urgencyBadge(t)}${taskDot(t,'')}<div class="tl${t.done?' done':''}" style="flex:1">${ttIcon(t)}${t.title}${t.rolledFrom?'<span class="rolled">↩</span>':''}</div><button class="btn-del" onclick="openEdit('todo',${t.id})" style="font-size:9px;padding:1px 2px"><i class="ti ti-pencil"></i></button></div>`).join('')}
+        ${tds.map(t=>`<div class="tr"><div class="chk${t.done?' on':''}" onclick="toggleTodo(${t.id})"></div>${urgencyBadge(t)}${taskDot(t,'')}<div class="tl${t.done?' done':''}" style="flex:1;${overdueStyle(t)}">${ttIcon(t)}${t.title}${t.rolledFrom?'<span class="rolled">↩</span>':''}</div><button class="btn-del" onclick="openEdit('todo',${t.id})" style="font-size:9px;padding:1px 2px"><i class="ti ti-pencil"></i></button></div>`).join('')}
         <div class="day-adds">
           <button class="dadd" onclick="openMD('todo','${ds}')"><i class="ti ti-plus" style="font-size:9px"></i> task</button>
           <button class="dadd" onclick="openMD('event','${ds}')"><i class="ti ti-plus" style="font-size:9px"></i> event</button>
@@ -1879,7 +1892,7 @@ function renderTodos(){
     return`<div class="tcard">
       <div class="bchk${t.done?' on':''}" onclick="toggleTodo(${t.id},true)"></div>
       <div style="flex:1">
-        <div class="tc-t" style="${t.done?'text-decoration:line-through;color:var(--text3)':''}">${ttIcon(t)}${t.title}${t.rolledFrom&&t.date?`<span class="rolled" style="margin-left:5px">↩</span>`:''}</div>
+        <div class="tc-t" style="${t.done?'text-decoration:line-through;color:var(--text3)':overdueStyle(t)}">${ttIcon(t)}${t.title}${t.rolledFrom&&t.date?`<span class="rolled" style="margin-left:5px">↩</span>`:''}</div>
         <div class="tc-m">${meta}</div>
       </div>
       <span class="ub ub-${t.urgency}">${t.urgency==='high'?'Urgente':t.urgency==='med'?'Normal':'Baja'}</span>
@@ -1928,7 +1941,7 @@ function renderTodosByProject(items,today){
     return`<div class="tbubble">
       <div class="bchk${t.done?' on':''}" onclick="toggleTodo(${t.id},true)"></div>
       <div style="flex:1;min-width:0">
-        <div class="tc-t" style="${t.done?'text-decoration:line-through;color:var(--text3)':''}">${ttIcon(t)}${t.title}${t.rolledFrom&&t.date?`<span class="rolled" style="margin-left:5px">↩</span>`:''}</div>
+        <div class="tc-t" style="${t.done?'text-decoration:line-through;color:var(--text3)':overdueStyle(t)}">${ttIcon(t)}${t.title}${t.rolledFrom&&t.date?`<span class="rolled" style="margin-left:5px">↩</span>`:''}</div>
         <div class="tc-m">${meta}</div>
       </div>
       <span class="ub ub-${t.urgency}">${t.urgency==='high'?'Urg':t.urgency==='med'?'Med':'Baja'}</span>
@@ -2015,6 +2028,13 @@ function pickTask(el,id){
   const t=D.todos.find(t=>t.id===id);const mp=document.getElementById('m-proj');
   if(t&&t.projectId&&mp&&mp.querySelector(`option[value="${t.projectId}"]`))mp.value=t.projectId;
 }
+function filterDayTasks(val){
+  document.querySelectorAll('#mbody .task-pick-row').forEach(r=>{
+    const pid=r.dataset.projid||'';
+    const show=val===''?true:val==='none'?pid==='':pid===val;
+    r.style.display=show?'':'none';
+  });
+}
 function showNewTaskInput(){
   const inp=document.getElementById('m-newtask');const btn=document.getElementById('new-task-btn');
   if(inp){inp.style.display='block';inp.focus();}
@@ -2055,8 +2075,8 @@ function renderProjects(){
       ${allProjectTasks.map(t=>{
         const accH=Math.round((p.manualEntries||[]).filter(e=>e.desc===t.title).reduce((s,e)=>s+e.hours,0)*10)/10;
         return`<div style="font-size:10px;color:${t.done?'var(--text3)':'var(--text2)'};display:flex;align-items:center;gap:4px;padding:2px 0${t.done?';opacity:.7':''}">
-        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${t.done?'text-decoration:line-through':''}">${t.done?'✓':'○'} ${t.title}${t.date?` <span style="color:var(--text3);font-size:9px">${fmtS(new Date(t.date))}</span>`:'<span style="color:var(--text3);font-size:9px"> · sin fecha</span>'}</span>
-        <span style="flex-shrink:0;font-weight:600;color:var(--text3);font-size:10px">${accH}h</span>
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${t.done?'text-decoration:line-through':overdueStyle(t)}">${ttIcon(t)}${t.done?'✓':'○'} ${t.title}${t.date?` <span style="color:var(--text3);font-size:9px">${fmtS(new Date(t.date))}</span>`:'<span style="color:var(--text3);font-size:9px"> · sin fecha</span>'}</span>
+        <span style="flex-shrink:0;font-weight:600;color:var(--text3);font-size:10px">${accH}h${t.estimateH?` / ${t.estimateH}h`:''}</span>
         <button class="btn-del" onclick="unassignTask(${t.id})" title="Desasignar" style="font-size:10px;padding:1px 2px"><i class="ti ti-x"></i></button>
       </div>`;}).join('')}
       ${tbEntries.map(tb=>`<div style="font-size:10px;color:var(--text3);display:flex;align-items:center;gap:4px;padding:2px 0">
@@ -2250,9 +2270,11 @@ function openEdit(type,id){
     const t=D.todos.find(t=>t.id===id);if(!t)return;
     document.getElementById('m-t').value=t.title;
     document.getElementById('m-d').value=t.date||'';
-    document.getElementById('m-u').value=t.urgency;
-    const mtt=document.getElementById('m-ttype');if(mtt)mtt.value=t.ttype||'';
+    const setChip=(inputId,val)=>{const inp=document.getElementById(inputId);if(!inp)return;inp.value=val||'';const row=inp.closest('.ff');if(row)row.querySelectorAll('.mchip').forEach(c=>c.classList.toggle('selected',c.dataset.v===val));};
+    setChip('m-u',t.urgency||'med');
+    setChip('m-ttype',t.ttype||'');
     const mest=document.getElementById('m-est');if(mest)mest.value=t.estimateH||'';
+    const mdue=document.getElementById('m-due');if(mdue)mdue.value=t.dueDate||'';
     const mp=document.getElementById('m-proj');if(mp)mp.value=t.projectId||'';
     const md=document.getElementById('m-dur');if(md)md.value=t.duration||'';
   }else if(type==='event'){
@@ -2293,11 +2315,18 @@ function buildM(){
   let b='';
   if(type==='todo')b=`
     <div class="ff"><label>Tarea</label><input id="m-t" placeholder="¿Qué hay que hacer?"/></div>
-    <div class="ff"><label>Fecha <span style="font-size:10px;color:var(--text3);font-weight:400">(opcional — puedes arrastrarla al día después)</span></label><input id="m-d" type="date" value="${day}"/></div>
-    <div class="ff"><label>Urgencia</label><select id="m-u"><option value="high">Urgente</option><option value="med" selected>Normal</option><option value="low">Baja</option></select></div>
-    <div class="ff"><label>Tipo</label><select id="m-ttype"><option value="">Sin tipo</option><option value="mgmt">📋 Gestión</option><option value="work">💻 Trabajo</option></select></div>
-    <div class="ff"><label>Previsión de horas <span style="font-size:10px;color:var(--text3);font-weight:400">(opcional — cuántas crees que le dedicarás)</span></label><input id="m-est" type="number" min="0" step="0.25" placeholder="ej. 3"/></div>
-    <div class="ff"><label>Proyecto (opcional)</label><select id="m-proj">${projOpts}</select></div>`;
+    <div class="ff"><label>Tipo</label>
+      <div class="chip-row"><div class="mchip" data-v="mgmt" onclick="pickTType(this)">📋 Gestión</div><div class="mchip" data-v="work" onclick="pickTType(this)">💻 Trabajo</div></div>
+      <input type="hidden" id="m-ttype" value="">
+    </div>
+    <div class="ff"><label>Urgencia</label>
+      <div class="chip-row"><div class="mchip urg-h" data-v="high" onclick="pickUrg(this)">H</div><div class="mchip urg-m selected" data-v="med" onclick="pickUrg(this)">M</div><div class="mchip urg-l" data-v="low" onclick="pickUrg(this)">L</div></div>
+      <input type="hidden" id="m-u" value="med">
+    </div>
+    <div class="ff"><label>Previsión de horas <span style="font-size:10px;color:var(--text3);font-weight:400">(opcional)</span></label><input id="m-est" type="number" min="0" step="0.25" placeholder="ej. 3"/></div>
+    <div class="ff"><label>Due date <span style="font-size:10px;color:var(--text3);font-weight:400">(opcional — fecha límite)</span></label><input id="m-due" type="date"/></div>
+    <div class="ff"><label>Proyecto (opcional)</label><select id="m-proj">${projOpts}</select></div>
+    <div class="ff"><label>Día <span style="font-size:10px;color:var(--text3);font-weight:400">(opcional — puedes arrastrarla al día después)</span></label><input id="m-d" type="date" value="${day}"/></div>`;
   else if(type==='event')b=`
     <div class="ff"><label>Título</label><input id="m-t" placeholder="Nombre del evento"/></div>
     <div class="ff"><label>Fecha</label><input id="m-d" type="date" value="${day}"/></div>
@@ -2328,15 +2357,17 @@ function buildM(){
     const now2=new Date();const mPfx=`${now2.getFullYear()}-${String(now2.getMonth()+1).padStart(2,'0')}`;
     const taskRow=t=>{
       const accH=Math.round(D.projects.reduce((s,p)=>s+(p.manualEntries||[]).filter(e=>e.desc===t.title).reduce((a,e)=>a+(e.hours||0),0),0)*10)/10;
-      return`<div class="task-pick-row" onclick="pickTask(this,${t.id})"><div class="udot u-${t.urgency}" style="flex-shrink:0"></div><span style="flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap${t.done?';text-decoration:line-through;opacity:.75':''}">${(t.title||'').replace(/</g,'&lt;')}</span>${accH>0?`<span style="font-size:10px;color:var(--green);flex-shrink:0;font-style:italic">${accH}h asignadas</span>`:''}<span style="font-size:11px;color:var(--text3);flex-shrink:0">${t.date?fmtS(new Date(t.date)):'Sin fecha'}</span></div>`;
+      return`<div class="task-pick-row" data-projid="${t.projectId||''}" onclick="pickTask(this,${t.id})"><div class="udot u-${t.urgency}" style="flex-shrink:0"></div><span style="flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap${t.done?';text-decoration:line-through;opacity:.75':''}">${ttIcon(t)}${(t.title||'').replace(/</g,'&lt;')}</span>${accH>0?`<span style="font-size:10px;color:var(--green);flex-shrink:0;font-style:italic">${accH}h asignadas</span>`:''}<span style="font-size:11px;color:var(--text3);flex-shrink:0">${t.date?fmtS(new Date(t.date)):'Sin fecha'}</span></div>`;
     };
     const pending=D.todos.filter(t=>!t.done&&(!t.date||t.date>=mPfx));
     const completed=D.todos.filter(t=>t.done&&(!t.date||t.date>=mPfx));
     const pendRows=pending.map(taskRow).join('');
     const doneRows=completed.map(taskRow).join('');
     const projOpts2=D.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+    const filterOpts=D.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
     b=`
     <div class="ff"><label>Tarea</label>
+      ${filterOpts?`<select id="m-taskfilter" onchange="filterDayTasks(this.value)" style="margin-bottom:6px"><option value="">Todos los proyectos</option>${filterOpts}<option value="none">Sin proyecto</option></select>`:''}
       <div style="display:flex;gap:10px;flex-wrap:wrap">
         <div style="flex:1;min-width:210px">
           <div style="font-size:9px;font-weight:700;color:var(--text3);letter-spacing:.05em;text-transform:uppercase;margin-bottom:3px">Por completar</div>
@@ -2428,6 +2459,8 @@ function pickColor(el,c){
   el.closest('.color-picker').querySelectorAll('.cpick').forEach(d=>d.classList.remove('cpick-sel'));
   el.classList.add('cpick-sel');
 }
+function pickTType(el){const was=el.classList.contains('selected');el.parentElement.querySelectorAll('.mchip').forEach(c=>c.classList.remove('selected'));if(!was)el.classList.add('selected');document.getElementById('m-ttype').value=was?'':el.dataset.v;}
+function pickUrg(el){el.parentElement.querySelectorAll('.mchip').forEach(c=>c.classList.remove('selected'));el.classList.add('selected');document.getElementById('m-u').value=el.dataset.v;}
 function closeM(){document.getElementById('mo').classList.remove('open');document.querySelector('.mbox').style.maxWidth='';}
 function closeMO(e){if(e.target===document.getElementById('mo'))closeM()}
 function gv(id){const el=document.getElementById(id);return el?el.value:''}
@@ -2437,7 +2470,8 @@ function todoFromForm(id){
   const pid=parseInt(gv('m-proj'))||null;
   const tt=gv('m-ttype');
   const est=parseFloat(gv('m-est'))||0;
-  return{id,title:t,date,urgency:gv('m-u'),done:false,ttype:tt||undefined,estimateH:est||undefined,...(pid?{projectId:pid}:{})};
+  const due=gv('m-due')||null;
+  return{id,title:t,date,urgency:gv('m-u'),done:false,ttype:tt||undefined,estimateH:est||undefined,dueDate:due||undefined,...(pid?{projectId:pid}:{})};
 }
 function saveM(){
   const type=S.mType,eid=S.editId;
@@ -2445,7 +2479,7 @@ function saveM(){
     if(type==='todo'){
       const t=D.todos.find(t=>t.id===eid);if(!t)return;
       const u=todoFromForm(eid);if(!u)return;
-      Object.assign(t,{title:u.title,date:u.date,urgency:u.urgency,duration:u.duration,projectId:u.projectId,ttype:u.ttype,estimateH:u.estimateH,updatedAt:new Date().toISOString()});
+      Object.assign(t,{title:u.title,date:u.date,urgency:u.urgency,duration:u.duration,projectId:u.projectId,ttype:u.ttype,estimateH:u.estimateH,dueDate:u.dueDate,updatedAt:new Date().toISOString()});
     }else if(type==='event'){
       const e=D.events.find(e=>e.id===eid);if(!e)return;
       const t=gv('m-t').trim();if(!t)return;
