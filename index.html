@@ -2116,10 +2116,15 @@ function renderProjects(){
     const estH=Math.round(allProjectTasks.reduce((s,t)=>s+(t.estimateH||0),0)*10)/10;
     const projReal=Math.round(allProjectTasks.reduce((s,t)=>s+taskLoggedH(t),0)*10)/10;
     const pct=goal>0?Math.min(100,Math.round(totalH/goal*100)):0;
-    const taskRows=(allProjectTasks.length||tbEntries.length||evEntries.length)?`<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:7px">
+    // Manual entries not tied to a currently-listed task (e.g. from done/old tasks) — shown as their own task rows
+    const taskTitleSet=new Set(allProjectTasks.map(t=>t.title));
+    const orphanManual={};
+    (p.manualEntries||[]).forEach(e=>{const d=(e.desc||'Horas manuales');if(taskTitleSet.has(d))return;orphanManual[d]=Math.round(((orphanManual[d]||0)+(e.hours||0))*10)/10;});
+    const orphanEntries=Object.entries(orphanManual);
+    const taskRows=(allProjectTasks.length||tbEntries.length||orphanEntries.length)?`<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:7px">
       <div style="font-size:9px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">Tareas</div>
       ${allProjectTasks.map(t=>{
-        const accH=Math.round((p.manualEntries||[]).filter(e=>e.desc===t.title).reduce((s,e)=>s+e.hours,0)*10)/10;
+        const accH=taskLoggedH(t);
         return`<div style="font-size:10px;color:${t.done?'var(--text3)':'var(--text2)'};display:flex;align-items:center;gap:4px;padding:2px 0${t.done?';opacity:.7':''}">
         <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${t.done?'text-decoration:line-through':overdueStyle(t)}">${ttIcon(t)}${t.done?'✓':'○'} ${t.title}${t.date?` <span style="color:var(--text3);font-size:9px">${fmtS(new Date(t.date))}</span>`:'<span style="color:var(--text3);font-size:9px"> · sin fecha</span>'}</span>
         <span style="flex-shrink:0;font-weight:600;color:var(--text3);font-size:10px">${accH}h${t.estimateH?` / ${t.estimateH}h`:''}</span>
@@ -2130,18 +2135,16 @@ function renderProjects(){
         <span style="flex-shrink:0;font-weight:600;font-size:10px">${tb.duration}h</span>
         <button class="btn-del" onclick="delTimeblock(${tb.id})" title="Eliminar" style="font-size:10px;padding:1px 2px"><i class="ti ti-x"></i></button>
       </div>`).join('')}
-      ${evEntries.map(e=>`<div style="font-size:10px;color:var(--green);font-style:italic;display:flex;align-items:center;gap:4px;padding:2px 0">
-        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><i class="ti ti-calendar-event" style="font-size:9px"></i> ${e.title}${e.date?' · '+fmtS(new Date(e.date+'T00:00:00')):''}${e.time?' '+e.time:''}</span>        <span style="flex-shrink:0;font-weight:600;font-size:10px">${e.duration?e.duration+'h':''}</span>
-        <button class="btn-del" onclick="unassignEvent(${e.id})" title="Desasignar" style="font-size:10px;padding:1px 2px"><i class="ti ti-x"></i></button>
+      ${orphanEntries.map(([desc,hrs])=>`<div style="font-size:10px;color:var(--text2);display:flex;align-items:center;gap:4px;padding:2px 0">
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">○ ${(desc||'').replace(/</g,'&lt;')}</span>
+        <span style="flex-shrink:0;font-weight:600;color:var(--text3);font-size:10px">${hrs}h</span>
       </div>`).join('')}
     </div>`:'';
-    const manualRows=manualEntries.length?`<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:7px">
-      <div style="font-size:9px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">Registros manuales</div>
-      ${manualEntries.map(e=>`<div style="font-size:10px;color:var(--text2);display:flex;align-items:center;gap:4px;padding:1px 0">
-        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.desc||e.date} <span style="color:var(--text3);font-size:9px">${e.date?fmtS(new Date(e.date+'T00:00:00')):''}</span></span>
-        <span style="flex-shrink:0;color:var(--text3)">${e.hours}h</span>
-        <button class="btn-del" onclick="openEditManual(${p.id},${e.id})" title="Editar" style="font-size:10px;padding:1px 2px"><i class="ti ti-pencil"></i></button>
-        <button class="btn-del" onclick="delManual(${p.id},${e.id})" title="Eliminar" style="font-size:10px;padding:1px 2px"><i class="ti ti-x"></i></button>
+    const evRows=evEntries.length?`<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:7px">
+      <div style="font-size:9px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">Reuniones y eventos</div>
+      ${evEntries.map(e=>`<div style="font-size:10px;color:var(--green);font-style:italic;display:flex;align-items:center;gap:4px;padding:2px 0">
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><i class="ti ti-calendar-event" style="font-size:9px"></i> ${e.title}${e.date?' · '+fmtS(new Date(e.date+'T00:00:00')):''}${e.time?' '+e.time:''}</span><span style="flex-shrink:0;font-weight:600;font-size:10px">${e.duration?e.duration+'h':''}</span>
+        <button class="btn-del" onclick="unassignEvent(${e.id})" title="Desasignar" style="font-size:10px;padding:1px 2px"><i class="ti ti-x"></i></button>
       </div>`).join('')}
     </div>`:'';
 
@@ -2160,7 +2163,7 @@ function renderProjects(){
       <div class="pacts">
         <button class="btn btn-sm" onclick="logH(${p.id})"><i class="ti ti-plus"></i> Horas manuales</button>
       </div>
-      ${taskRows}${manualRows}
+      ${taskRows}${evRows}
     </div>`;
   }).join('');
 }
