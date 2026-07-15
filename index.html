@@ -244,7 +244,8 @@ html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
 
 /* ── TODOS ── */
 .tfilters{display:flex;gap:5px;margin-bottom:var(--filters-mb);flex-wrap:wrap;min-height:var(--filters-h)}
-.fb{background:var(--surface);border:1px solid var(--border2);border-radius:20px;padding:4px 12px;font-size:11px;cursor:pointer;color:var(--text2);font-family:inherit}
+.fb{background:var(--surface);border:1px solid var(--border2);border-radius:20px;padding:4px 12px;font-size:11px;line-height:1.4;display:inline-flex;align-items:center;gap:3px;cursor:pointer;color:var(--text2);font-family:inherit}
+.fb .em{font-size:10px;line-height:1}
 .fb.active{background:var(--accent);color:#fff;border-color:var(--accent)}
 .tsh{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin:12px 0 5px;display:flex;align-items:center;gap:5px}
 .tcard{display:flex;align-items:flex-start;gap:8px;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);margin-bottom:4px}
@@ -697,8 +698,8 @@ html.dark .cpick{box-shadow:0 0 0 1px rgba(255,255,255,0.2)}
           <button class="fb sf" onclick="setF('pending',this)">Pending</button>
           <button class="fb sf" onclick="setF('done',this)">Done</button>
           <span style="width:1px;background:var(--border);align-self:stretch;margin:0 2px"></span>
-          <button class="fb tf" onclick="setTypeF('mgmt',this)" title="Solo tareas de gestión">📋 Gestión</button>
-          <button class="fb tf" onclick="setTypeF('work',this)" title="Solo tareas de trabajo">💻 Trabajo</button>
+          <button class="fb tf" onclick="setTypeF('mgmt',this)" title="Solo tareas de gestión"><span class="em">📋</span> Gestión</button>
+          <button class="fb tf" onclick="setTypeF('work',this)" title="Solo tareas de trabajo"><span class="em">💻</span> Trabajo</button>
           <button class="fb" id="tg-date" style="margin-left:auto" onclick="setGroupBy('date')"><i class="ti ti-calendar" style="font-size:11px"></i> Por fecha</button>
           <button class="fb active" id="tg-project" onclick="setGroupBy('project')"><i class="ti ti-folder" style="font-size:11px"></i> Por proyecto</button>
         </div>
