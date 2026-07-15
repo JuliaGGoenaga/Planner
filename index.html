@@ -694,8 +694,8 @@ html.dark .cpick{box-shadow:0 0 0 1px rgba(255,255,255,0.2)}
           <button class="fb" onclick="setF('high',this)">Urgent</button>
           <button class="fb" onclick="setF('pending',this)">Pending</button>
           <button class="fb" onclick="setF('done',this)">Done</button>
-          <button class="fb active" id="tg-date" style="margin-left:auto" onclick="setGroupBy('date')"><i class="ti ti-calendar" style="font-size:11px"></i> Por fecha</button>
-          <button class="fb" id="tg-project" onclick="setGroupBy('project')"><i class="ti ti-folder" style="font-size:11px"></i> Por proyecto</button>
+          <button class="fb" id="tg-date" style="margin-left:auto" onclick="setGroupBy('date')"><i class="ti ti-calendar" style="font-size:11px"></i> Por fecha</button>
+          <button class="fb active" id="tg-project" onclick="setGroupBy('project')"><i class="ti ti-folder" style="font-size:11px"></i> Por proyecto</button>
         </div>
         <div id="todos-list"></div>
       </div>
@@ -898,7 +898,7 @@ const NOTE_CATS=[
 const isMobile=()=>window.innerWidth<=700;
 
 // ── STATE ──────────────────────────────────────────────────────────────────
-let S={weekStart:getMonday(new Date()),monthDate:new Date(),yearDate:new Date(),filter:'all',noteFilter:'all',noteSort:'newest',mType:null,mDay:null,editId:null,mProjId:null,nextId:Date.now(),sidebarCollapsed:false,meetingNotesMode:false,yearPaintMode:false,monthPaintMode:false,selDay:todayStr(),todoGroupBy:'date'};
+let S={weekStart:getMonday(new Date()),monthDate:new Date(),yearDate:new Date(),filter:'all',noteFilter:'all',noteSort:'newest',mType:null,mDay:null,editId:null,mProjId:null,nextId:Date.now(),sidebarCollapsed:false,meetingNotesMode:false,yearPaintMode:false,monthPaintMode:false,selDay:todayStr(),todoGroupBy:'project'};
 let D={events:[],todos:[],projects:[],timeblocks:[],meetingNotes:[],notes:[],topics:[
   {id:1,name:'Work',icon:'ti-briefcase'},
   {id:2,name:'Personal',icon:'ti-heart'},
@@ -1521,14 +1521,16 @@ function renderWeek(){
       const del=!isExt?`<button class="btn-del" onclick="event.stopPropagation();delEvent(${ev.id})" style="font-size:9px;padding:0 1px"><i class="ti ti-x"></i></button>`:isPromoted?`<i class="ti ti-bookmark-filled" style="font-size:9px;opacity:.8;padding:0 2px" title="Registrado en proyecto"></i>`:`<button class="btn-del" onclick="event.stopPropagation();promoteIcsEvent(${eid})" style="font-size:9px;padding:0 1px" title="Añadir a proyecto"><i class="ti ti-tag"></i></button>`;
       const tLabel=ev.endTime?`${ev.time}–${ev.endTime}`:ev.time;
       const cursorStyle=isExt?'cursor:pointer;':'';
-      html+=`<div class="wt-ev"${drag}${click} style="${cursorStyle}top:${topPct.toFixed(2)}%;height:${hPct.toFixed(2)}%;border-left-color:${c};background:${c}18;color:${c}"><span class="wt-evtime">${tLabel}${ev.source?' · '+ev.source:''}</span><span class="wt-evtitle">${ev.title}</span><div class="wt-evacts">${del}</div>${noteIcon}</div>`;
+      const evTitle=`${tLabel} · ${ev.title||''}${ev.source?' · '+ev.source:''}`.replace(/"/g,'&quot;');
+      html+=`<div class="wt-ev"${drag}${click} title="${evTitle}" style="${cursorStyle}top:${topPct.toFixed(2)}%;height:${hPct.toFixed(2)}%;border-left-color:${c};background:${c}18;color:${c}"><span class="wt-evtime">${tLabel}${ev.source?' · '+ev.source:''}</span><span class="wt-evtitle">${ev.title}</span><div class="wt-evacts">${del}</div>${noteIcon}</div>`;
     });
     taskBlocks.forEach(({t,b})=>{
       const[th,tm]=(b.time||'00:00').split(':').map(Number);
       const topPct=Math.max(0,(th+tm/60-HS)/numH*100);
       const sh=b.schedH||0.5;
       const hPct=Math.max(100/numH*0.4,sh/numH*100);
-      html+=`<div class="wt-ev wt-task-ev" draggable="true" ondragstart="startTimeDrag(event,'task',${t.id},${b.id})" ondragend="this.style.opacity='';_timeDrag={kind:null,id:null}" onclick="openEdit('todo',${t.id})" style="top:${topPct.toFixed(2)}%;height:${hPct.toFixed(2)}%"><span class="wt-evtime">${b.time}</span>${urgencyBadge(t)}${taskDot(t,'margin-top:0')}<span class="wt-evtitle">${ttIcon(t)}${t.title}</span><span class="wt-evsched">${sh}h</span><div class="wt-evacts"><button class="btn-del" onclick="event.stopPropagation();toggleTodo(${t.id})" style="font-size:9px;padding:0 1px;color:var(--amber)" title="Completar tarea"><i class="ti ti-check"></i></button><button class="btn-del" onclick="event.stopPropagation();removeSchedBlock(${t.id},${b.id})" style="font-size:9px;padding:0 1px" title="Quitar este bloque"><i class="ti ti-x"></i></button></div><div class="wt-resize" draggable="false" onclick="event.stopPropagation()" onmousedown="startTaskResize(event,${t.id},${b.id})" ontouchstart="startTaskResize(event,${t.id},${b.id})"></div></div>`;
+      const tkTitle=`${ttIcon(t)}${t.title} · ${b.time} · ${sh}h`.replace(/"/g,'&quot;');
+      html+=`<div class="wt-ev wt-task-ev" draggable="true" ondragstart="startTimeDrag(event,'task',${t.id},${b.id})" ondragend="this.style.opacity='';_timeDrag={kind:null,id:null}" onclick="openEdit('todo',${t.id})" title="${tkTitle}" style="top:${topPct.toFixed(2)}%;height:${hPct.toFixed(2)}%"><span class="wt-evtime">${b.time}</span>${urgencyBadge(t)}${taskDot(t,'margin-top:0')}<span class="wt-evtitle">${ttIcon(t)}${t.title}</span><span class="wt-evsched">${sh}h</span><div class="wt-evacts"><button class="btn-del" onclick="event.stopPropagation();openCompleteTask(${t.id})" style="font-size:9px;padding:0 1px;color:var(--amber)" title="Registrar horas / completar"><i class="ti ti-check"></i></button><button class="btn-del" onclick="event.stopPropagation();removeSchedBlock(${t.id},${b.id})" style="font-size:9px;padding:0 1px" title="Quitar este bloque"><i class="ti ti-x"></i></button></div><div class="wt-resize" draggable="false" onclick="event.stopPropagation()" onmousedown="startTaskResize(event,${t.id},${b.id})" ontouchstart="startTaskResize(event,${t.id},${b.id})"></div></div>`;
     });
     html+=`</div></div>`;
   }
@@ -2123,7 +2125,7 @@ function renderProjects(){
       </div>`).join('')}
     </div>`:'';
 
-    return`<div class="pcard" ondragover="event.preventDefault();this.classList.add('drop-over')" ondragleave="if(!this.contains(event.relatedTarget))this.classList.remove('drop-over')" ondrop="dropTask(event,${p.id})"><div class="pstrip" style="background:${p.color}"></div>
+    return`<div class="pcard"><div class="pstrip" style="background:${p.color}"></div>
       <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-top:8px">
         <div class="pname" style="margin-top:0">${p.name}</div>
         <div style="display:flex;gap:2px">
@@ -2142,81 +2144,11 @@ function renderProjects(){
       ${taskRows}${manualRows}
     </div>`;
   }).join('');
-  renderTaskPanel();
 }
-function renderTaskPanel(){
-  const el=document.getElementById('task-panel');if(!el)return;
-  const now=new Date();
-  const monthPfx=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-  const tasks=D.todos.filter(t=>!t.projectId&&!(t.done&&t.date&&t.date<monthPfx));
-  const evs=D.events.filter(e=>!e.projectId&&e.date.startsWith(monthPfx));
-  const total=tasks.length+evs.length;
-  let html=`<div class="tp-head">Disponibles<span class="tp-cnt">${total}</span></div>`;
-  if(!total){
-    html+=`<div class="tp-empty"><i class="ti ti-checks" style="font-size:22px;display:block;margin-bottom:6px;opacity:.35"></i>Todo asignado</div>`;
-  }else{
-    if(tasks.length){
-      html+=`<div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;font-weight:600">Tareas</div>`;
-      html+=tasks.map(t=>{
-        const isPast=t.date&&t.date<monthPfx;
-        return`<div class="tp-task${isPast?' tp-past':''}" draggable="true" ondragstart="startDrag(event,'todo',${t.id})" ondragend="this.classList.remove('dragging')">
-        <div class="tp-top">
-          <div class="udot u-${t.urgency}" style="flex-shrink:0;margin-top:2px"></div>
-          <span class="tp-tit${t.done?' done-t':''}">${t.title}</span>
-        </div>
-        <div class="tp-meta">
-          <span class="tp-date${isPast?' tp-date-past':''}">${t.date?fmtS(new Date(t.date)):'Sin fecha'}${isPast?' ↩':''}</span>
-          <div class="tp-hrow"><span class="tp-hlbl">h</span><input class="tp-h" type="number" value="1" min="0.25" step="0.25" onclick="event.stopPropagation()" onmousedown="event.stopPropagation()"></div>
-        </div>
-      </div>`;}).join('');
-    }
-    if(evs.length){
-      html+=`<div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin:${tasks.length?8:0}px 0 4px;font-weight:600">Eventos del mes</div>`;
-      html+=evs.map(e=>`<div class="tp-task" draggable="true" ondragstart="startDrag(event,'ev',${e.id})" ondragend="this.classList.remove('dragging')">
-        <div class="tp-top">
-          <i class="ti ti-calendar-event" style="font-size:10px;flex-shrink:0;margin-top:2px;color:var(--text3)"></i>
-          <span class="tp-tit">${e.title}</span>
-        </div>
-        <div class="tp-meta">
-          <span class="tp-date">${e.time?e.time+' · ':''}${e.date}</span>
-          <div class="tp-hrow"><span class="tp-hlbl">h</span><input class="tp-h" type="number" value="1" min="0.25" step="0.25" onclick="event.stopPropagation()" onmousedown="event.stopPropagation()"></div>
-        </div>
-      </div>`).join('');
-    }
-    html+=`<div class="tp-hint"><i class="ti ti-drag-drop"></i> Arrastra a un proyecto</div>`;
-  }
-  el.innerHTML=html;
-}
-function startDrag(event,kind,itemId){
-  event.currentTarget.classList.add('dragging');
-  const inp=event.currentTarget.querySelector('.tp-h');
-  const hours=inp?Math.max(0.25,parseFloat(inp.value)||1):1;
-  event.dataTransfer.setData('kind',kind);
-  event.dataTransfer.setData('itemId',String(itemId));
-  event.dataTransfer.setData('hours',String(hours));
-  event.dataTransfer.effectAllowed='move';
-}
-function dropTask(event,projId){
-  event.preventDefault();
-  event.currentTarget.classList.remove('drop-over');
-  const kind=event.dataTransfer.getData('kind');
-  const itemId=parseInt(event.dataTransfer.getData('itemId'));
-  const hours=parseFloat(event.dataTransfer.getData('hours'))||1;
-  if(kind==='todo'){
-    const t=D.todos.find(t=>t.id===itemId);if(!t)return;
-    t.projectId=projId;
-  }else if(kind==='ev'){
-    const e=D.events.find(e=>e.id===itemId);if(!e)return;
-    e.projectId=projId;e.duration=hours;
-  }
-  sched();renderProjects();
-}
-function openAssign(projId){S.mProjId=projId;S.mType='assigntask';S.mDay=null;S.editId=null;buildM()}
 function logH(projId){S.mProjId=projId;S.mType='loghours';S.mDay=null;S.editId=null;buildM()}
 function delManual(projId,entryId){const p=D.projects.find(p=>p.id===projId);if(!p)return;p.manualEntries=(p.manualEntries||[]).filter(e=>e.id!==entryId);sched();renderProjects()}
 function openEditManual(projId,entryId){S.mType='editmanual';S.mProjId=projId;S.editId=entryId;S.mDay=null;buildM();}
 function unassignTask(taskId){const t=D.todos.find(t=>t.id===taskId);if(!t)return;delete t.projectId;delete t.duration;sched();renderProjects()}
-function updateTaskHours(taskId,val){const t=D.todos.find(t=>t.id===taskId);if(!t)return;const h=parseFloat(val)||0;if(h>0)t.duration=h;else delete t.duration;sched();renderProjects()}
 function unassignEvent(eventId){const e=D.events.find(e=>e.id===eventId);if(!e)return;delete e.projectId;delete e.duration;sched();renderProjects()}
 function delTimeblock(id){D.timeblocks=D.timeblocks.filter(tb=>tb.id!==id);sched();renderProjects();if(document.querySelector('#page-week.active'))renderWeek();}
 function delProj(id){if(!confirm('¿Eliminar proyecto?'))return;D.projects=D.projects.filter(p=>p.id!==id);sched();renderProjects()}
@@ -2332,7 +2264,7 @@ function openEdit(type,id){
 }
 function buildM(){
   const type=S.mType,day=S.mDay||(type==='todo'?'':todayStr()),ed=S.editId;
-  const addT={todo:'Add to-do',event:'Add event',project:'New project',timeblock:'Add time block',topic:'New topic',idea:'New idea',note:'Nueva nota',plan:'Nuevo plan',assigntask:'Asignar tarea al proyecto',loghours:'Registrar horas manuales',logdaytask:'Registrar horas del día',assignevent:'Asignar evento a proyecto',completetask:'Completar tarea — registrar horas'};
+  const addT={todo:'Add to-do',event:'Add event',project:'New project',timeblock:'Add time block',topic:'New topic',idea:'New idea',note:'Nueva nota',plan:'Nuevo plan',loghours:'Registrar horas manuales',logdaytask:'Registrar horas del día',assignevent:'Asignar evento a proyecto',completetask:'Completar tarea — registrar horas'};
   const edtT={todo:'Edit to-do',event:'Edit event',project:'Edit project',topic:'Edit topic',idea:'Edit idea',note:'Editar nota',assignevent:'Asignar evento a proyecto',editmanual:'Editar registro de horas'};
   document.getElementById('mtitle').textContent=(ed?edtT[type]:addT[type])||'Add';
   const projOpts='<option value="">— None —</option>'+D.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
@@ -2366,11 +2298,6 @@ function buildM(){
       <div class="color-picker">${PCOLS.map((c,i)=>`<div class="cpick${i===0?' cpick-sel':''}" data-color="${c}" style="background:${c}" onclick="pickColor(this,'${c}')"></div>`).join('')}</div>
       <input type="hidden" id="m-c" value="${PCOLS[0]}">
     </div>`;
-  else if(type==='assigntask'){
-    const taskOpts=D.todos.map(t=>`<option value="${t.id}">[${t.date}] ${t.title}${t.done?' ✓':''}</option>`).join('');
-    b=`
-    <div class="ff"><label>Tarea</label><select id="m-task">${taskOpts||'<option>No hay tareas</option>'}</select></div>
-    <div class="ff"><label>Horas dedicadas</label><input id="m-dur" type="number" min="0.25" step="0.25" placeholder="ej. 1.5"/></div>`;}
   else if(type==='loghours')b=`
     ${!S.mProjId?`<div class="ff"><label>Proyecto</label><select id="m-proj">${D.projects.length?D.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join(''):'<option value="">Crea un proyecto primero</option>'}</select></div>`:''}
     <div class="ff"><label>Fecha</label><input id="m-d" type="date" value="${day}"/></div>
@@ -2569,12 +2496,6 @@ function saveM(){
     if(type==='todo'){const u=todoFromForm(id);if(!u)return;D.todos.push({...u,done:false,createdAt:new Date().toISOString()});}
     else if(type==='event'){const t=gv('m-t').trim();if(!t)return;const pid=parseInt(gv('m-proj'))||null;const tstart=gv('m-tstart'),tend=gv('m-tend');const dur=timeDiff(tstart,tend);D.events.push({id,title:t,date:gv('m-d'),time:tstart,...(tend?{endTime:tend}:{}),...(pid?{projectId:pid}:{}),...(dur?{duration:dur}:{})})}
     else if(type==='project'){const n=gv('m-t').trim();if(!n)return;D.projects.push({id,name:n,desc:gv('m-desc'),color:gv('m-c'),hoursUsed:0})}
-    else if(type==='assigntask'){
-      const tid=parseInt(gv('m-task'));const dur=parseFloat(gv('m-dur'))||0;
-      if(!tid||!dur)return;
-      const t=D.todos.find(t=>t.id===tid);if(!t)return;
-      t.projectId=S.mProjId;t.duration=dur;
-    }
     else if(type==='loghours'){
       const dur=parseFloat(gv('m-dur'))||0;if(!dur)return;
       const desc=gv('m-t').trim();
@@ -2834,7 +2755,7 @@ function shiftSelDay(delta){
 }
 function jumpToToday(){S.selDay=todayStr();renderTodayPanel();}
 function logHForDay(ds){S.mProjId=null;S.mType='logdaytask';S.mDay=ds;S.editId=null;buildM();}
-function openEventAssign(eventId){const ev=D.events.find(e=>e.id===eventId)||EXT.find(e=>e.id===eventId);if(!ev)return;S.mType='assignevent';S.mEventId=eventId;S.mDay=ev.date;S.editId=eventId;buildM();}function assignEventClick(el){openEventAssign(el.dataset.eventId);}function assignEventToProject(evId,ds){S.mType='assignevent';S.mEventId=evId;S.mDay=ds;S.editId=null;buildM();}
+function openEventAssign(eventId){const ev=D.events.find(e=>e.id===eventId)||EXT.find(e=>e.id===eventId);if(!ev)return;S.mType='assignevent';S.mEventId=eventId;S.mDay=ev.date;S.editId=eventId;buildM();}
 function dayProjectHours(ds){
   const out=[];
   D.projects.forEach(p=>{
