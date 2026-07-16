@@ -1515,12 +1515,17 @@ function renderWeek(){
     const extDay=EXT.filter(e=>e.date===ds&&e.time);const extDayIds=new Set(extDay.map(e=>e.id));
     const timedEvs=[...D.events.filter(e=>e.date===ds&&e.time&&(!e.fromIcs||!extDayIds.has(e.icsRef))),...extDay];
     const taskBlocks=[];D.todos.forEach(t=>{if(t.done||t.fromIcs)return;(t.sched||[]).forEach(b=>{if(b.date===ds)taskBlocks.push({t,b});});});
+    // Time ranges (minutes) to detect task↔event overlaps → show them side by side
+    const evR=timedEvs.map(ev=>{const[h,m]=(ev.time||'00:00').split(':').map(Number);const st=h*60+m;const du=ev.endTime?timeDiff(ev.time,ev.endTime):null;return{st,en:st+(du?du*60:30)};});
+    const tkR=taskBlocks.map(({b})=>{const[h,m]=(b.time||'00:00').split(':').map(Number);const st=h*60+m;return{st,en:st+((b.schedH||0.5)*60)};});
+    const rOverlap=(a,b)=>a.st<b.en&&b.st<a.en;
     html+=`<div class="wt-daycol${isT?' wt-today-col':''}${isW?' wt-weekend-col':''}" ondragover="event.preventDefault();event.dataTransfer.dropEffect='move'" ondrop="dropOnTime(event,'${ds}')">`;
     for(let h=HS;h<HE;h++) html+=`<div class="wt-slot" onclick="openMDTime('event','${ds}','${String(h).padStart(2,'0')}:00')"></div>`;
     html+=`<div class="wt-evlayer">`;
-    timedEvs.forEach(ev=>{
+    timedEvs.forEach((ev,ei)=>{
       const[eh,em]=(ev.time||'00:00').split(':').map(Number);
       const topPct=Math.max(0,(eh+em/60-HS)/numH*100);
+      const evOverlap=tkR.some(r=>rOverlap(evR[ei],r));
       const dur=ev.endTime?timeDiff(ev.time,ev.endTime):null;
       const hPct=dur?Math.max(100/numH*0.4,dur/numH*100):(100/numH*0.4);
       const c=ev.color||(ev.type==='meeting'?'var(--green)':ev.source?'var(--blue)':'var(--accent)');
@@ -1537,16 +1542,17 @@ function renderWeek(){
       const tLabel=ev.endTime?`${ev.time}–${ev.endTime}`:ev.time;
       const cursorStyle=isExt?'cursor:pointer;':'';
       const evTitle=`${tLabel} · ${ev.title||''}${ev.source?' · '+ev.source:''}`.replace(/"/g,'&quot;');
-      html+=`<div class="wt-ev"${drag}${click} title="${evTitle}" style="${cursorStyle}top:${topPct.toFixed(2)}%;height:${hPct.toFixed(2)}%;border-left-color:${c};background:${c}18;color:${c}"><span class="wt-evtime">${tLabel}${ev.source?' · '+ev.source:''}</span><span class="wt-evtitle">${ev.title}</span><div class="wt-evacts">${del}</div>${noteIcon}</div>`;
+      html+=`<div class="wt-ev"${drag}${click} title="${evTitle}" style="${cursorStyle}${evOverlap?'right:50%;':''}top:${topPct.toFixed(2)}%;height:${hPct.toFixed(2)}%;border-left-color:${c};background:${c}18;color:${c}"><span class="wt-evtime">${tLabel}${ev.source?' · '+ev.source:''}</span><span class="wt-evtitle">${ev.title}</span><div class="wt-evacts">${del}</div>${noteIcon}</div>`;
     });
-    taskBlocks.forEach(({t,b})=>{
+    taskBlocks.forEach(({t,b},ti)=>{
       const[th,tm]=(b.time||'00:00').split(':').map(Number);
       const topPct=Math.max(0,(th+tm/60-HS)/numH*100);
+      const tkOverlap=evR.some(r=>rOverlap(tkR[ti],r));
       const sh=b.schedH||0.5;
       const hPct=Math.max(100/numH*0.4,sh/numH*100);
       const tproj=t.projectId?D.projects.find(p=>p.id===t.projectId):null;
       const tkTitle=`${ttIcon(t)}${t.title} · ${b.time} · ${sh}h${t.estimateH?' / '+t.estimateH+'h prev.':''}${tproj?' · '+tproj.name:''}`.replace(/"/g,'&quot;');
-      html+=`<div class="wt-ev wt-task-ev" draggable="true" ondragstart="startTimeDrag(event,'task',${t.id},${b.id})" ondragend="this.style.opacity='';_timeDrag={kind:null,id:null}" onclick="openEdit('todo',${t.id})" title="${tkTitle}" style="top:${topPct.toFixed(2)}%;height:${hPct.toFixed(2)}%"><div class="wt-evline1"><span class="wt-evtime">${b.time}</span>${urgencyBadge(t)}${taskDot(t,'margin-top:0')}<span class="wt-evtitle">${ttIcon(t)}${t.title}</span></div>${sh>=1?`<div class="wt-evline2"><span class="wt-evsched">${sh}h${t.estimateH?` / ${t.estimateH}h`:''}</span>${tproj?`<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">· ${tproj.name}</span>`:''}</div>`:''}<div class="wt-evacts"><button class="btn-del" onclick="event.stopPropagation();openCompleteTask(${t.id})" style="font-size:9px;padding:0 1px;color:var(--amber)" title="Registrar horas / completar"><i class="ti ti-check"></i></button><button class="btn-del" onclick="event.stopPropagation();removeSchedBlock(${t.id},${b.id})" style="font-size:9px;padding:0 1px" title="Quitar este bloque"><i class="ti ti-x"></i></button></div><div class="wt-resize" draggable="false" onclick="event.stopPropagation()" onmousedown="startTaskResize(event,${t.id},${b.id})" ontouchstart="startTaskResize(event,${t.id},${b.id})"></div></div>`;
+      html+=`<div class="wt-ev wt-task-ev" draggable="true" ondragstart="startTimeDrag(event,'task',${t.id},${b.id})" ondragend="this.style.opacity='';_timeDrag={kind:null,id:null}" onclick="openEdit('todo',${t.id})" title="${tkTitle}" style="${tkOverlap?'left:50%;':''}top:${topPct.toFixed(2)}%;height:${hPct.toFixed(2)}%"><div class="wt-evline1"><span class="wt-evtime">${b.time}</span>${urgencyBadge(t)}${taskDot(t,'margin-top:0')}<span class="wt-evtitle">${ttIcon(t)}${t.title}</span></div>${sh>=1?`<div class="wt-evline2"><span class="wt-evsched">${sh}h${t.estimateH?` / ${t.estimateH}h`:''}</span>${tproj?`<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">· ${tproj.name}</span>`:''}</div>`:''}<div class="wt-evacts"><button class="btn-del" onclick="event.stopPropagation();openCompleteTask(${t.id})" style="font-size:9px;padding:0 1px;color:var(--amber)" title="Registrar horas / completar"><i class="ti ti-check"></i></button><button class="btn-del" onclick="event.stopPropagation();removeSchedBlock(${t.id},${b.id})" style="font-size:9px;padding:0 1px" title="Quitar este bloque"><i class="ti ti-x"></i></button></div><div class="wt-resize" draggable="false" onclick="event.stopPropagation()" onmousedown="startTaskResize(event,${t.id},${b.id})" ontouchstart="startTaskResize(event,${t.id},${b.id})"></div></div>`;
     });
     html+=`</div></div>`;
   }
