@@ -1566,7 +1566,7 @@ function renderWeek(){
       const checkBtn=t.done
         ?`<button class="btn-del" onclick="event.stopPropagation();toggleTodo(${t.id})" style="font-size:9px;padding:0 1px;color:var(--amber)" title="Reabrir tarea"><i class="ti ti-arrow-back-up"></i></button>`
         :`<button class="btn-del" onclick="event.stopPropagation();openCompleteTask(${t.id})" style="font-size:9px;padding:0 1px;color:var(--amber)" title="Registrar horas / completar"><i class="ti ti-check"></i></button>`;
-      html+=`<div class="wt-ev wt-task-ev" draggable="true" ondragstart="startTimeDrag(event,'task',${t.id},${b.id})" ondragend="this.style.opacity='';_timeDrag={kind:null,id:null}" onclick="event.stopPropagation();tkBlockClick(${t.id},${b.id})" title="${tkTitle} — doble clic para quitar de la programación" style="${doneStyle}${tkOverlap?'left:50%;':''}top:${topPct.toFixed(2)}%;height:${hPct.toFixed(2)}%"><div class="wt-evline1"><span class="wt-evtime">${b.time}</span>${urgencyBadge(t)}${taskDot(t,'margin-top:0')}<span class="wt-evtitle" style="${titleStyle}">${ttIcon(t)}${t.title}</span></div>${sh>=1?`<div class="wt-evline2"><span class="wt-evsched">${sh}h${t.estimateH?` / ${t.estimateH}h`:''}</span>${tproj?`<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">· ${tproj.name}</span>`:''}</div>`:''}<div class="wt-evacts">${checkBtn}<button class="btn-del" onclick="event.stopPropagation();removeSchedBlock(${t.id},${b.id})" style="font-size:9px;padding:0 1px" title="Quitar este bloque"><i class="ti ti-x"></i></button></div><div class="wt-resize" draggable="false" onclick="event.stopPropagation()" onmousedown="startTaskResize(event,${t.id},${b.id})" ontouchstart="startTaskResize(event,${t.id},${b.id})"></div></div>`;
+      html+=`<div class="wt-ev wt-task-ev" draggable="true" ondragstart="startTimeDrag(event,'task',${t.id},${b.id})" ondragend="this.style.opacity='';_timeDrag={kind:null,id:null}" onclick="openEdit('todo',${t.id})" title="${tkTitle}" style="${doneStyle}${tkOverlap?'left:50%;':''}top:${topPct.toFixed(2)}%;height:${hPct.toFixed(2)}%"><div class="wt-evline1"><span class="wt-evtime">${b.time}</span>${urgencyBadge(t)}${taskDot(t,'margin-top:0')}<span class="wt-evtitle" style="${titleStyle}">${ttIcon(t)}${t.title}</span></div>${sh>=1?`<div class="wt-evline2"><span class="wt-evsched">${sh}h${t.estimateH?` / ${t.estimateH}h`:''}</span>${tproj?`<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">· ${tproj.name}</span>`:''}</div>`:''}<div class="wt-evacts">${checkBtn}<button class="btn-del" onclick="event.stopPropagation();removeSchedBlock(${t.id},${b.id})" style="font-size:9px;padding:0 1px" title="Quitar este bloque"><i class="ti ti-x"></i></button></div><div class="wt-resize" draggable="false" onclick="event.stopPropagation()" onmousedown="startTaskResize(event,${t.id},${b.id})" ontouchstart="startTaskResize(event,${t.id},${b.id})"></div></div>`;
     });
     html+=`</div></div>`;
   }
@@ -1675,20 +1675,6 @@ function removeSchedBlock(taskId,bid){
   const t=D.todos.find(t=>t.id===taskId);if(!t||!t.sched)return;
   t.sched=t.sched.filter(b=>b.id!==bid);if(!t.sched.length)delete t.sched;
   sched();renderWeek();
-}
-// Distinguish single click (edit) from a quick double click (remove from schedule).
-// Detect the double click manually via timestamps — more reliable than ondblclick
-// on draggable elements.
-let _tkClickTimer=null,_tkLast={id:null,bid:null,t:0};
-function tkBlockClick(taskId,bid){
-  const now=Date.now();
-  if(_tkLast.id===taskId&&_tkLast.bid===bid&&now-_tkLast.t<500){
-    clearTimeout(_tkClickTimer);_tkLast={id:null,bid:null,t:0};
-    removeSchedBlock(taskId,bid);return;
-  }
-  _tkLast={id:taskId,bid,t:now};
-  clearTimeout(_tkClickTimer);
-  _tkClickTimer=setTimeout(()=>{openEdit('todo',taskId);},500);
 }
 function dropOnTime(e,ds){
   e.preventDefault();
@@ -2855,10 +2841,17 @@ function renderTodayPanel(){
   const isToday=sel===today;
   const extSel=EXT.filter(e=>e.date===sel&&e.time);const extSelIds=new Set(extSel.map(e=>e.id));
   const evs=[...D.events.filter(e=>e.date===sel&&e.time&&(!e.fromIcs||!extSelIds.has(e.icsRef))),...extSel].sort((a,b)=>(a.time||'').localeCompare(b.time||''));
-  const tasks=D.todos.filter(t=>t.date===sel&&!t.done);
+  // Tasks scheduled (block) on this day — shown with their hour
+  const schedByTask={};
+  D.todos.forEach(t=>{if(t.done)return;(t.sched||[]).forEach(b=>{if(b.date===sel&&(!schedByTask[t.id]||b.time<schedByTask[t.id].time))schedByTask[t.id]={...t,_kind:'task',time:b.time};});});
+  const schedTaskItems=Object.values(schedByTask);
+  const schedIds=new Set(schedTaskItems.map(x=>x.id));
+  // Tasks listed on this day but not scheduled here — shown dimmer, without an hour
+  const unschedTaskItems=D.todos.filter(t=>t.date===sel&&!t.done&&!schedIds.has(t.id)).map(t=>({...t,_kind:'task',_unsched:true}));
   const allItems=[
     ...evs.map(e=>({...e,_kind:'ev'})),
-    ...tasks.map(t=>({...t,_kind:'task'}))
+    ...schedTaskItems,
+    ...unschedTaskItems
   ].sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));
   const assignedH=Math.round((
     D.projects.reduce((s,p)=>s+(p.manualEntries||[]).filter(e=>e.date===sel).reduce((a,e)=>a+(e.hours||0),0),0)
@@ -2902,7 +2895,7 @@ function renderTodayPanel(){
         </div>`;
       } else {
         const safeTitle=(item.title||'').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-        html+=`<div class="mtp-item" style="cursor:pointer" title="Registrar horas de esta tarea" onclick="logHoursForTask(${item.id},'${sel}')">
+        html+=`<div class="mtp-item" style="cursor:pointer${item._unsched?';opacity:.55':''}" title="Registrar horas de esta tarea" onclick="logHoursForTask(${item.id},'${sel}')">
           <div class="mtp-time">${item.time||''}</div>
           <div class="udot u-${item.urgency}" style="margin-top:3px;flex-shrink:0"></div>
           <div class="mtp-title" title="${safeTitle}">${ttIcon(item)}${safeTitle}</div>
