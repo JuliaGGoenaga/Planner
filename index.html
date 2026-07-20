@@ -2190,6 +2190,7 @@ function renderProjects(){
 function logH(projId){S.mProjId=projId;S.mType='loghours';S.mDay=null;S.editId=null;buildM()}
 function delManual(projId,entryId){const p=D.projects.find(p=>p.id===projId);if(!p)return;p.manualEntries=(p.manualEntries||[]).filter(e=>e.id!==entryId);sched();renderProjects()}
 function openEditManual(projId,entryId){S.mType='editmanual';S.mProjId=projId;S.editId=entryId;S.mDay=null;buildM();}
+function delManualFromModal(){closeM();delManual(S.mProjId,S.editId);refreshPage();}
 function unassignTask(taskId){const t=D.todos.find(t=>t.id===taskId);if(!t)return;delete t.projectId;delete t.duration;sched();renderProjects()}
 function unassignEvent(eventId){const e=D.events.find(e=>e.id===eventId);if(!e)return;delete e.projectId;delete e.duration;sched();renderProjects()}
 function delTimeblock(id){D.timeblocks=D.timeblocks.filter(tb=>tb.id!==id);sched();renderProjects();if(document.querySelector('#page-week.active'))renderWeek();}
@@ -2358,7 +2359,7 @@ function buildM(){
     const doneRows=completed.map(taskRow).join('');
     const projOpts2=D.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
     b=`
-    ${projOpts2?`<div class="ff"><label>Proyecto <span style="font-size:10px;color:var(--text3);font-weight:400">(filtra las tareas y es donde se registran)</span></label><select id="m-proj" onchange="filterDayTasks(this.value)">${projOpts2}</select></div>`:'<div style="font-size:11px;color:var(--text3);margin-bottom:8px">Crea un proyecto primero en la pestaña Proyectos.</div>'}
+    ${projOpts2?`<div class="ff"><label>Proyecto <span style="font-size:10px;color:var(--text3);font-weight:400">(filtra las tareas y es donde se registran)</span></label><select id="m-proj" onchange="filterDayTasks(this.value)"><option value="">Todos los proyectos</option>${projOpts2}<option value="none">Sin proyecto</option></select></div>`:'<div style="font-size:11px;color:var(--text3);margin-bottom:8px">Crea un proyecto primero en la pestaña Proyectos.</div>'}
     <div class="ff"><label>Tarea</label>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
         <div style="flex:1;min-width:210px">
@@ -2449,9 +2450,11 @@ function buildM(){
   if(type==='todo'&&S.newTodoProj){const mp=document.getElementById('m-proj');if(mp)mp.value=S.newTodoProj;S.newTodoProj=null;}
   if(type==='logdaytask'){const mp=document.getElementById('m-proj');if(mp&&mp.value)filterDayTasks(mp.value);}
   const macts=document.getElementById('macts');
-  if(macts)macts.innerHTML=type==='completetask'
-    ?`<button class="btn" onclick="closeM()">Cancelar</button><button class="btn" onclick="document.getElementById('m-dur').value='0';saveM()">Completar sin horas</button><button class="btn btn-p" onclick="saveM()">Registrar horas</button>`
-    :`<button class="btn" onclick="closeM()">Cancel</button><button class="btn btn-p" onclick="saveM()">Save</button>`;
+  if(macts){
+    if(type==='completetask')macts.innerHTML=`<button class="btn" onclick="closeM()">Cancelar</button><button class="btn" onclick="document.getElementById('m-dur').value='0';saveM()">Completar sin horas</button><button class="btn btn-p" onclick="saveM()">Registrar horas</button>`;
+    else if(type==='editmanual')macts.innerHTML=`<button class="btn" style="color:#E24B4A;border-color:#E24B4A66;margin-right:auto" onclick="delManualFromModal()"><i class="ti ti-trash"></i> Borrar</button><button class="btn" onclick="closeM()">Cancelar</button><button class="btn btn-p" onclick="saveM()">Guardar</button>`;
+    else macts.innerHTML=`<button class="btn" onclick="closeM()">Cancel</button><button class="btn btn-p" onclick="saveM()">Save</button>`;
+  }
   document.getElementById('mo').classList.add('open');
   setTimeout(()=>{const f=document.querySelector('#mbody input,#mbody textarea,#mbody [contenteditable]');if(f)f.focus()},80);
 }
@@ -2556,24 +2559,26 @@ function saveM(){
     }
     else if(type==='logdaytask'){
       const dur=parseFloat(gv('m-dur'))||0;if(!dur)return;
-      const pid=parseInt(gv('m-proj'));
-      const p=D.projects.find(p=>p.id===pid);if(!p)return;
+      const selPid=parseInt(gv('m-proj'))||null; // '' (Todos) or 'none' → null
       const newTitle=gv('m-newtask').trim();
       const doneEl=document.getElementById('m-done');const markDone=!!(doneEl&&doneEl.checked);
-      let desc;
+      let desc,pid;
       if(newTitle){
-        // Reuse an existing task with the same name in this project so hours sum
-        // into one task instead of duplicating; new ones default to completed.
+        // New task needs a specific project (the one selected above)
+        pid=selPid;if(!D.projects.find(p=>p.id===pid))return;
+        // Reuse an existing task with the same name so hours sum; new ones default to completed
         let task=D.todos.find(t=>t.title===newTitle&&t.projectId===pid);
         if(!task){task={id:nid(),title:newTitle,date:S.mDay||todayStr(),urgency:'med',done:true,projectId:pid,createdAt:new Date().toISOString()};D.todos.push(task);}
         else{task.done=true;}
         desc=newTitle;
       }else{
         const tid=parseInt(gv('m-task'));
-        const task=D.todos.find(t=>t.id===tid);
-        desc=task?task.title:'Horas de proyecto';
-        if(task&&markDone)task.done=true;
+        const task=D.todos.find(t=>t.id===tid);if(!task)return;
+        pid=task.projectId||selPid; // log to the task's own project, or the selected one
+        desc=task.title;
+        if(markDone)task.done=true;
       }
+      const p=D.projects.find(p=>p.id===pid);if(!p)return;
       if(!p.manualEntries)p.manualEntries=[];
       p.manualEntries.push({id,date:S.mDay||todayStr(),hours:dur,desc});
     }
