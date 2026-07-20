@@ -2320,7 +2320,7 @@ function openEdit(type,id){
 }
 function buildM(){
   const type=S.mType,day=S.mDay||(type==='todo'?'':todayStr()),ed=S.editId;
-  const addT={todo:'Add to-do',event:'Add event',project:'New project',timeblock:'Add time block',topic:'New topic',idea:'New idea',note:'Nueva nota',plan:'Nuevo plan',loghours:'Registrar horas manuales',logdaytask:'Registrar horas del día',assignevent:'Asignar evento a proyecto',completetask:'Completar tarea — registrar horas'};
+  const addT={todo:'Add to-do',event:'Add event',project:'New project',timeblock:'Add time block',topic:'New topic',idea:'New idea',note:'Nueva nota',plan:'Nuevo plan',loghours:'Registrar horas manuales',logdaytask:'Registrar horas del día',assignevent:'Asignar evento a proyecto',completetask:'Completar tarea — registrar horas',taskhours:'Registrar horas de la tarea'};
   const edtT={todo:'Edit to-do',event:'Edit event',project:'Edit project',topic:'Edit topic',idea:'Edit idea',note:'Editar nota',assignevent:'Asignar evento a proyecto',editmanual:'Editar registro de horas'};
   document.getElementById('mtitle').textContent=(ed?edtT[type]:addT[type])||'Add';
   const projOpts='<option value="">— None —</option>'+D.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
@@ -2400,6 +2400,15 @@ function buildM(){
     <div class="ff"><label>Horas dedicadas</label><input id="m-dur" type="number" min="0" step="0.25" value="0" placeholder="ej. 1.5"/></div>
     <div class="ff"><label>Día</label><input id="m-d" type="date" value="${S.mDay||todayStr()}"/></div>
     <div style="font-size:10px;color:var(--text3);margin-top:4px">Se registrará en ${p?p.name:'el proyecto'} y aparecerá en la tarjeta del día.</div>`;}
+  else if(type==='taskhours'){
+    const t=D.todos.find(t=>t.id===S.taskHoursId);if(!t)return;
+    const projOpts=D.projects.map(pp=>`<option value="${pp.id}"${pp.id===t.projectId?' selected':''}>${pp.name}</option>`).join('');
+    b=`
+    <div class="ff"><label>Tarea</label><div style="font-size:12px;color:var(--text2);padding:6px;background:var(--surface2);border-radius:4px">${ttIcon(t)}${(t.title||'').replace(/</g,'&lt;')}</div></div>
+    <div class="ff"><label>Proyecto</label><select id="m-proj">${projOpts||'<option value="">Crea un proyecto primero</option>'}</select></div>
+    <div class="ff"><label>Horas</label><input id="m-dur" type="number" min="0.25" step="0.25" value="1" placeholder="ej. 1.5"/></div>
+    <div class="ff"><label>Día</label><input id="m-d" type="date" value="${S.mDay||todayStr()}"/></div>
+    <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);cursor:pointer;margin-top:2px"><input type="checkbox" id="m-done" style="width:auto;margin:0"/> Marcar la tarea como completada</label>`;}
   else if(type==='assignevent'){
     const ev=D.events.find(e=>e.id===S.mEventId)||D.events.find(e=>e.icsRef===S.mEventId)||EXT.find(e=>e.id===S.mEventId);if(!ev)return;
     const projOpts='<option value="">— Sin proyecto —</option>'+D.projects.map(p=>`<option value="${p.id}"${p.id===ev.projectId?' selected':''}>${p.name}</option>`).join('');
@@ -2592,6 +2601,16 @@ function saveM(){
         const p=D.projects.find(p=>p.id===t.projectId);
         if(p){if(!p.manualEntries)p.manualEntries=[];p.manualEntries.push({id,date,hours:dur,desc:t.title});}
       }
+    }
+    else if(type==='taskhours'){
+      const t=D.todos.find(t=>t.id===S.taskHoursId);if(!t)return;
+      const dur=parseFloat(gv('m-dur'))||0;if(!dur)return;
+      const pid=parseInt(gv('m-proj'));const p=D.projects.find(p=>p.id===pid);if(!p)return;
+      if(!t.projectId)t.projectId=pid; // adopt the project if the task had none
+      const date=gv('m-d')||todayStr();
+      if(!p.manualEntries)p.manualEntries=[];
+      p.manualEntries.push({id,date,hours:dur,desc:t.title});
+      const doneEl=document.getElementById('m-done');if(doneEl&&doneEl.checked)t.done=true;
     }
     else if(type==='timeblock'){const pid=parseInt(gv('m-proj'));const dur=parseFloat(gv('m-dur'))||1;D.timeblocks.push({id,date:gv('m-d'),startTime:gv('m-time'),duration:dur,projectId:pid});const p=D.projects.find(p=>p.id===pid);if(p)p.hoursUsed=Math.round((p.hoursUsed+dur)*10)/10;}
     else if(type==='topic'){const n=gv('m-t').trim();if(!n)return;D.topics.push({id,name:n,icon:gv('m-icon')})}
@@ -2814,6 +2833,7 @@ function shiftSelDay(delta){
 }
 function jumpToToday(){S.selDay=todayStr();renderTodayPanel();}
 function logHForDay(ds){S.mProjId=null;S.mType='logdaytask';S.mDay=ds;S.editId=null;buildM();}
+function logHoursForTask(taskId,ds){S.mType='taskhours';S.taskHoursId=taskId;S.mDay=ds;S.editId=null;buildM();}
 function openEventAssign(eventId){const ev=D.events.find(e=>e.id===eventId)||EXT.find(e=>e.id===eventId);if(!ev)return;S.mType='assignevent';S.mEventId=eventId;S.mDay=ev.date;S.editId=eventId;buildM();}
 function dayProjectHours(ds){
   const out=[];
@@ -2882,7 +2902,7 @@ function renderTodayPanel(){
         </div>`;
       } else {
         const safeTitle=(item.title||'').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-        html+=`<div class="mtp-item">
+        html+=`<div class="mtp-item" style="cursor:pointer" title="Registrar horas de esta tarea" onclick="logHoursForTask(${item.id},'${sel}')">
           <div class="mtp-time">${item.time||''}</div>
           <div class="udot u-${item.urgency}" style="margin-top:3px;flex-shrink:0"></div>
           <div class="mtp-title" title="${safeTitle}">${ttIcon(item)}${safeTitle}</div>
