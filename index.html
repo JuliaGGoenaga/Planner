@@ -1682,13 +1682,13 @@ function removeSchedBlock(taskId,bid){
 let _tkClickTimer=null,_tkLast={id:null,bid:null,t:0};
 function tkBlockClick(taskId,bid){
   const now=Date.now();
-  if(_tkLast.id===taskId&&_tkLast.bid===bid&&now-_tkLast.t<350){
+  if(_tkLast.id===taskId&&_tkLast.bid===bid&&now-_tkLast.t<500){
     clearTimeout(_tkClickTimer);_tkLast={id:null,bid:null,t:0};
     removeSchedBlock(taskId,bid);return;
   }
   _tkLast={id:taskId,bid,t:now};
   clearTimeout(_tkClickTimer);
-  _tkClickTimer=setTimeout(()=>{openEdit('todo',taskId);},350);
+  _tkClickTimer=setTimeout(()=>{openEdit('todo',taskId);},500);
 }
 function dropOnTime(e,ds){
   e.preventDefault();
