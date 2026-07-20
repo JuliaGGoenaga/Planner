@@ -190,7 +190,9 @@ html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
 .wt-evtitle{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
 .wt-evacts{display:flex;gap:1px;flex-shrink:0;opacity:0;transition:opacity .1s;position:absolute;top:1px;right:2px}
 .wt-ev:hover .wt-evacts{opacity:1}
-@media (hover:none){.wt-evacts{opacity:.75}}
+/* task blocks: keep unschedule/complete buttons always visible with a legible backdrop */
+.wt-task-ev .wt-evacts{opacity:1;background:var(--surface);border-radius:5px;padding:0 1px;box-shadow:0 0 0 1px var(--border)}
+@media (hover:none){.wt-evacts{opacity:.85}}
 /* task chips in the grid: flat row, fixed height */
 .wt-schedbar{display:flex;align-items:center;gap:6px;padding:6px 8px;margin-top:6px;font-size:11px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text2);flex-shrink:0}
 .chip-row{display:flex;gap:6px;flex-wrap:wrap}
