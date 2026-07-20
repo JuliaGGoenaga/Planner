@@ -1391,6 +1391,15 @@ function ttIcon(t){return t&&t.ttype==='mgmt'?'📋 ':t&&t.ttype==='work'?'💻 
 function isOverdue(t){return!!(t&&!t.done&&t.dueDate&&todayStr()>t.dueDate);}
 // Hours logged to a task (sum of manual entries whose description matches its title)
 function taskLoggedH(t){return Math.round(D.projects.reduce((s,p)=>s+(p.manualEntries||[]).filter(e=>e.desc===t.title).reduce((a,e)=>a+(e.hours||0),0),0)*10)/10;}
+// Default hours for a new scheduled block: fill the hours still missing toward the estimate
+function defaultBlockH(t){
+  const est=t.estimateH||0;
+  const scheduled=(t.sched||[]).reduce((a,b)=>a+(b.schedH||0),0);
+  const assigned=scheduled+taskLoggedH(t);
+  if(assigned<=0)return est>0?Math.min(2,est):1; // nothing assigned yet
+  if(est>0){const rem=Math.round((est-assigned)*4)/4;return rem>=0.25?rem:0.5;} // fill the gap
+  return 0.5; // assigned some but no estimate
+}
 // Second info line for a task card: logged/estimated hours and due date
 function taskMeta2(t){
   const parts=[];
@@ -1514,7 +1523,7 @@ function renderWeek(){
     const isW=d.getDay()===0||d.getDay()===6;
     const extDay=EXT.filter(e=>e.date===ds&&e.time);const extDayIds=new Set(extDay.map(e=>e.id));
     const timedEvs=[...D.events.filter(e=>e.date===ds&&e.time&&(!e.fromIcs||!extDayIds.has(e.icsRef))),...extDay];
-    const taskBlocks=[];D.todos.forEach(t=>{if(t.done||t.fromIcs)return;(t.sched||[]).forEach(b=>{if(b.date===ds)taskBlocks.push({t,b});});});
+    const taskBlocks=[];D.todos.forEach(t=>{if(t.fromIcs)return;(t.sched||[]).forEach(b=>{if(b.date===ds)taskBlocks.push({t,b});});});
     // Time ranges (minutes) to detect task↔event overlaps → show them side by side
     const evR=timedEvs.map(ev=>{const[h,m]=(ev.time||'00:00').split(':').map(Number);const st=h*60+m;const du=ev.endTime?timeDiff(ev.time,ev.endTime):null;return{st,en:st+(du?du*60:30)};});
     const tkR=taskBlocks.map(({b})=>{const[h,m]=(b.time||'00:00').split(':').map(Number);const st=h*60+m;return{st,en:st+((b.schedH||0.5)*60)};});
@@ -1552,7 +1561,12 @@ function renderWeek(){
       const hPct=Math.max(100/numH*0.4,sh/numH*100);
       const tproj=t.projectId?D.projects.find(p=>p.id===t.projectId):null;
       const tkTitle=`${ttIcon(t)}${t.title} · ${b.time} · ${sh}h${t.estimateH?' / '+t.estimateH+'h prev.':''}${tproj?' · '+tproj.name:''}`.replace(/"/g,'&quot;');
-      html+=`<div class="wt-ev wt-task-ev" draggable="true" ondragstart="startTimeDrag(event,'task',${t.id},${b.id})" ondragend="this.style.opacity='';_timeDrag={kind:null,id:null}" onclick="openEdit('todo',${t.id})" title="${tkTitle}" style="${tkOverlap?'left:50%;':''}top:${topPct.toFixed(2)}%;height:${hPct.toFixed(2)}%"><div class="wt-evline1"><span class="wt-evtime">${b.time}</span>${urgencyBadge(t)}${taskDot(t,'margin-top:0')}<span class="wt-evtitle">${ttIcon(t)}${t.title}</span></div>${sh>=1?`<div class="wt-evline2"><span class="wt-evsched">${sh}h${t.estimateH?` / ${t.estimateH}h`:''}</span>${tproj?`<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">· ${tproj.name}</span>`:''}</div>`:''}<div class="wt-evacts"><button class="btn-del" onclick="event.stopPropagation();openCompleteTask(${t.id})" style="font-size:9px;padding:0 1px;color:var(--amber)" title="Registrar horas / completar"><i class="ti ti-check"></i></button><button class="btn-del" onclick="event.stopPropagation();removeSchedBlock(${t.id},${b.id})" style="font-size:9px;padding:0 1px" title="Quitar este bloque"><i class="ti ti-x"></i></button></div><div class="wt-resize" draggable="false" onclick="event.stopPropagation()" onmousedown="startTaskResize(event,${t.id},${b.id})" ontouchstart="startTaskResize(event,${t.id},${b.id})"></div></div>`;
+      const doneStyle=t.done?'opacity:.5;':'';
+      const titleStyle=t.done?'text-decoration:line-through;':'';
+      const checkBtn=t.done
+        ?`<button class="btn-del" onclick="event.stopPropagation();toggleTodo(${t.id})" style="font-size:9px;padding:0 1px;color:var(--amber)" title="Reabrir tarea"><i class="ti ti-arrow-back-up"></i></button>`
+        :`<button class="btn-del" onclick="event.stopPropagation();openCompleteTask(${t.id})" style="font-size:9px;padding:0 1px;color:var(--amber)" title="Registrar horas / completar"><i class="ti ti-check"></i></button>`;
+      html+=`<div class="wt-ev wt-task-ev" draggable="true" ondragstart="startTimeDrag(event,'task',${t.id},${b.id})" ondragend="this.style.opacity='';_timeDrag={kind:null,id:null}" onclick="openEdit('todo',${t.id})" title="${tkTitle}" style="${doneStyle}${tkOverlap?'left:50%;':''}top:${topPct.toFixed(2)}%;height:${hPct.toFixed(2)}%"><div class="wt-evline1"><span class="wt-evtime">${b.time}</span>${urgencyBadge(t)}${taskDot(t,'margin-top:0')}<span class="wt-evtitle" style="${titleStyle}">${ttIcon(t)}${t.title}</span></div>${sh>=1?`<div class="wt-evline2"><span class="wt-evsched">${sh}h${t.estimateH?` / ${t.estimateH}h`:''}</span>${tproj?`<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">· ${tproj.name}</span>`:''}</div>`:''}<div class="wt-evacts">${checkBtn}<button class="btn-del" onclick="event.stopPropagation();removeSchedBlock(${t.id},${b.id})" style="font-size:9px;padding:0 1px" title="Quitar este bloque"><i class="ti ti-x"></i></button></div><div class="wt-resize" draggable="false" onclick="event.stopPropagation()" onmousedown="startTaskResize(event,${t.id},${b.id})" ontouchstart="startTaskResize(event,${t.id},${b.id})"></div></div>`;
     });
     html+=`</div></div>`;
   }
@@ -1682,7 +1696,7 @@ function dropOnTime(e,ds){
       const bid=_timeDrag.bid;
       const existing=bid!=null?todo.sched.find(b=>b.id===bid):null;
       if(existing){existing.date=ds;existing.time=t;} // move an existing block
-      else{const first=todo.sched.length===0;todo.sched.push({id:nid(),date:ds,time:t,schedH:first?(todo.estimateH||0.5):0.5});} // add a new block (allows multiple slots)
+      else{todo.sched.push({id:nid(),date:ds,time:t,schedH:defaultBlockH(todo)});} // add a new block (allows multiple slots)
     }
   }
   _timeDrag={kind:null,id:null};
