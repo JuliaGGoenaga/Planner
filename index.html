@@ -1566,7 +1566,7 @@ function renderWeek(){
       const checkBtn=t.done
         ?`<button class="btn-del" onclick="event.stopPropagation();toggleTodo(${t.id})" style="font-size:9px;padding:0 1px;color:var(--amber)" title="Reabrir tarea"><i class="ti ti-arrow-back-up"></i></button>`
         :`<button class="btn-del" onclick="event.stopPropagation();openCompleteTask(${t.id})" style="font-size:9px;padding:0 1px;color:var(--amber)" title="Registrar horas / completar"><i class="ti ti-check"></i></button>`;
-      html+=`<div class="wt-ev wt-task-ev" draggable="true" ondragstart="startTimeDrag(event,'task',${t.id},${b.id})" ondragend="this.style.opacity='';_timeDrag={kind:null,id:null}" onclick="tkBlockClick(${t.id})" ondblclick="event.stopPropagation();tkBlockDbl(${t.id},${b.id})" title="${tkTitle} — doble clic para quitar de la programación" style="${doneStyle}${tkOverlap?'left:50%;':''}top:${topPct.toFixed(2)}%;height:${hPct.toFixed(2)}%"><div class="wt-evline1"><span class="wt-evtime">${b.time}</span>${urgencyBadge(t)}${taskDot(t,'margin-top:0')}<span class="wt-evtitle" style="${titleStyle}">${ttIcon(t)}${t.title}</span></div>${sh>=1?`<div class="wt-evline2"><span class="wt-evsched">${sh}h${t.estimateH?` / ${t.estimateH}h`:''}</span>${tproj?`<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">· ${tproj.name}</span>`:''}</div>`:''}<div class="wt-evacts">${checkBtn}<button class="btn-del" onclick="event.stopPropagation();removeSchedBlock(${t.id},${b.id})" style="font-size:9px;padding:0 1px" title="Quitar este bloque"><i class="ti ti-x"></i></button></div><div class="wt-resize" draggable="false" onclick="event.stopPropagation()" onmousedown="startTaskResize(event,${t.id},${b.id})" ontouchstart="startTaskResize(event,${t.id},${b.id})"></div></div>`;
+      html+=`<div class="wt-ev wt-task-ev" draggable="true" ondragstart="startTimeDrag(event,'task',${t.id},${b.id})" ondragend="this.style.opacity='';_timeDrag={kind:null,id:null}" onclick="event.stopPropagation();tkBlockClick(${t.id},${b.id})" title="${tkTitle} — doble clic para quitar de la programación" style="${doneStyle}${tkOverlap?'left:50%;':''}top:${topPct.toFixed(2)}%;height:${hPct.toFixed(2)}%"><div class="wt-evline1"><span class="wt-evtime">${b.time}</span>${urgencyBadge(t)}${taskDot(t,'margin-top:0')}<span class="wt-evtitle" style="${titleStyle}">${ttIcon(t)}${t.title}</span></div>${sh>=1?`<div class="wt-evline2"><span class="wt-evsched">${sh}h${t.estimateH?` / ${t.estimateH}h`:''}</span>${tproj?`<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">· ${tproj.name}</span>`:''}</div>`:''}<div class="wt-evacts">${checkBtn}<button class="btn-del" onclick="event.stopPropagation();removeSchedBlock(${t.id},${b.id})" style="font-size:9px;padding:0 1px" title="Quitar este bloque"><i class="ti ti-x"></i></button></div><div class="wt-resize" draggable="false" onclick="event.stopPropagation()" onmousedown="startTaskResize(event,${t.id},${b.id})" ontouchstart="startTaskResize(event,${t.id},${b.id})"></div></div>`;
     });
     html+=`</div></div>`;
   }
@@ -1676,10 +1676,20 @@ function removeSchedBlock(taskId,bid){
   t.sched=t.sched.filter(b=>b.id!==bid);if(!t.sched.length)delete t.sched;
   sched();renderWeek();
 }
-// Distinguish single click (edit) from a quick double click (remove from schedule)
-let _tkClickTimer=null;
-function tkBlockClick(taskId){clearTimeout(_tkClickTimer);_tkClickTimer=setTimeout(()=>{openEdit('todo',taskId);},230);}
-function tkBlockDbl(taskId,bid){clearTimeout(_tkClickTimer);removeSchedBlock(taskId,bid);}
+// Distinguish single click (edit) from a quick double click (remove from schedule).
+// Detect the double click manually via timestamps — more reliable than ondblclick
+// on draggable elements.
+let _tkClickTimer=null,_tkLast={id:null,bid:null,t:0};
+function tkBlockClick(taskId,bid){
+  const now=Date.now();
+  if(_tkLast.id===taskId&&_tkLast.bid===bid&&now-_tkLast.t<350){
+    clearTimeout(_tkClickTimer);_tkLast={id:null,bid:null,t:0};
+    removeSchedBlock(taskId,bid);return;
+  }
+  _tkLast={id:taskId,bid,t:now};
+  clearTimeout(_tkClickTimer);
+  _tkClickTimer=setTimeout(()=>{openEdit('todo',taskId);},350);
+}
 function dropOnTime(e,ds){
   e.preventDefault();
   const{kind,id}=_timeDrag;
