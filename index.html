@@ -170,7 +170,7 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 .wt-allday-cell{border-left:1px solid var(--border);padding:3px;display:flex;flex-direction:column;gap:2px;min-width:0;min-height:22px}
 .wt-allday-chip{display:flex;align-items:center;gap:3px;font-size:10px;padding:2px 4px;border-radius:4px;background:var(--amber-l);color:var(--amber);cursor:grab;line-height:1.2;min-width:0}
 .wt-allday-chip:hover{filter:brightness(0.97)}
-.wt-allday-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wt-allday-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 /* body — fills remaining height, NO overflow-y = no scroll */
 .wt-body{display:grid;grid-template-columns:44px 1fr 1fr 1fr 1fr 1fr 0.5fr 0.5fr;flex:1;min-height:0;overflow:hidden}
 .wt-time-col{background:var(--surface2);border-right:1px solid var(--border);display:flex;flex-direction:column}
@@ -190,9 +190,17 @@ html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
 .wt-evtitle{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
 .wt-evacts{display:flex;gap:1px;flex-shrink:0;opacity:0;transition:opacity .1s;position:absolute;top:1px;right:2px}
 .wt-ev:hover .wt-evacts{opacity:1}
-/* task blocks: keep unschedule/complete buttons always visible with a legible backdrop */
-.wt-task-ev .wt-evacts{opacity:1;background:var(--surface);border-radius:5px;padding:0 1px;box-shadow:0 0 0 1px var(--border)}
 @media (hover:none){.wt-evacts{opacity:.85}}
+/* task chip corner buttons — complete bottom-left, remove bottom-right, always visible */
+.wt-tact{position:absolute;bottom:0;z-index:3;font-size:10px;padding:0 2px;line-height:1}
+.wt-ev .wt-tact{opacity:.85}
+.wt-ev .wt-tact:hover{opacity:1}
+.wt-tact-l{left:0}
+.wt-tact-r{right:0}
+/* top-strip (Sin hora) chip action buttons */
+.wt-allday-chip .btn-del{opacity:.7;padding:0 1px;flex-shrink:0}
+.wt-allday-chip .btn-del:hover{opacity:1}
+.wt-allday-chip .btn-del i{font-size:10px}
 /* task chips in the grid: flat row, fixed height */
 .wt-schedbar{display:flex;align-items:center;gap:6px;padding:6px 8px;margin-top:6px;font-size:11px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text2);flex-shrink:0}
 .chip-row{display:flex;gap:6px;flex-wrap:wrap}
@@ -1514,7 +1522,7 @@ function renderWeek(){
   for(let i=0;i<7;i++){
     const d=addDays(s,i),ds=dStr(d);
     const untimedTasks=D.todos.filter(t=>t.date===ds&&!(t.sched&&t.sched.length)&&!t.done&&!t.fromIcs);
-    html+=`<div class="wt-allday-cell" ondragover="event.preventDefault()" ondrop="dropOnAllDay(event,'${ds}')">${untimedTasks.map(t=>`<div class="wt-allday-chip" draggable="true" ondragstart="startTimeDrag(event,'task',${t.id})" ondragend="this.style.opacity='';_timeDrag={kind:null,id:null}" onclick="openEdit('todo',${t.id})" title="${(t.title||'').replace(/"/g,'&quot;')}">${urgencyBadge(t)}${taskDot(t,'flex-shrink:0')}<span style="${overdueStyle(t)}">${ttIcon(t)}${t.title}${t.rolledFrom?' <span class="rolled">↩</span>':''}</span></div>`).join('')}</div>`;
+    html+=`<div class="wt-allday-cell" ondragover="event.preventDefault()" ondrop="dropOnAllDay(event,'${ds}')">${untimedTasks.map(t=>`<div class="wt-allday-chip" draggable="true" ondragstart="startTimeDrag(event,'task',${t.id})" ondragend="this.style.opacity='';_timeDrag={kind:null,id:null}" onclick="openEdit('todo',${t.id})" title="${(t.title||'').replace(/"/g,'&quot;')}">${urgencyBadge(t)}${taskDot(t,'flex-shrink:0')}<span style="${overdueStyle(t)}">${ttIcon(t)}${t.title}${t.rolledFrom?' <span class="rolled">↩</span>':''}</span><button class="btn-del" style="margin-left:auto;color:var(--amber)" onclick="event.stopPropagation();openCompleteTask(${t.id})" title="Registrar horas / completar"><i class="ti ti-check"></i></button><button class="btn-del" style="color:#E24B4A" onclick="event.stopPropagation();unscheduleTask(${t.id})" title="Quitar de este día"><i class="ti ti-x"></i></button></div>`).join('')}</div>`;
   }
   html+=`</div>`;
   // Time body — slots sized by flex (fill height, no scroll)
@@ -1567,9 +1575,9 @@ function renderWeek(){
       const doneStyle=t.done?'opacity:.5;':'';
       const titleStyle=t.done?'text-decoration:line-through;':'';
       const checkBtn=t.done
-        ?`<button class="btn-del" onclick="event.stopPropagation();toggleTodo(${t.id})" style="font-size:9px;padding:0 1px;color:var(--amber)" title="Reabrir tarea"><i class="ti ti-arrow-back-up"></i></button>`
-        :`<button class="btn-del" onclick="event.stopPropagation();openCompleteTask(${t.id})" style="font-size:9px;padding:0 1px;color:var(--amber)" title="Registrar horas / completar"><i class="ti ti-check"></i></button>`;
-      html+=`<div class="wt-ev wt-task-ev" draggable="true" ondragstart="startTimeDrag(event,'task',${t.id},${b.id})" ondragend="this.style.opacity='';_timeDrag={kind:null,id:null}" onclick="openEdit('todo',${t.id})" title="${tkTitle}" style="${doneStyle}${tkOverlap?'left:50%;':''}top:${topPct.toFixed(2)}%;height:${hPct.toFixed(2)}%"><div class="wt-evline1"><span class="wt-evtime">${b.time}</span>${urgencyBadge(t)}${taskDot(t,'margin-top:0')}<span class="wt-evtitle" style="${titleStyle}">${ttIcon(t)}${t.title}</span></div>${sh>=1?`<div class="wt-evline2"><span class="wt-evsched">${sh}h${t.estimateH?` / ${t.estimateH}h`:''}</span>${tproj?`<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">· ${tproj.name}</span>`:''}</div>`:''}<div class="wt-evacts">${checkBtn}<button class="btn-del" onclick="event.stopPropagation();removeSchedBlock(${t.id},${b.id})" style="font-size:9px;padding:0 1px" title="Quitar este bloque"><i class="ti ti-x"></i></button></div><div class="wt-resize" draggable="false" onclick="event.stopPropagation()" onmousedown="startTaskResize(event,${t.id},${b.id})" ontouchstart="startTaskResize(event,${t.id},${b.id})"></div></div>`;
+        ?`<button class="btn-del wt-tact wt-tact-l" onclick="event.stopPropagation();toggleTodo(${t.id})" style="color:var(--amber)" title="Reabrir tarea"><i class="ti ti-arrow-back-up"></i></button>`
+        :`<button class="btn-del wt-tact wt-tact-l" onclick="event.stopPropagation();openCompleteTask(${t.id})" style="color:var(--amber)" title="Registrar horas / completar"><i class="ti ti-check"></i></button>`;
+      html+=`<div class="wt-ev wt-task-ev" draggable="true" ondragstart="startTimeDrag(event,'task',${t.id},${b.id})" ondragend="this.style.opacity='';_timeDrag={kind:null,id:null}" onclick="openEdit('todo',${t.id})" title="${tkTitle}" style="${doneStyle}${tkOverlap?'left:50%;':''}top:${topPct.toFixed(2)}%;height:${hPct.toFixed(2)}%"><div class="wt-evline1"><span class="wt-evtime">${b.time}</span>${urgencyBadge(t)}${taskDot(t,'margin-top:0')}<span class="wt-evtitle" style="${titleStyle}">${ttIcon(t)}${t.title}</span></div>${sh>=1?`<div class="wt-evline2"><span class="wt-evsched">${sh}h${t.estimateH?` / ${t.estimateH}h`:''}</span>${tproj?`<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">· ${tproj.name}</span>`:''}</div>`:''}${checkBtn}<button class="btn-del wt-tact wt-tact-r" onclick="event.stopPropagation();removeSchedBlock(${t.id},${b.id})" style="color:#E24B4A" title="Quitar de este día"><i class="ti ti-x"></i></button><div class="wt-resize" draggable="false" onclick="event.stopPropagation()" onmousedown="startTaskResize(event,${t.id},${b.id})" ontouchstart="startTaskResize(event,${t.id},${b.id})"></div></div>`;
     });
     html+=`</div></div>`;
   }
@@ -1677,6 +1685,11 @@ function endTaskResize(){
 function removeSchedBlock(taskId,bid){
   const t=D.todos.find(t=>t.id===taskId);if(!t||!t.sched)return;
   t.sched=t.sched.filter(b=>b.id!==bid);if(!t.sched.length)delete t.sched;
+  sched();renderWeek();
+}
+function unscheduleTask(id){
+  const t=D.todos.find(t=>t.id===id);if(!t)return;
+  t.date=null;
   sched();renderWeek();
 }
 function dropOnTime(e,ds){
