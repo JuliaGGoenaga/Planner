@@ -790,6 +790,21 @@ html.dark .cpick{box-shadow:0 0 0 1px rgba(255,255,255,0.2)}
                 </div>
                 <div class="smsg" id="ics-msg"></div>
               </div>
+              <div class="scard">
+                <h3><i class="ti ti-map-pin" style="color:var(--green)"></i> Ubicación y festivos</h3>
+                <p style="font-size:12px;color:var(--text2);margin:0 0 10px">Elige tu ciudad en España y se cargarán automáticamente los festivos nacionales, autonómicos y locales. Para otros países marca «Otro país» y añade los festivos a mano (2 clics en un día en la vista mensual). Las fiestas locales son orientativas: puedes ajustarlas a mano.</p>
+                <div class="sf"><label>País</label>
+                  <select id="s-country" onchange="onCountryChange()">
+                    <option value="ES">España</option>
+                    <option value="other">Otro país</option>
+                  </select>
+                </div>
+                <div class="sf" id="s-city-wrap"><label>Ciudad</label>
+                  <select id="s-city"></select>
+                </div>
+                <div class="bg"><button class="btn btn-p" onclick="saveLocation()"><i class="ti ti-check"></i> Guardar</button></div>
+                <div class="smsg" id="loc-msg"></div>
+              </div>
               <div class="scard" style="grid-column:1/-1">
                 <h3><i class="ti ti-robot" style="color:var(--accent)"></i> Asistente IA</h3>
                 <ol class="steps">
@@ -919,7 +934,7 @@ let D={events:[],todos:[],projects:[],timeblocks:[],meetingNotes:[],notes:[],top
   {id:1,name:'Work',icon:'ti-briefcase'},
   {id:2,name:'Personal',icon:'ti-heart'},
   {id:3,name:'Ideas',icon:'ti-bulb'}
-],ideas:[],calendars:[],vacationDays:[],customHolidays:[],plans:[]};
+],ideas:[],calendars:[],vacationDays:[],customHolidays:[],plans:[],region:'madrid'};
 let EXT=[];
 const URG_RANK={high:0,med:1,low:2};
 let CAL_CACHE=null; // calendar-cache.json from the Gist, populated server-side by the sync-calendars GitHub Action
@@ -1024,6 +1039,7 @@ async function loadGist(){
           D.meetingNotes=p.meetingNotes||D.meetingNotes;
           D.notes=p.notes||D.notes;
           D.plans=p.plans||D.plans;
+          if(p.region)D.region=p.region;
           if(p.nextId)S.nextId=p.nextId;
         }
       }catch(e){setSS('err','Corrupt data in Gist');return}
@@ -1054,6 +1070,7 @@ async function loadGist(){
           if(p.timeblocks)D.timeblocks=p.timeblocks;if(p.meetingNotes)D.meetingNotes=p.meetingNotes;
           if(p.notes)D.notes=p.notes;if(p.ideas)D.ideas=p.ideas;if(p.plans)D.plans=p.plans;
           if(p.vacationDays)D.vacationDays=p.vacationDays;if(p.customHolidays)D.customHolidays=p.customHolidays;
+          if(p.region)D.region=p.region;
           if(p.nextId)S.nextId=p.nextId;
           setSS('saving','Recuperando cambios locales…');
           saveGistNow();
@@ -1440,29 +1457,104 @@ function timeDiff(start,end){
 }
 
 // ── MADRID HOLIDAYS ────────────────────────────────────────────────────────
-function getMadridHolidays(year){
-  function easterSunday(y){
-    const a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4;
-    const f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3);
-    const h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4;
-    const l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451);
-    const mo=Math.floor((h+l-7*m+114)/31),dy=((h+l-7*m+114)%31)+1;
-    return new Date(y,mo-1,dy);
-  }
-  function d2s(d){return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
-  function shift(d,n){const r=new Date(d);r.setDate(r.getDate()+n);return r}
-  function f(m,day){return`${year}-${String(m).padStart(2,'0')}-${String(day).padStart(2,'0')}`}
+// ── FESTIVOS DE ESPAÑA ──────────────────────────────────────────────────────
+function easterSunday(y){
+  const a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4;
+  const f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3);
+  const h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4;
+  const l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451);
+  const mo=Math.floor((h+l-7*m+114)/31),dy=((h+l-7*m+114)%31)+1;
+  return new Date(y,mo-1,dy);
+}
+// Comunidades autónomas: días de Semana Santa (además del Viernes Santo, nacional) + festivos autonómicos fijos
+const ES_CA={
+  AN:{name:'Andalucía',ss:['jueves'],extra:[[2,28,'Día de Andalucía']]},
+  AR:{name:'Aragón',ss:['jueves'],extra:[[4,23,'San Jorge · Día de Aragón']]},
+  AS:{name:'Asturias',ss:['jueves'],extra:[[9,8,'Día de Asturias']]},
+  IB:{name:'Islas Baleares',ss:['lunes'],extra:[[3,1,'Día de les Illes Balears']]},
+  CN:{name:'Canarias',ss:['jueves'],extra:[[5,30,'Día de Canarias']]},
+  CB:{name:'Cantabria',ss:['jueves'],extra:[[7,28,'Día de las Instituciones'],[7,25,'Santiago Apóstol']]},
+  CM:{name:'Castilla-La Mancha',ss:['jueves'],extra:[[5,31,'Día de Castilla-La Mancha']]},
+  CL:{name:'Castilla y León',ss:['jueves'],extra:[[4,23,'Día de Castilla y León']]},
+  CT:{name:'Cataluña',ss:['lunes'],extra:[[6,24,'Sant Joan'],[9,11,'Diada de Catalunya'],[12,26,'Sant Esteve']]},
+  VC:{name:'Comunidad Valenciana',ss:['lunes'],extra:[[3,19,'San José'],[10,9,'Día de la Comunitat']]},
+  EX:{name:'Extremadura',ss:['jueves'],extra:[[9,8,'Día de Extremadura']]},
+  GA:{name:'Galicia',ss:['jueves'],extra:[[5,17,'Letras Galegas'],[7,25,'Día de Galicia']]},
+  RI:{name:'La Rioja',ss:['jueves'],extra:[[6,9,'Día de La Rioja']]},
+  MD:{name:'Comunidad de Madrid',ss:['jueves'],extra:[[5,2,'Día de la Comunidad'],[7,25,'Santiago Apóstol']]},
+  MC:{name:'Región de Murcia',ss:['jueves'],extra:[[3,19,'San José'],[6,9,'Día de la Región de Murcia']]},
+  NC:{name:'Navarra',ss:['jueves','lunes'],extra:[]},
+  PV:{name:'País Vasco',ss:['jueves','lunes'],extra:[[7,25,'Santiago Apóstol']]},
+};
+// Ciudades → comunidad autónoma + hasta dos fiestas locales (patronales, fechas fijas orientativas)
+const ES_CITIES={
+  madrid:{name:'Madrid',ca:'MD',locals:[[5,15,'San Isidro'],[11,9,'La Almudena']]},
+  barcelona:{name:'Barcelona',ca:'CT',locals:[[9,24,'La Mercè']]},
+  valencia:{name:'València',ca:'VC',locals:[[1,22,'San Vicente Mártir']]},
+  sevilla:{name:'Sevilla',ca:'AN',locals:[]},
+  zaragoza:{name:'Zaragoza',ca:'AR',locals:[[1,29,'San Valero']]},
+  malaga:{name:'Málaga',ca:'AN',locals:[[8,19,'Feria de Málaga']]},
+  murcia:{name:'Murcia',ca:'MC',locals:[]},
+  palma:{name:'Palma',ca:'IB',locals:[[1,20,'Sant Sebastià']]},
+  laspalmas:{name:'Las Palmas de Gran Canaria',ca:'CN',locals:[]},
+  bilbao:{name:'Bilbao',ca:'PV',locals:[]},
+  alicante:{name:'Alicante',ca:'VC',locals:[[6,24,'Hogueras de San Juan']]},
+  cordoba:{name:'Córdoba',ca:'AN',locals:[]},
+  valladolid:{name:'Valladolid',ca:'CL',locals:[[9,8,'Virgen de San Lorenzo']]},
+  vigo:{name:'Vigo',ca:'GA',locals:[[8,16,'San Roque']]},
+  gijon:{name:'Gijón',ca:'AS',locals:[[8,15,'Ntra. Sra. de Begoña']]},
+  granada:{name:'Granada',ca:'AN',locals:[[1,2,'Toma de Granada']]},
+  coruna:{name:'A Coruña',ca:'GA',locals:[]},
+  vitoria:{name:'Vitoria-Gasteiz',ca:'PV',locals:[[8,5,'Virgen Blanca']]},
+  santander:{name:'Santander',ca:'CB',locals:[]},
+  pamplona:{name:'Pamplona',ca:'NC',locals:[[7,7,'San Fermín']]},
+  donostia:{name:'San Sebastián',ca:'PV',locals:[[1,20,'San Sebastián']]},
+  toledo:{name:'Toledo',ca:'CM',locals:[]},
+  logrono:{name:'Logroño',ca:'RI',locals:[[9,21,'San Mateo']]},
+  badajoz:{name:'Badajoz',ca:'EX',locals:[]},
+  caceres:{name:'Cáceres',ca:'EX',locals:[]},
+  salamanca:{name:'Salamanca',ca:'CL',locals:[[9,8,'Virgen de la Vega']]},
+  santiago:{name:'Santiago de Compostela',ca:'GA',locals:[]},
+  oviedo:{name:'Oviedo',ca:'AS',locals:[[9,21,'San Mateo']]},
+  albacete:{name:'Albacete',ca:'CM',locals:[]},
+  almeria:{name:'Almería',ca:'AN',locals:[]},
+  cadiz:{name:'Cádiz',ca:'AN',locals:[]},
+  tarragona:{name:'Tarragona',ca:'CT',locals:[[9,23,'Santa Tecla']]},
+  girona:{name:'Girona',ca:'CT',locals:[]},
+  lleida:{name:'Lleida',ca:'CT',locals:[]},
+  castellon:{name:'Castelló',ca:'VC',locals:[]},
+  leon:{name:'León',ca:'CL',locals:[[6,24,'San Juan']]},
+  burgos:{name:'Burgos',ca:'CL',locals:[[6,29,'San Pedro']]},
+};
+function getSpainHolidays(year,cityKey){
+  const city=ES_CITIES[cityKey];if(!city)return{};
+  const ca=ES_CA[city.ca];
   const easter=easterSunday(year);
+  const d2s=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const shift=(d,n)=>{const r=new Date(d);r.setDate(r.getDate()+n);return r;};
+  const f=(m,day)=>`${year}-${String(m).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
   const hols={};
-  [
-    [f(1,1),'Año Nuevo'],[f(1,6),'Reyes Magos'],
-    [d2s(shift(easter,-3)),'Jueves Santo'],[d2s(shift(easter,-2)),'Viernes Santo'],
-    [f(5,1),'Día del Trabajo'],[f(5,2),'Comunidad de Madrid'],
-    [f(7,25),'Santiago Apóstol'],[f(10,12),'Fiesta Nacional'],
-    [f(11,1),'Todos los Santos'],[f(11,9),'La Almudena'],
-    [f(12,6),'Constitución'],[f(12,8),'Inmaculada Concepción'],[f(12,25),'Navidad'],
-  ].forEach(([date,name])=>{hols[date]=name});
+  // Festivos nacionales
+  [[1,1,'Año Nuevo'],[1,6,'Reyes Magos'],[5,1,'Día del Trabajo'],[8,15,'Asunción'],[10,12,'Fiesta Nacional'],[11,1,'Todos los Santos'],[12,6,'Constitución'],[12,8,'Inmaculada Concepción'],[12,25,'Navidad']]
+    .forEach(([m,dd,n])=>{hols[f(m,dd)]=n});
+  hols[d2s(shift(easter,-2))]='Viernes Santo';
+  // Semana Santa autonómica + festivos autonómicos
+  if(ca){
+    (ca.ss||[]).forEach(s=>{
+      if(s==='jueves')hols[d2s(shift(easter,-3))]='Jueves Santo';
+      else if(s==='lunes')hols[d2s(shift(easter,1))]='Lunes de Pascua';
+    });
+    (ca.extra||[]).forEach(([m,dd,n])=>{hols[f(m,dd)]=n});
+  }
+  // Fiestas locales de la ciudad
+  (city.locals||[]).forEach(([m,dd,n])=>{hols[f(m,dd)]=n});
   return hols;
+}
+// Festivos según la ubicación elegida en Ajustes. 'other' (otro país) → sin festivos automáticos.
+function getHolidays(year){
+  const r=D.region||'madrid';
+  if(r==='other')return{};
+  return getSpainHolidays(year,ES_CITIES[r]?r:'madrid');
 }
 
 // ── ROUTING ────────────────────────────────────────────────────────────────
@@ -1488,8 +1580,29 @@ function go(name){
     document.getElementById('s-ai-model').value=ls('ai_model')||'';
     if(ls('ai_key'))showMsg('ai-cfg-msg','ok','✓ Clave configurada — el asistente está activo.');
     renderCalList();
+    populateCitySelect();
+    const r=D.region||'madrid';
+    const isOther=r==='other';
+    document.getElementById('s-country').value=isOther?'other':'ES';
+    document.getElementById('s-city').value=isOther?'madrid':(ES_CITIES[r]?r:'madrid');
+    document.getElementById('s-city-wrap').style.display=isOther?'none':'';
     if(CFG.token&&CFG.gistId){showMsg('gist-msg','ok','✓ Connected — credentials saved in this browser.');}
   }
+}
+function populateCitySelect(){
+  const sel=document.getElementById('s-city');if(!sel)return;
+  const entries=Object.entries(ES_CITIES).sort((a,b)=>a[1].name.localeCompare(b[1].name,'es'));
+  sel.innerHTML=entries.map(([k,c])=>`<option value="${k}">${c.name} · ${ES_CA[c.ca]?ES_CA[c.ca].name:''}</option>`).join('');
+}
+function onCountryChange(){
+  const c=document.getElementById('s-country').value;
+  document.getElementById('s-city-wrap').style.display=c==='other'?'none':'';
+}
+function saveLocation(){
+  const country=document.getElementById('s-country').value;
+  D.region=country==='other'?'other':document.getElementById('s-city').value;
+  sched();
+  showMsg('loc-msg','ok',country==='other'?'✓ Guardado. Marca tus festivos a mano en la vista mensual.':'✓ Guardado. Festivos actualizados.');
 }
 function refreshPage(){const a=document.querySelector('.page.active');if(a)go(a.id.replace('page-',''))}
 
@@ -1805,7 +1918,7 @@ function renderMonth(){
   // ── helper: render one cell ──────────────────────────────────────────────
   function cellHtml(cur,om,isMob){
     const ds=dStr(cur);const isT=ds===today;
-    const hols=getMadridHolidays(cur.getFullYear());
+    const hols=getHolidays(cur.getFullYear());
     const isHol=!om&&!!hols[ds];const isVac=!om&&vacSet.has(ds);const isCus=!om&&cusSet.has(ds);
     const evs=allEvFor(ds);const tds=D.todos.filter(t=>t.date===ds&&!t.done);
     let dots=evs.map(ev=>{const c=ev.color||(ev.type==='meeting'?'var(--green)':'var(--accent)');return`<div class="mcdot" style="background:${c}"></div>`;}).join('');
@@ -1846,7 +1959,7 @@ function renderMonth(){
   } else {
     // ── DESKTOP: continuous 25-month scroll ──────────────────────────────
     const holCache={};
-    function getHol(y){if(!holCache[y])holCache[y]=getMadridHolidays(y);return holCache[y];}
+    function getHol(y){if(!holCache[y])holCache[y]=getHolidays(y);return holCache[y];}
     let startDate=new Date(y0,m0-12,1);
     let endDate=new Date(y0,m0+13,0);
     const sdow=startDate.getDay()||7;startDate.setDate(startDate.getDate()-(sdow-1));
@@ -2135,7 +2248,7 @@ function renderProjects(){
   const now=new Date();
   const year=now.getFullYear(),month=now.getMonth()+1;
   const monthPfx=`${year}-${String(month).padStart(2,'0')}`;
-  const holidays=Object.keys(getMadridHolidays(year)).filter(d=>d.startsWith(monthPfx));
+  const holidays=Object.keys(getHolidays(year)).filter(d=>d.startsWith(monthPfx));
   const vacations=(D.vacationDays||[]).filter(d=>d.startsWith(monthPfx));
   const customHols=(D.customHolidays||[]).filter(d=>d.startsWith(monthPfx));
   const excludeDays=[...new Set([...holidays,...vacations,...customHols])];
@@ -3005,7 +3118,7 @@ function renderYear(){
   const y=S.yearDate.getFullYear();
   const el=document.getElementById('ylabel');if(el)el.textContent=y;
   const today=todayStr();
-  const holidays=getMadridHolidays(y);
+  const holidays=getHolidays(y);
   const vacSet=new Set(D.vacationDays||[]);
   const cusSet=new Set(D.customHolidays||[]);
   const paint=S.yearPaintMode;
