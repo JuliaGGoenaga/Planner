@@ -1099,8 +1099,13 @@ async function loadGist(){
         const local=JSON.parse(raw);
         const localAt=local._savedAt||0;
         const gistAt=parseInt(ls('planner_gist_at')||'0');
-        if(localAt>gistAt+3000){
-          // Local changes are >3s newer than last confirmed Gist save — restore them
+        // Content guard: never let an empty (or smaller) local snapshot overwrite a fuller Gist.
+        // Protects against a fresh/other instance (e.g. an iOS home-screen app with its own
+        // storage) pushing an empty state over real data.
+        const cnt=o=>((o.todos||[]).length+(o.projects||[]).length+(o.events||[]).length+(o.notes||[]).length+(o.ideas||[]).length+(o.meetingNotes||[]).length+(o.timeblocks||[]).length+(o.plans||[]).length);
+        const localCount=cnt(local),gistCount=cnt(D);
+        if(localAt>gistAt+3000 && localCount>0 && localCount>=gistCount){
+          // Local changes are newer AND at least as complete as the Gist — restore them
           delete local._savedAt;
           const p=local;
           if(p.events)D.events=p.events;if(p.todos)D.todos=p.todos;if(p.projects)D.projects=p.projects;
