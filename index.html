@@ -2304,10 +2304,10 @@ function renderProjects(){
       <div style="font-size:9px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">Tareas del mes</div>
       ${monthTasks.map(t=>{
         const accH=taskLoggedH(t);
-        return`<div style="font-size:10px;color:${t.done?'var(--text3)':'var(--text2)'};display:flex;align-items:center;gap:4px;padding:2px 0${t.done?';opacity:.7':''}">
+        return`<div onclick="openEdit('todo',${t.id})" title="Editar tarea" style="cursor:pointer;font-size:10px;color:${t.done?'var(--text3)':'var(--text2)'};display:flex;align-items:center;gap:4px;padding:2px 0${t.done?';opacity:.7':''}">
         <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${t.done?'text-decoration:line-through':overdueStyle(t)}">${ttIcon(t)}${t.done?'✓':'○'} ${t.title}${t.date?` <span style="color:var(--text3);font-size:9px">${fmtS(new Date(t.date))}</span>`:'<span style="color:var(--text3);font-size:9px"> · sin fecha</span>'}</span>
         <span style="flex-shrink:0;font-weight:600;color:var(--text3);font-size:10px">${accH}h${t.estimateH?` / ${t.estimateH}h`:''}</span>
-        <button class="btn-del" onclick="removeFromMonth(${t.id})" title="Quitar de este mes" style="font-size:10px;padding:1px 2px"><i class="ti ti-x"></i></button>
+        <button class="btn-del" onclick="event.stopPropagation();removeFromMonth(${t.id})" title="Quitar de este mes" style="font-size:10px;padding:1px 2px"><i class="ti ti-x"></i></button>
       </div>`;}).join('')}
       ${tbEntries.map(tb=>`<div style="font-size:10px;color:var(--text3);display:flex;align-items:center;gap:4px;padding:2px 0">
         <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><i class="ti ti-clock" style="font-size:9px"></i> ${tb.date}${tb.startTime?' '+tb.startTime:''}</span>
