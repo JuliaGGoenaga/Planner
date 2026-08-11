@@ -805,6 +805,7 @@ html.dark .cpick{box-shadow:0 0 0 1px rgba(255,255,255,0.2)}
                 <div class="bg">
                   <button class="btn btn-p" onclick="saveGistCfg()"><i class="ti ti-check"></i> Guardar y conectar</button>
                   <button class="btn" onclick="testGist()"><i class="ti ti-refresh"></i> Probar</button>
+                  <button class="btn" onclick="restoreFromHistory()" style="color:var(--amber);border-color:#EF9F2766"><i class="ti ti-history"></i> Restaurar desde el historial</button>
                 </div>
                 <div class="smsg" id="gist-msg"></div>
               </div>
@@ -1150,6 +1151,43 @@ async function saveGistCfg(){
   else{showMsg('gist-msg','err','Could not connect. Check your token and Gist ID.');}
 }
 async function testGist(){showMsg('gist-msg','info','Testing…');await loadGist();const ok=document.getElementById('sdot').classList.contains('ok');showMsg('gist-msg',ok?'ok':'err',document.getElementById('stxt').textContent)}
+// Recover data from the Gist's revision history: scans past versions and restores the fullest planner.json.
+async function restoreFromHistory(){
+  if(!CFG.token||!CFG.gistId){showMsg('gist-msg','err','Conecta primero el token y el ID del gist.');return}
+  if(!confirm('Buscaré en el historial del gist la última versión con datos y la restauraré (sobrescribiendo el estado vacío actual). ¿Continuar?'))return;
+  const gh={Authorization:`token ${CFG.token}`,Accept:'application/vnd.github.v3+json'};
+  const cnt=o=>((o.todos||[]).length+(o.projects||[]).length+(o.events||[]).length+(o.notes||[]).length+(o.ideas||[]).length+(o.meetingNotes||[]).length+(o.timeblocks||[]).length+(o.plans||[]).length);
+  try{
+    showMsg('gist-msg','info','Leyendo el historial…');
+    const cr=await fetch(`https://api.github.com/gists/${CFG.gistId}/commits?per_page=50`,{headers:gh});
+    if(!cr.ok)throw new Error('HTTP '+cr.status);
+    const commits=await cr.json();
+    let best=null,bestCount=0,bestWhen='';
+    for(let i=0;i<commits.length;i++){
+      showMsg('gist-msg','info',`Revisando versión ${i+1}/${commits.length}…`);
+      const vr=await fetch(`https://api.github.com/gists/${CFG.gistId}/${commits[i].version}`,{headers:gh});
+      if(!vr.ok)continue;
+      const g=await vr.json();
+      const f=g.files&&g.files['planner.json'];if(!f)continue;
+      let content=f.content;
+      if((f.truncated||!content)&&f.raw_url){try{const rr=await fetch(f.raw_url);if(rr.ok)content=await rr.text();}catch(e){}}
+      if(!content)continue;
+      let p;try{p=JSON.parse(content);}catch(e){continue;}
+      const n=cnt(p);
+      if(n>bestCount){best=p;bestCount=n;bestWhen=commits[i].committed_at;}
+    }
+    if(!best||bestCount===0){showMsg('gist-msg','err','No encontré ninguna versión con datos en el historial.');return}
+    if(!confirm(`Encontrada una versión con ${bestCount} elementos (${new Date(bestWhen).toLocaleString()}). ¿Restaurarla y guardarla ahora?`)){showMsg('gist-msg','info','Restauración cancelada.');return}
+    D.events=best.events||[];D.todos=best.todos||[];D.projects=best.projects||[];
+    D.timeblocks=best.timeblocks||[];if(best.topics)D.topics=best.topics;D.ideas=best.ideas||[];
+    if(best.calendars)D.calendars=best.calendars;D.vacationDays=best.vacationDays||[];D.customHolidays=best.customHolidays||[];
+    D.meetingNotes=best.meetingNotes||[];D.notes=best.notes||[];D.plans=best.plans||[];
+    if(best.region)D.region=best.region;if(best.nextId)S.nextId=best.nextId;
+    await saveGistNow();
+    showMsg('gist-msg','ok',`Restaurado ✓ (${bestCount} elementos). Recargando…`);
+    setTimeout(()=>location.reload(),900);
+  }catch(e){showMsg('gist-msg','err','Error al restaurar: '+(e.message||e));console.error(e);}
+}
 function showMsg(id,cls,txt){const el=document.getElementById(id);if(el){el.className='smsg '+cls;el.textContent=txt}}
 
 // ── ICS ────────────────────────────────────────────────────────────────────
