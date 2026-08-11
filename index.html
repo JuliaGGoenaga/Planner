@@ -561,6 +561,13 @@ html.dark .cpick{box-shadow:0 0 0 1px rgba(255,255,255,0.2)}
 .mo.open{display:flex}
 .mbox{background:var(--surface);border-radius:var(--r);border:1px solid var(--border);padding:14px 16px;width:100%;max-width:400px;max-height:95dvh;overflow-y:auto}
 .mbox h3{font-size:15px;font-weight:700;margin-bottom:13px}
+/* ── FORECAST GRID ── */
+.fc-table{border-collapse:collapse;font-size:11px;width:100%}
+.fc-table th,.fc-table td{border:1px solid var(--border);padding:3px 5px;text-align:center}
+.fc-table th:first-child,.fc-table td:first-child{text-align:left;white-space:nowrap;position:sticky;left:0;background:var(--surface);z-index:1}
+.fc-table thead th{background:var(--surface2);font-weight:700;white-space:nowrap}
+.fc-table tfoot td{font-weight:700;background:var(--surface2)}
+.fc-in{width:46px;border:1px solid var(--border2);border-radius:4px;background:var(--bg);color:var(--text);font-size:11px;font-family:inherit;text-align:center;padding:2px}
 .ff{margin-bottom:10px}
 .ff label{display:block;font-size:11px;font-weight:600;color:var(--text2);margin-bottom:3px}
 .ff input,.ff select,.ff textarea{width:100%;padding:7px 9px;border:1px solid var(--border2);border-radius:var(--rs);background:var(--surface2);color:var(--text);font-size:16px;font-family:inherit}
@@ -1627,6 +1634,7 @@ function refreshPage(){const a=document.querySelector('.page.active');if(a)go(a.
 
 // ── WEEK ───────────────────────────────────────────────────────────────────
 let _timeDrag={kind:null,id:null};
+let _fcCtx=null;
 function renderWeek(){
   const today=todayStr(),s=S.weekStart;
   document.getElementById('wlabel').textContent=`${fmtS(s)} – ${fmtS(addDays(s,6))}`;
@@ -2352,11 +2360,11 @@ function renderProjects(){
 function renderOccupation(goal,plannedEst,loggedTotal,month,vacH,vacDays){
   const side=document.getElementById('proj-side');if(!side)return;
   const mesName=MESES[month-1];
-  if(goal<=0){side.innerHTML=`<div class="occ-card"><div class="occ-title"><i class="ti ti-gauge"></i> Ocupación · ${mesName}</div><div style="font-size:12px;color:var(--text3)">Mes sin horas laborables.</div></div>`;return;}
+  if(goal<=0){side.innerHTML=`<div class="occ-card" onclick="openForecast()" style="cursor:pointer"><div class="occ-title"><i class="ti ti-gauge"></i> Ocupación · ${mesName}</div><div style="font-size:12px;color:var(--text3)">Mes sin horas laborables.</div><div style="font-size:10px;color:var(--accent);margin-top:8px"><i class="ti ti-chart-bar"></i> Previsión a 6 meses</div></div>`;return;}
   const occupied=Math.round((plannedEst+vacH)*10)/10;
   const occPct=Math.round(occupied/goal*100);
   const col=occPct>100?'var(--red)':occPct>=80?'var(--amber)':'var(--green)';
-  side.innerHTML=`<div class="occ-card">
+  side.innerHTML=`<div class="occ-card" onclick="openForecast()" style="cursor:pointer" title="Ver / editar previsión a 6 meses">
     <div class="occ-title"><i class="ti ti-gauge"></i> Ocupación · ${mesName}</div>
     <div class="occ-pct" style="color:${col}">${occPct}%</div>
     <div class="occ-bar"><div class="occ-fill" style="width:${Math.min(100,occPct)}%;background:${col}"></div></div>
@@ -2366,6 +2374,7 @@ function renderOccupation(goal,plannedEst,loggedTotal,month,vacH,vacDays){
     <div class="occ-row"><span>Registrado</span><b>${Math.round(loggedTotal*10)/10}h</b></div>
     ${vacH>0?`<div style="font-size:10px;color:var(--text3);margin-top:6px;line-height:1.4"><i class="ti ti-beach"></i> ${vacH} h (${vacDays} ${vacDays===1?'día':'días'}) de vacaciones, contadas como previstas.</div>`:''}
     ${occPct>100?'<div style="font-size:10px;color:var(--red);margin-top:6px;line-height:1.4">Has previsto más horas de las disponibles este mes.</div>':''}
+    <div style="font-size:10px;color:var(--accent);margin-top:8px"><i class="ti ti-chart-bar"></i> Previsión a 6 meses</div>
   </div>`;
 }
 function removeFromMonth(id){const t=D.todos.find(t=>t.id===id);if(!t)return;delete t.monthPlan;sched();renderProjects();}
@@ -2387,6 +2396,27 @@ function monthCapacityNow(){
   return monthlyGoalHours(year,month,[...new Set([...holidays,...customHols])]);
 }
 function openMonthTarget(pid){S.mProjId=pid;S.mType='monthtarget';S.mDay=null;S.editId=null;buildM();}
+function nextNMonths(n){
+  const out=[];const d=new Date();d.setDate(1);
+  for(let i=0;i<n;i++){
+    const y=d.getFullYear(),m=d.getMonth()+1;const ym=`${y}-${String(m).padStart(2,'0')}`;
+    const holidays=Object.keys(getHolidays(y)).filter(x=>x.startsWith(ym));
+    const customHols=(D.customHolidays||[]).filter(x=>x.startsWith(ym));
+    const cap=monthlyGoalHours(y,m,[...new Set([...holidays,...customHols])]);
+    out.push({ym,label:MESES[m-1].slice(0,3)+' '+String(y).slice(2),cap});
+    d.setMonth(d.getMonth()+1);
+  }
+  return out;
+}
+function openForecast(){S.mType='forecast';S.mDay=null;S.editId=null;S.mProjId=null;buildM();}
+function fcRecalc(){
+  if(!_fcCtx)return;
+  _fcCtx.forEach(mo=>{
+    let sum=0;document.querySelectorAll(`.fc-in[data-ym="${mo.ym}"]`).forEach(i=>{sum+=parseFloat(i.value)||0;});
+    const t=document.getElementById('fc-tot-'+mo.ym);if(t){t.textContent=Math.round(sum)+'%';t.style.color=sum>100?'var(--red)':'var(--text2)';}
+    const hr=document.getElementById('fc-hrs-'+mo.ym);if(hr)hr.textContent=Math.round(sum/100*mo.cap*10)/10+'h';
+  });
+}
 function mtPreview(cap){const v=parseFloat((document.getElementById('m-pct')||{}).value)||0;const el=document.getElementById('m-pct-preview');if(el)el.textContent=v>0?`= ${Math.round(v/100*cap*10)/10} h de ${cap} h del mes`:'Sin meta: se usará la suma de horas previstas de las tareas.';}
 function clearMonthTarget(){const p=D.projects.find(p=>p.id===S.mProjId);if(p)delete p.monthTargetPct;closeM();sched();refreshPage();}
 function logH(projId){S.mProjId=projId;S.mType='loghours';S.mDay=null;S.editId=null;buildM()}
@@ -2509,7 +2539,7 @@ function openEdit(type,id){
 }
 function buildM(){
   const type=S.mType,day=S.mDay||(type==='todo'?'':todayStr()),ed=S.editId;
-  const addT={todo:'Add to-do',event:'Add event',project:'New project',timeblock:'Add time block',topic:'New topic',idea:'New idea',note:'Nueva nota',plan:'Nuevo plan',loghours:'Registrar horas manuales',logdaytask:'Registrar horas del día',assignevent:'Asignar evento a proyecto',completetask:'Completar tarea — registrar horas',taskhours:'Registrar horas de la tarea',monthtasks:'Tareas de este mes',monthtarget:'Meta mensual del proyecto'};
+  const addT={todo:'Add to-do',event:'Add event',project:'New project',timeblock:'Add time block',topic:'New topic',idea:'New idea',note:'Nueva nota',plan:'Nuevo plan',loghours:'Registrar horas manuales',logdaytask:'Registrar horas del día',assignevent:'Asignar evento a proyecto',completetask:'Completar tarea — registrar horas',taskhours:'Registrar horas de la tarea',monthtasks:'Tareas de este mes',monthtarget:'Meta mensual del proyecto',forecast:'Previsión a 6 meses'};
   const edtT={todo:'Edit to-do',event:'Edit event',project:'Edit project',topic:'Edit topic',idea:'Edit idea',note:'Editar nota',assignevent:'Asignar evento a proyecto',editmanual:'Editar registro de horas'};
   document.getElementById('mtitle').textContent=(ed?edtT[type]:addT[type])||'Add';
   const projOpts='<option value="">— None —</option>'+D.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
@@ -2666,8 +2696,23 @@ function buildM(){
     <div class="ff"><label>Porcentaje del mes (%)</label><input id="m-pct" type="number" min="0" max="100" step="1" value="${cur}" placeholder="ej. 20" oninput="mtPreview(${cap})"/></div>
     <div id="m-pct-preview" style="font-size:12px;color:var(--text2);margin-top:2px"></div>`;
   }
+  else if(type==='forecast'){
+    if(!D.projects.length)b=`<div style="font-size:12px;color:var(--text3)">Crea algún proyecto primero.</div>`;
+    else{
+      _fcCtx=nextNMonths(6);
+      b=`<div style="font-size:11px;color:var(--text3);margin-bottom:10px">Previsión general: define, para cada proyecto y mes, el <b>% del total de horas</b> que prevés dedicarle. Es independiente de la meta y la ocupación del mes en curso.</div>
+      <div style="overflow-x:auto"><table class="fc-table">
+        <thead><tr><th>Proyecto</th>${_fcCtx.map(mo=>`<th>${mo.label}</th>`).join('')}</tr></thead>
+        <tbody>${D.projects.map(p=>`<tr><td>${p.name}</td>${_fcCtx.map(mo=>`<td><input type="number" min="0" max="100" step="1" class="fc-in" data-pid="${p.id}" data-ym="${mo.ym}" value="${(p.forecast&&p.forecast[mo.ym])||''}" oninput="fcRecalc()"/></td>`).join('')}</tr>`).join('')}</tbody>
+        <tfoot><tr><td>Total</td>${_fcCtx.map(mo=>`<td id="fc-tot-${mo.ym}"></td>`).join('')}</tr>
+               <tr><td style="color:var(--text3)">Horas</td>${_fcCtx.map(mo=>`<td id="fc-hrs-${mo.ym}" style="color:var(--text3);font-weight:400"></td>`).join('')}</tr></tfoot>
+      </table></div>
+      <div style="font-size:10px;color:var(--text3);margin-top:8px">Las horas se calculan sobre la capacidad de cada mes (festivos descontados).</div>`;
+    }
+  }
   document.getElementById('mbody').innerHTML=b;
   if(type==='monthtarget')mtPreview(monthCapacityNow());
+  if(type==='forecast'){const mb=document.querySelector('.mbox');if(mb)mb.style.maxWidth='760px';fcRecalc();}
   if(type==='todo'&&S.newTodoProj){const mp=document.getElementById('m-proj');if(mp)mp.value=S.newTodoProj;S.newTodoProj=null;}
   if(type==='logdaytask'){const mp=document.getElementById('m-proj');if(mp&&mp.value)filterDayTasks(mp.value);}
   const macts=document.getElementById('macts');
@@ -2676,6 +2721,7 @@ function buildM(){
     else if(type==='editmanual')macts.innerHTML=`<button class="btn" style="color:#E24B4A;border-color:#E24B4A66;margin-right:auto" onclick="delManualFromModal()"><i class="ti ti-trash"></i> Borrar</button><button class="btn" onclick="closeM()">Cancelar</button><button class="btn btn-p" onclick="saveM()">Guardar</button>`;
     else if(type==='monthtasks')macts.innerHTML=`<button class="btn btn-p" onclick="closeM()">Listo</button>`;
     else if(type==='monthtarget')macts.innerHTML=`<button class="btn" style="color:#E24B4A;border-color:#E24B4A66;margin-right:auto" onclick="clearMonthTarget()">Quitar meta</button><button class="btn" onclick="closeM()">Cancelar</button><button class="btn btn-p" onclick="saveM()">Guardar</button>`;
+    else if(type==='forecast')macts.innerHTML=`<button class="btn" onclick="closeM()">Cancelar</button><button class="btn btn-p" onclick="saveM()">Guardar</button>`;
     else macts.innerHTML=`<button class="btn" onclick="closeM()">Cancel</button><button class="btn btn-p" onclick="saveM()">Save</button>`;
   }
   document.getElementById('mo').classList.add('open');
@@ -2705,6 +2751,16 @@ function saveM(){
   if(type==='monthtarget'){
     const p=D.projects.find(p=>p.id===S.mProjId);
     if(p){const v=parseFloat(gv('m-pct'));if(v>0)p.monthTargetPct=Math.min(100,v);else delete p.monthTargetPct;}
+    closeM();sched();refreshPage();return;
+  }
+  if(type==='forecast'){
+    document.querySelectorAll('.fc-in').forEach(i=>{
+      const pid=parseInt(i.dataset.pid),ym=i.dataset.ym,v=parseFloat(i.value);
+      const p=D.projects.find(p=>p.id===pid);if(!p)return;
+      if(!p.forecast)p.forecast={};
+      if(v>0)p.forecast[ym]=Math.min(100,v);else delete p.forecast[ym];
+      if(p.forecast&&!Object.keys(p.forecast).length)delete p.forecast;
+    });
     closeM();sched();refreshPage();return;
   }
   if(eid){
