@@ -324,6 +324,24 @@ html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
 .tp-empty{font-size:11px;color:var(--text3);text-align:center;padding:16px 6px;line-height:1.6}
 .tp-hint{font-size:9px;color:var(--text3);text-align:center;margin-top:8px;opacity:.6}
 @media(max-width:860px){.proj-layout{flex-direction:column}.task-panel{width:100%;position:static;max-height:none}}
+/* ── MONTH OCCUPATION SIDE CARD ── */
+.proj-side{width:250px;flex-shrink:0;order:2;position:sticky;top:0}
+.occ-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px}
+.occ-title{font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px}
+.occ-pct{font-size:30px;font-weight:800;line-height:1}
+.occ-bar{height:8px;background:var(--surface2);border-radius:6px;overflow:hidden;margin:8px 0}
+.occ-fill{height:100%;border-radius:6px;transition:width .3s}
+.occ-row{display:flex;justify-content:space-between;font-size:11px;color:var(--text2);padding:2px 0}
+.occ-row b{font-weight:700;color:var(--text)}
+@media(max-width:860px){.proj-side{width:100%;order:-1;position:static;margin-bottom:4px}}
+/* ── MONTH-TASKS SELECTION MODAL ── */
+.mt-row{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;margin-bottom:5px;cursor:pointer;transition:border-color .12s,background .12s}
+.mt-row:hover{border-color:var(--border2)}
+.mt-row.sel{border-color:var(--accent);background:var(--accent-l)}
+.mt-row .mt-ico{font-size:16px;color:var(--text3);flex-shrink:0}
+.mt-row.sel .mt-ico{color:var(--accent)}
+.mt-row .mt-tit{flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mt-row .mt-est{font-size:10px;color:var(--text3);flex-shrink:0}
 .pstrip{position:absolute;top:0;left:0;right:0;height:3px;border-radius:var(--r) var(--r) 0 0}
 .pname{font-size:14px;font-weight:600;margin-top:8px;margin-bottom:3px}
 .pdesc{font-size:11px;color:var(--text2);margin-bottom:8px;line-height:1.4}
@@ -738,6 +756,7 @@ html.dark .cpick{box-shadow:0 0 0 1px rgba(255,255,255,0.2)}
         <div class="smsg" id="report-msg" style="margin-bottom:10px"></div>
         <div class="proj-layout">
           <div class="pgrid" id="proj-grid"></div>
+          <div class="proj-side" id="proj-side"></div>
         </div>
       </div>
 
@@ -2242,9 +2261,12 @@ function onNewTaskInput(){
     const mt=document.getElementById('m-task');if(mt)mt.value='';
   }
 }
+function curMonthStr(){const n=new Date();return`${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}`;}
+// A task "counts" for month ym if explicitly selected (monthPlan) or scheduled that month in the weekly view
+function taskCountsMonth(t,ym){return t.monthPlan===ym||((t.sched||[]).some(b=>b.date&&b.date.startsWith(ym)));}
 function renderProjects(){
   const g=document.getElementById('proj-grid');
-  if(!D.projects.length){g.innerHTML=`<div style="color:var(--text3);font-size:12px">No projects yet.</div>`;return}
+  if(!D.projects.length){g.innerHTML=`<div style="color:var(--text3);font-size:12px">No projects yet.</div>`;const side=document.getElementById('proj-side');if(side)side.innerHTML='';return}
   const now=new Date();
   const year=now.getFullYear(),month=now.getMonth()+1;
   const monthPfx=`${year}-${String(month).padStart(2,'0')}`;
@@ -2253,8 +2275,11 @@ function renderProjects(){
   const customHols=(D.customHolidays||[]).filter(d=>d.startsWith(monthPfx));
   const excludeDays=[...new Set([...holidays,...vacations,...customHols])];
   const goal=monthlyGoalHours(year,month,excludeDays);
+  let plannedEst=0,loggedTotal=0;
   g.innerHTML=D.projects.map(p=>{
-    const allProjectTasks=D.todos.filter(t=>t.projectId===p.id&&!(t.done&&t.date&&t.date<monthPfx));
+    // Tasks selected for this month (explicitly or scheduled this month in the weekly view)
+    const monthTasks=D.todos.filter(t=>t.projectId===p.id&&taskCountsMonth(t,monthPfx));
+    const allProjectTasks=D.todos.filter(t=>t.projectId===p.id);
     const manualEntries=(p.manualEntries||[]).filter(e=>e.date&&e.date.startsWith(monthPfx));
     const manualH=Math.round(manualEntries.reduce((s,e)=>s+e.hours,0)*10)/10;
     const tbEntries=D.timeblocks.filter(tb=>tb.projectId===p.id&&tb.date&&tb.date.startsWith(monthPfx));
@@ -2262,22 +2287,25 @@ function renderProjects(){
     const evEntries=D.events.filter(e=>e.projectId===p.id&&e.date&&e.date.startsWith(monthPfx));
     const evH=Math.round(evEntries.reduce((s,e)=>s+(e.duration||0),0)*10)/10;
     const totalH=Math.round((manualH+tbH+evH)*10)/10;
-    const estH=Math.round(allProjectTasks.reduce((s,t)=>s+(t.estimateH||0),0)*10)/10;
-    const projReal=Math.round(allProjectTasks.reduce((s,t)=>s+taskLoggedH(t),0)*10)/10;
-    const pct=goal>0?Math.min(100,Math.round(totalH/goal*100)):0;
-    // Manual entries not tied to a currently-listed task (e.g. from done/old tasks) — shown as their own task rows
+    // Planned & completion are based on the month's selected tasks
+    const estH=Math.round(monthTasks.reduce((s,t)=>s+(t.estimateH||0),0)*10)/10;
+    const doneH=Math.round(monthTasks.reduce((s,t)=>s+taskLoggedH(t),0)*10)/10;
+    plannedEst+=estH;loggedTotal+=totalH;
+    // Completion vs estimate when there is an estimate; else worked-hours vs monthly goal
+    const compPct=estH>0?Math.min(100,Math.round(doneH/estH*100)):(goal>0?Math.min(100,Math.round(totalH/goal*100)):0);
+    // Manual entries not tied to any project task (e.g. from done/old tasks) — shown as their own struck rows
     const taskTitleSet=new Set(allProjectTasks.map(t=>t.title));
     const orphanManual={};
-    (p.manualEntries||[]).forEach(e=>{const d=(e.desc||'Horas manuales');if(taskTitleSet.has(d))return;orphanManual[d]=Math.round(((orphanManual[d]||0)+(e.hours||0))*10)/10;});
+    manualEntries.forEach(e=>{const d=(e.desc||'Horas manuales');if(taskTitleSet.has(d))return;orphanManual[d]=Math.round(((orphanManual[d]||0)+(e.hours||0))*10)/10;});
     const orphanEntries=Object.entries(orphanManual);
-    const taskRows=(allProjectTasks.length||tbEntries.length||orphanEntries.length)?`<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:7px">
-      <div style="font-size:9px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">Tareas</div>
-      ${allProjectTasks.map(t=>{
+    const taskRows=(monthTasks.length||tbEntries.length||orphanEntries.length)?`<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:7px">
+      <div style="font-size:9px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">Tareas del mes</div>
+      ${monthTasks.map(t=>{
         const accH=taskLoggedH(t);
         return`<div style="font-size:10px;color:${t.done?'var(--text3)':'var(--text2)'};display:flex;align-items:center;gap:4px;padding:2px 0${t.done?';opacity:.7':''}">
         <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${t.done?'text-decoration:line-through':overdueStyle(t)}">${ttIcon(t)}${t.done?'✓':'○'} ${t.title}${t.date?` <span style="color:var(--text3);font-size:9px">${fmtS(new Date(t.date))}</span>`:'<span style="color:var(--text3);font-size:9px"> · sin fecha</span>'}</span>
         <span style="flex-shrink:0;font-weight:600;color:var(--text3);font-size:10px">${accH}h${t.estimateH?` / ${t.estimateH}h`:''}</span>
-        <button class="btn-del" onclick="unassignTask(${t.id})" title="Desasignar" style="font-size:10px;padding:1px 2px"><i class="ti ti-x"></i></button>
+        <button class="btn-del" onclick="removeFromMonth(${t.id})" title="Quitar de este mes" style="font-size:10px;padding:1px 2px"><i class="ti ti-x"></i></button>
       </div>`;}).join('')}
       ${tbEntries.map(tb=>`<div style="font-size:10px;color:var(--text3);display:flex;align-items:center;gap:4px;padding:2px 0">
         <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><i class="ti ti-clock" style="font-size:9px"></i> ${tb.date}${tb.startTime?' '+tb.startTime:''}</span>
@@ -2288,7 +2316,7 @@ function renderProjects(){
         <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-decoration:line-through">✓ ${(desc||'').replace(/</g,'&lt;')}</span>
         <span style="flex-shrink:0;font-weight:600;color:var(--text3);font-size:10px">${hrs}h</span>
       </div>`).join('')}
-    </div>`:'';
+    </div>`:`<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:7px;font-size:10px;color:var(--text3)">Ninguna tarea para este mes. Pulsa <b>Tareas del mes</b> o arrástralas en la vista semanal.</div>`;
     const evRows=evEntries.length?`<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:7px">
       <div style="font-size:9px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">Reuniones y eventos</div>
       ${evEntries.map(e=>`<div style="font-size:10px;color:var(--green);font-style:italic;display:flex;align-items:center;gap:4px;padding:2px 0">
@@ -2299,22 +2327,51 @@ function renderProjects(){
 
     return`<div class="pcard"><div class="pstrip" style="background:${p.color}"></div>
       <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-top:8px">
-        <div class="pname" style="margin-top:0">${p.name}</div>
+        <div class="pname" style="margin-top:0;cursor:pointer" onclick="openMonthTasks(${p.id})" title="Elegir tareas de este mes">${p.name}</div>
         <div style="display:flex;gap:2px">
           <button class="btn-del" onclick="openEdit('project',${p.id})" title="Edit"><i class="ti ti-pencil" style="font-size:13px"></i></button>
           <button class="btn-del" onclick="delProj(${p.id})" title="Delete" style="color:var(--text3)"><i class="ti ti-trash" style="font-size:13px"></i></button>
         </div>
       </div>
       <div class="pdesc">${p.desc||''}</div>
-      <div class="phrow"><span style="font-weight:600;color:${p.color}">${totalH}h este mes</span><span>${goal>0?`meta ${goal}h`:'agosto'}</span></div>
-      ${(manualH>0||tbH>0||evH>0||estH>0)?`<div class="phrow" style="font-size:10px;color:var(--text3);margin-top:-4px;margin-bottom:4px"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${(manualH>0||tbH>0||evH>0)?`${manualH}h manuales${tbH>0?` · ${tbH}h bloques`:''}${evH>0?` · ${evH}h eventos`:''}`:''}</span>${estH>0?`<span style="flex-shrink:0;padding-left:6px">${projReal}h / ${estH}h previstas</span>`:''}</div>`:''}
-      <div class="hbar"><div class="hfill" style="width:${pct}%;background:${p.color}"></div></div>
+      <div class="phrow"><span style="font-weight:600;color:${p.color}">${totalH}h este mes</span><span>${estH>0?`${compPct}% de lo previsto`:(goal>0?`meta ${goal}h`:'agosto')}</span></div>
+      ${(estH>0||manualH>0||tbH>0||evH>0)?`<div class="phrow" style="font-size:10px;color:var(--text3);margin-top:-4px;margin-bottom:4px"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${(manualH>0||tbH>0||evH>0)?`${manualH}h manuales${tbH>0?` · ${tbH}h bloques`:''}${evH>0?` · ${evH}h eventos`:''}`:''}</span>${estH>0?`<span style="flex-shrink:0;padding-left:6px">${doneH}h / ${estH}h previstas</span>`:''}</div>`:''}
+      <div class="hbar"><div class="hfill" style="width:${compPct}%;background:${p.color}"></div></div>
       <div class="pacts">
+        <button class="btn btn-sm" onclick="openMonthTasks(${p.id})"><i class="ti ti-calendar-check"></i> Tareas del mes</button>
         <button class="btn btn-sm" onclick="logH(${p.id})"><i class="ti ti-plus"></i> Horas manuales</button>
       </div>
       ${taskRows}${evRows}
     </div>`;
   }).join('');
+  renderOccupation(goal,plannedEst,loggedTotal,month);
+}
+function renderOccupation(goal,plannedEst,loggedTotal,month){
+  const side=document.getElementById('proj-side');if(!side)return;
+  const mesName=MESES[month-1];
+  if(goal<=0){side.innerHTML=`<div class="occ-card"><div class="occ-title"><i class="ti ti-gauge"></i> Ocupación · ${mesName}</div><div style="font-size:12px;color:var(--text3)">Mes sin horas laborables (vacaciones).</div></div>`;return;}
+  const occPct=Math.round(plannedEst/goal*100);
+  const col=occPct>100?'var(--red)':occPct>=80?'var(--amber)':'var(--green)';
+  side.innerHTML=`<div class="occ-card">
+    <div class="occ-title"><i class="ti ti-gauge"></i> Ocupación · ${mesName}</div>
+    <div class="occ-pct" style="color:${col}">${occPct}%</div>
+    <div class="occ-bar"><div class="occ-fill" style="width:${Math.min(100,occPct)}%;background:${col}"></div></div>
+    <div class="occ-row"><span>Previsto (tareas)</span><b>${Math.round(plannedEst*10)/10}h</b></div>
+    <div class="occ-row"><span>Capacidad del mes</span><b>${goal}h</b></div>
+    <div class="occ-row"><span>Registrado</span><b>${Math.round(loggedTotal*10)/10}h</b></div>
+    ${occPct>100?'<div style="font-size:10px;color:var(--red);margin-top:6px;line-height:1.4">Has previsto más horas de las disponibles este mes.</div>':''}
+  </div>`;
+}
+function removeFromMonth(id){const t=D.todos.find(t=>t.id===id);if(!t)return;delete t.monthPlan;sched();renderProjects();}
+function openMonthTasks(pid){S.mProjId=pid;S.mType='monthtasks';S.mDay=null;S.editId=null;buildM();}
+function toggleMonthTask(id){
+  const t=D.todos.find(t=>t.id===id);if(!t)return;
+  const ym=curMonthStr();
+  if(t.monthPlan===ym)delete t.monthPlan;else t.monthPlan=ym;
+  sched();
+  const row=document.querySelector(`.mt-row[data-id="${id}"]`);
+  if(row){const on=taskCountsMonth(t,ym);row.classList.toggle('sel',on);const ic=row.querySelector('.mt-ico');if(ic)ic.className='ti mt-ico '+(on?'ti-square-check':'ti-square');}
+  if(document.querySelector('#page-projects.active'))renderProjects();
 }
 function logH(projId){S.mProjId=projId;S.mType='loghours';S.mDay=null;S.editId=null;buildM()}
 function delManual(projId,entryId){const p=D.projects.find(p=>p.id===projId);if(!p)return;p.manualEntries=(p.manualEntries||[]).filter(e=>e.id!==entryId);sched();renderProjects()}
@@ -2436,7 +2493,7 @@ function openEdit(type,id){
 }
 function buildM(){
   const type=S.mType,day=S.mDay||(type==='todo'?'':todayStr()),ed=S.editId;
-  const addT={todo:'Add to-do',event:'Add event',project:'New project',timeblock:'Add time block',topic:'New topic',idea:'New idea',note:'Nueva nota',plan:'Nuevo plan',loghours:'Registrar horas manuales',logdaytask:'Registrar horas del día',assignevent:'Asignar evento a proyecto',completetask:'Completar tarea — registrar horas',taskhours:'Registrar horas de la tarea'};
+  const addT={todo:'Add to-do',event:'Add event',project:'New project',timeblock:'Add time block',topic:'New topic',idea:'New idea',note:'Nueva nota',plan:'Nuevo plan',loghours:'Registrar horas manuales',logdaytask:'Registrar horas del día',assignevent:'Asignar evento a proyecto',completetask:'Completar tarea — registrar horas',taskhours:'Registrar horas de la tarea',monthtasks:'Tareas de este mes'};
   const edtT={todo:'Edit to-do',event:'Edit event',project:'Edit project',topic:'Edit topic',idea:'Edit idea',note:'Editar nota',assignevent:'Asignar evento a proyecto',editmanual:'Editar registro de horas'};
   document.getElementById('mtitle').textContent=(ed?edtT[type]:addT[type])||'Add';
   const projOpts='<option value="">— None —</option>'+D.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
@@ -2575,6 +2632,16 @@ function buildM(){
       <input type="hidden" id="m-c" value="${PCOLS[0]}">
     </div>
     <div style="font-size:10px;color:var(--text3);margin-top:6px;line-height:1.5">Tras crearlo, arrástralo desde el panel lateral sobre los días del mes donde aplica. Clic sobre el bubble en el día para quitarlo de ese día.</div>`;
+  else if(type==='monthtasks'){
+    const p=D.projects.find(p=>p.id===S.mProjId);
+    const ym=curMonthStr();
+    const tasks=D.todos.filter(t=>t.projectId===S.mProjId&&(!t.done||taskCountsMonth(t,ym)));
+    b=`<div style="font-size:11px;color:var(--text3);margin-bottom:8px">Marca las tareas de <b>${p?p.name:''}</b> en las que quieres trabajar este mes. Cuentan para el tiempo previsto y la ocupación del mes.</div>
+    <div style="max-height:52vh;overflow-y:auto;margin:0 -2px;padding:0 2px">${tasks.length?tasks.map(t=>{
+      const on=taskCountsMonth(t,ym);
+      return`<div class="mt-row${on?' sel':''}" data-id="${t.id}" onclick="toggleMonthTask(${t.id})"><i class="ti mt-ico ${on?'ti-square-check':'ti-square'}"></i><span class="mt-tit">${t.done?'✓ ':''}${ttIcon(t)}${t.title}</span><span class="mt-est">${t.estimateH?t.estimateH+'h':'sin previsión'}</span></div>`;
+    }).join(''):'<div style="font-size:12px;color:var(--text3);padding:10px 0">Este proyecto todavía no tiene tareas. Añádelas desde To-dos.</div>'}</div>`;
+  }
   document.getElementById('mbody').innerHTML=b;
   if(type==='todo'&&S.newTodoProj){const mp=document.getElementById('m-proj');if(mp)mp.value=S.newTodoProj;S.newTodoProj=null;}
   if(type==='logdaytask'){const mp=document.getElementById('m-proj');if(mp&&mp.value)filterDayTasks(mp.value);}
@@ -2582,6 +2649,7 @@ function buildM(){
   if(macts){
     if(type==='completetask')macts.innerHTML=`<button class="btn" onclick="closeM()">Cancelar</button><button class="btn" onclick="document.getElementById('m-dur').value='0';saveM()">Completar sin horas</button><button class="btn btn-p" onclick="saveM()">Registrar horas</button>`;
     else if(type==='editmanual')macts.innerHTML=`<button class="btn" style="color:#E24B4A;border-color:#E24B4A66;margin-right:auto" onclick="delManualFromModal()"><i class="ti ti-trash"></i> Borrar</button><button class="btn" onclick="closeM()">Cancelar</button><button class="btn btn-p" onclick="saveM()">Guardar</button>`;
+    else if(type==='monthtasks')macts.innerHTML=`<button class="btn btn-p" onclick="closeM()">Listo</button>`;
     else macts.innerHTML=`<button class="btn" onclick="closeM()">Cancel</button><button class="btn btn-p" onclick="saveM()">Save</button>`;
   }
   document.getElementById('mo').classList.add('open');
