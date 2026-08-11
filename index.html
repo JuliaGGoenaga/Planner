@@ -2205,15 +2205,12 @@ function delEvent(id){D.events=D.events.filter(e=>e.id!==id);sched();renderWeek(
 
 // ── PROJECTS ───────────────────────────────────────────────────────────────
 function monthlyGoalHours(year,month,excludeDays=[]){
-  if(month===8)return 0;
   const days=new Date(year,month,0).getDate();
   let total=0;
   for(let d=1;d<=days;d++){
     const ds=`${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     if(excludeDays.includes(ds))continue;
-    const dow=new Date(year,month-1,d).getDay();
-    if(dow>=1&&dow<=4)total+=8.75;
-    else if(dow===5)total+=6;
+    total+=dayGoalHours(ds); // per-day hours (summer months = 7h) keeps capacity consistent
   }
   return Math.round(total*10)/10;
 }
@@ -2273,8 +2270,13 @@ function renderProjects(){
   const holidays=Object.keys(getHolidays(year)).filter(d=>d.startsWith(monthPfx));
   const vacations=(D.vacationDays||[]).filter(d=>d.startsWith(monthPfx));
   const customHols=(D.customHolidays||[]).filter(d=>d.startsWith(monthPfx));
-  const excludeDays=[...new Set([...holidays,...vacations,...customHols])];
-  const goal=monthlyGoalHours(year,month,excludeDays);
+  // Festivos reduce the month's capacity; vacation days do NOT — instead their hours count as planned/occupied
+  const festivos=[...new Set([...holidays,...customHols])];
+  const goal=monthlyGoalHours(year,month,festivos);
+  const festSet=new Set(festivos);
+  let vacH=0,vacDays=0;
+  vacations.forEach(ds=>{if(festSet.has(ds))return;const h=dayGoalHours(ds);if(h>0){vacH+=h;vacDays++;}});
+  vacH=Math.round(vacH*10)/10;
   let plannedEst=0,loggedTotal=0;
   g.innerHTML=D.projects.map(p=>{
     // Tasks selected for this month (explicitly or scheduled this month in the weekly view)
@@ -2334,7 +2336,7 @@ function renderProjects(){
         </div>
       </div>
       <div class="pdesc">${p.desc||''}</div>
-      <div class="phrow"><span style="font-weight:600;color:${p.color}">${totalH}h este mes</span><span>${estH>0?`${compPct}% de lo previsto`:(goal>0?`meta ${goal}h`:'agosto')}</span></div>
+      <div class="phrow"><span style="font-weight:600;color:${p.color}">${totalH}h este mes</span><span>${estH>0?`${compPct}% de lo previsto`:(goal>0?`meta ${goal}h`:'sin horas')}</span></div>
       ${(estH>0||manualH>0||tbH>0||evH>0)?`<div class="phrow" style="font-size:10px;color:var(--text3);margin-top:-4px;margin-bottom:4px"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${(manualH>0||tbH>0||evH>0)?`${manualH}h manuales${tbH>0?` · ${tbH}h bloques`:''}${evH>0?` · ${evH}h eventos`:''}`:''}</span>${estH>0?`<span style="flex-shrink:0;padding-left:6px">${doneH}h / ${estH}h previstas</span>`:''}</div>`:''}
       <div class="hbar"><div class="hfill" style="width:${compPct}%;background:${p.color}"></div></div>
       <div class="pacts">
@@ -2344,21 +2346,24 @@ function renderProjects(){
       ${taskRows}${evRows}
     </div>`;
   }).join('');
-  renderOccupation(goal,plannedEst,loggedTotal,month);
+  renderOccupation(goal,plannedEst,loggedTotal,month,vacH,vacDays);
 }
-function renderOccupation(goal,plannedEst,loggedTotal,month){
+function renderOccupation(goal,plannedEst,loggedTotal,month,vacH,vacDays){
   const side=document.getElementById('proj-side');if(!side)return;
   const mesName=MESES[month-1];
-  if(goal<=0){side.innerHTML=`<div class="occ-card"><div class="occ-title"><i class="ti ti-gauge"></i> Ocupación · ${mesName}</div><div style="font-size:12px;color:var(--text3)">Mes sin horas laborables (vacaciones).</div></div>`;return;}
-  const occPct=Math.round(plannedEst/goal*100);
+  if(goal<=0){side.innerHTML=`<div class="occ-card"><div class="occ-title"><i class="ti ti-gauge"></i> Ocupación · ${mesName}</div><div style="font-size:12px;color:var(--text3)">Mes sin horas laborables.</div></div>`;return;}
+  const occupied=Math.round((plannedEst+vacH)*10)/10;
+  const occPct=Math.round(occupied/goal*100);
   const col=occPct>100?'var(--red)':occPct>=80?'var(--amber)':'var(--green)';
   side.innerHTML=`<div class="occ-card">
     <div class="occ-title"><i class="ti ti-gauge"></i> Ocupación · ${mesName}</div>
     <div class="occ-pct" style="color:${col}">${occPct}%</div>
     <div class="occ-bar"><div class="occ-fill" style="width:${Math.min(100,occPct)}%;background:${col}"></div></div>
     <div class="occ-row"><span>Previsto (tareas)</span><b>${Math.round(plannedEst*10)/10}h</b></div>
+    ${vacH>0?`<div class="occ-row"><span>Vacaciones</span><b>${vacH}h</b></div>`:''}
     <div class="occ-row"><span>Capacidad del mes</span><b>${goal}h</b></div>
     <div class="occ-row"><span>Registrado</span><b>${Math.round(loggedTotal*10)/10}h</b></div>
+    ${vacH>0?`<div style="font-size:10px;color:var(--text3);margin-top:6px;line-height:1.4"><i class="ti ti-beach"></i> ${vacH} h (${vacDays} ${vacDays===1?'día':'días'}) de vacaciones, contadas como previstas.</div>`:''}
     ${occPct>100?'<div style="font-size:10px;color:var(--red);margin-top:6px;line-height:1.4">Has previsto más horas de las disponibles este mes.</div>':''}
   </div>`;
 }
