@@ -1151,18 +1151,18 @@ async function saveGistCfg(){
   else{showMsg('gist-msg','err','Could not connect. Check your token and Gist ID.');}
 }
 async function testGist(){showMsg('gist-msg','info','Testing…');await loadGist();const ok=document.getElementById('sdot').classList.contains('ok');showMsg('gist-msg',ok?'ok':'err',document.getElementById('stxt').textContent)}
-// Recover data from the Gist's revision history: scans past versions and restores the fullest planner.json.
+// Recover data from the Gist's revision history: lists past versions (date + item count) to pick from.
+let _restoreVersions=null;
+function _restoreItemCount(o){return((o.todos||[]).length+(o.projects||[]).length+(o.events||[]).length+(o.notes||[]).length+(o.ideas||[]).length+(o.meetingNotes||[]).length+(o.timeblocks||[]).length+(o.plans||[]).length);}
 async function restoreFromHistory(){
   if(!CFG.token||!CFG.gistId){showMsg('gist-msg','err','Conecta primero el token y el ID del gist.');return}
-  if(!confirm('Buscaré en el historial del gist la última versión con datos y la restauraré (sobrescribiendo el estado vacío actual). ¿Continuar?'))return;
   const gh={Authorization:`token ${CFG.token}`,Accept:'application/vnd.github.v3+json'};
-  const cnt=o=>((o.todos||[]).length+(o.projects||[]).length+(o.events||[]).length+(o.notes||[]).length+(o.ideas||[]).length+(o.meetingNotes||[]).length+(o.timeblocks||[]).length+(o.plans||[]).length);
   try{
     showMsg('gist-msg','info','Leyendo el historial…');
     const cr=await fetch(`https://api.github.com/gists/${CFG.gistId}/commits?per_page=50`,{headers:gh});
     if(!cr.ok)throw new Error('HTTP '+cr.status);
     const commits=await cr.json();
-    let best=null,bestCount=0,bestWhen='';
+    const list=[];
     for(let i=0;i<commits.length;i++){
       showMsg('gist-msg','info',`Revisando versión ${i+1}/${commits.length}…`);
       const vr=await fetch(`https://api.github.com/gists/${CFG.gistId}/${commits[i].version}`,{headers:gh});
@@ -1173,20 +1173,37 @@ async function restoreFromHistory(){
       if((f.truncated||!content)&&f.raw_url){try{const rr=await fetch(f.raw_url);if(rr.ok)content=await rr.text();}catch(e){}}
       if(!content)continue;
       let p;try{p=JSON.parse(content);}catch(e){continue;}
-      const n=cnt(p);
-      if(n>bestCount){best=p;bestCount=n;bestWhen=commits[i].committed_at;}
+      const n=_restoreItemCount(p);
+      if(n>0)list.push({when:commits[i].committed_at,count:n,data:p,
+        detail:`${(p.todos||[]).length} tareas · ${(p.projects||[]).length} proyectos · ${(p.notes||[]).length} notas · ${(p.events||[]).length} eventos`});
     }
-    if(!best||bestCount===0){showMsg('gist-msg','err','No encontré ninguna versión con datos en el historial.');return}
-    if(!confirm(`Encontrada una versión con ${bestCount} elementos (${new Date(bestWhen).toLocaleString()}). ¿Restaurarla y guardarla ahora?`)){showMsg('gist-msg','info','Restauración cancelada.');return}
-    D.events=best.events||[];D.todos=best.todos||[];D.projects=best.projects||[];
-    D.timeblocks=best.timeblocks||[];if(best.topics)D.topics=best.topics;D.ideas=best.ideas||[];
-    if(best.calendars)D.calendars=best.calendars;D.vacationDays=best.vacationDays||[];D.customHolidays=best.customHolidays||[];
-    D.meetingNotes=best.meetingNotes||[];D.notes=best.notes||[];D.plans=best.plans||[];
-    if(best.region)D.region=best.region;if(best.nextId)S.nextId=best.nextId;
-    await saveGistNow();
-    showMsg('gist-msg','ok',`Restaurado ✓ (${bestCount} elementos). Recargando…`);
-    setTimeout(()=>location.reload(),900);
-  }catch(e){showMsg('gist-msg','err','Error al restaurar: '+(e.message||e));console.error(e);}
+    if(!list.length){showMsg('gist-msg','err','No encontré ninguna versión con datos en el historial.');return}
+    showMsg('gist-msg','ok',`${list.length} versiones con datos. Elige cuál restaurar.`);
+    openRestorePicker(list);
+  }catch(e){showMsg('gist-msg','err','Error al leer el historial: '+(e.message||e));console.error(e);}
+}
+function openRestorePicker(list){
+  _restoreVersions=list;
+  document.getElementById('mtitle').textContent='Restaurar una versión';
+  document.getElementById('mbody').innerHTML=`<div style="font-size:11px;color:var(--text3);margin-bottom:8px">Elige la versión del historial que quieres restaurar. Se ordenan de la más reciente a la más antigua.</div>
+  <div style="max-height:56vh;overflow-y:auto">${list.map((v,i)=>`<div class="mt-row" onclick="applyRestore(${i})"><div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:700">${new Date(v.when).toLocaleString()}</div><div style="font-size:10px;color:var(--text3)">${v.count} elementos · ${v.detail}</div></div><i class="ti ti-arrow-back-up" style="color:var(--accent);flex-shrink:0"></i></div>`).join('')}</div>`;
+  document.getElementById('macts').innerHTML=`<button class="btn" onclick="closeM()">Cancelar</button>`;
+  document.getElementById('mo').classList.add('open');
+}
+async function applyRestore(i){
+  const v=_restoreVersions&&_restoreVersions[i];if(!v)return;
+  if(!confirm(`Restaurar la versión del ${new Date(v.when).toLocaleString()} con ${v.count} elementos?\nSobrescribirá el estado actual del gist.`))return;
+  const best=v.data;
+  D.events=best.events||[];D.todos=best.todos||[];D.projects=best.projects||[];
+  D.timeblocks=best.timeblocks||[];if(best.topics)D.topics=best.topics;D.ideas=best.ideas||[];
+  if(best.calendars)D.calendars=best.calendars;D.vacationDays=best.vacationDays||[];D.customHolidays=best.customHolidays||[];
+  D.meetingNotes=best.meetingNotes||[];D.notes=best.notes||[];D.plans=best.plans||[];
+  if(best.region)D.region=best.region;if(best.nextId)S.nextId=best.nextId;
+  closeM();
+  showMsg('gist-msg','info','Restaurando y guardando…');
+  await saveGistNow();
+  showMsg('gist-msg','ok',`Restaurado ✓ (${v.count} elementos). Recargando…`);
+  setTimeout(()=>location.reload(),900);
 }
 function showMsg(id,cls,txt){const el=document.getElementById(id);if(el){el.className='smsg '+cls;el.textContent=txt}}
 
