@@ -2222,7 +2222,7 @@ function dayGoalHours(ds){
   if(dow===0||dow===6)return 0;
   if(dow===5)return 6;
   const m=d.getMonth()+1;
-  return(m===7||m===8)?7.5:8.75;
+  return(m===7||m===8)?7:8.75;
 }
 function dayLoggedH(ds){
   let h=0;
