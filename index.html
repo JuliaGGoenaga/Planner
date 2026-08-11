@@ -307,7 +307,7 @@ html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
 .proj-layout{display:flex;gap:14px;align-items:flex-start}
 .proj-layout>.pgrid{flex:1;min-width:0}
 .pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,320px));gap:10px}
-.pcard{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px;position:relative;transition:border-color .15s,box-shadow .15s}
+.pcard{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px;position:relative;min-width:0;transition:border-color .15s,box-shadow .15s}
 .pcard.drop-over{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-l)}
 /* ── TASK PANEL ── */
 .task-panel{width:270px;flex-shrink:0;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:10px;position:sticky;top:0;max-height:calc(100dvh - 120px);overflow-y:auto}
@@ -328,7 +328,7 @@ html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
 .tp-h{width:44px;padding:2px 4px;border:1px solid var(--border2);border-radius:3px;background:var(--bg);color:var(--text);font-size:11px;font-family:inherit;text-align:center}
 .tp-empty{font-size:11px;color:var(--text3);text-align:center;padding:16px 6px;line-height:1.6}
 .tp-hint{font-size:9px;color:var(--text3);text-align:center;margin-top:8px;opacity:.6}
-@media(max-width:860px){.proj-layout{flex-direction:column}.task-panel{width:100%;position:static;max-height:none}}
+@media(max-width:860px){.proj-layout{flex-direction:column}.proj-layout>.pgrid{width:100%;flex:none}.task-panel{width:100%;position:static;max-height:none}}
 @media(max-width:700px){.pgrid{grid-template-columns:1fr}}
 /* ── MONTH OCCUPATION SIDE CARD ── */
 .proj-side{width:250px;flex-shrink:0;order:2;position:sticky;top:0}
@@ -354,7 +354,7 @@ html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
 .phrow{font-size:11px;color:var(--text2);display:flex;justify-content:space-between;margin-bottom:3px}
 .hbar{height:4px;background:var(--surface2);border-radius:3px;overflow:hidden}
 .hfill{height:100%;border-radius:3px;transition:width .3s}
-.pacts{display:flex;gap:5px;margin-top:9px}
+.pacts{display:flex;flex-wrap:wrap;gap:5px;margin-top:9px}
 
 /* ── IDEAS ── */
 .igrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
