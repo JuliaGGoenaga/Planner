@@ -518,6 +518,19 @@ html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
   .page-area{padding:10px 10px;padding-bottom:calc(8px + env(safe-area-inset-bottom))}
   .wgrid{grid-template-columns:1fr}
   .dcol{min-height:auto}
+  /* week view: horizontal day strip (swipe between days), hours vertical */
+  #page-week.active #week-grid{height:calc(100dvh - 150px);overflow:hidden}
+  .wm-strip{position:relative;display:flex;height:100%;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
+  .wm-page{flex:0 0 88%;scroll-snap-align:center;display:flex;flex-direction:column;min-width:0;padding:0 4px}
+  .wm-head{flex-shrink:0;text-align:center;padding:1px 0 6px;font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.05em}
+  .wm-head .wm-dnum{font-size:17px;font-weight:800;color:var(--text)}
+  .wm-head.wm-today .wm-dnum{color:#fff;background:var(--accent);border-radius:20px;padding:0 9px;display:inline-block}
+  .wm-allday{flex-shrink:0;display:flex;flex-direction:column;gap:3px;margin-bottom:5px;max-height:92px;overflow-y:auto}
+  .wm-chip{display:flex;align-items:center;gap:4px;font-size:11px;padding:3px 6px;border-radius:6px;background:var(--amber-l);color:var(--amber)}
+  .wm-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+  .wm-body{flex:1;min-height:0;display:flex;border:1px solid var(--border);border-radius:var(--rs);overflow:hidden;background:var(--surface)}
+  .wm-gutter{width:32px;flex-shrink:0;display:flex;flex-direction:column;background:var(--surface2);border-right:1px solid var(--border)}
+  .wm-col{flex:1;min-width:0}
   .pgrid{grid-template-columns:1fr}
   /* Month layout stacks vertically on mobile */
   .month-layout{flex-direction:column}
@@ -1711,6 +1724,62 @@ function refreshPage(){const a=document.querySelector('.page.active');if(a)go(a.
 // ── WEEK ───────────────────────────────────────────────────────────────────
 let _timeDrag={kind:null,id:null};
 let _fcCtx=null;
+// One day's time-grid column (hours vertical, events & task blocks placed). Shared by desktop & mobile week views.
+function weekDayCol(ds,extraCls){
+  const HS=8,HE=21,numH=HE-HS;
+  const today=todayStr();
+  const d=new Date(ds+'T00:00:00');
+  const isT=ds===today;
+  const isW=d.getDay()===0||d.getDay()===6;
+  const extDay=EXT.filter(e=>e.date===ds&&e.time);const extDayIds=new Set(extDay.map(e=>e.id));
+  const timedEvs=[...D.events.filter(e=>e.date===ds&&e.time&&(!e.fromIcs||!extDayIds.has(e.icsRef))),...extDay];
+  const taskBlocks=[];D.todos.forEach(t=>{if(t.fromIcs)return;(t.sched||[]).forEach(b=>{if(b.date===ds)taskBlocks.push({t,b});});});
+  const evR=timedEvs.map(ev=>{const[h,m]=(ev.time||'00:00').split(':').map(Number);const st=h*60+m;const du=ev.endTime?timeDiff(ev.time,ev.endTime):null;return{st,en:st+(du?du*60:30)};});
+  const tkR=taskBlocks.map(({b})=>{const[h,m]=(b.time||'00:00').split(':').map(Number);const st=h*60+m;return{st,en:st+((b.schedH||0.5)*60)};});
+  const rOverlap=(a,b)=>a.st<b.en&&b.st<a.en;
+  let html=`<div class="wt-daycol${isT?' wt-today-col':''}${isW?' wt-weekend-col':''}${extraCls?' '+extraCls:''}" ondragover="event.preventDefault();event.dataTransfer.dropEffect='move'" ondrop="dropOnTime(event,'${ds}')">`;
+  for(let h=HS;h<HE;h++) html+=`<div class="wt-slot" onclick="openMDTime('event','${ds}','${String(h).padStart(2,'0')}:00')"></div>`;
+  html+=`<div class="wt-evlayer">`;
+  timedEvs.forEach((ev,ei)=>{
+    const[eh,em]=(ev.time||'00:00').split(':').map(Number);
+    const topPct=Math.max(0,(eh+em/60-HS)/numH*100);
+    const evOverlap=tkR.some(r=>rOverlap(evR[ei],r));
+    const dur=ev.endTime?timeDiff(ev.time,ev.endTime):null;
+    const hPct=dur?Math.max(100/numH*0.4,dur/numH*100):(100/numH*0.4);
+    const c=ev.color||(ev.type==='meeting'?'var(--green)':ev.source?'var(--blue)':'var(--accent)');
+    const isExt=!!ev.source;
+    const isPromoted=isExt&&D.events.some(e=>e.icsRef===ev.id);
+    const drag=!isExt?` draggable="true" ondragstart="startTimeDrag(event,'ev',${ev.id})" ondragend="this.style.opacity='';_timeDrag={kind:null,id:null}"`:'' ;
+    const eid=JSON.stringify(ev.id).replace(/"/g,'&quot;');
+    const hasNotes=D.meetingNotes&&D.meetingNotes.some(n=>n.eventRef===ev.id);
+    const noteIcon=hasNotes?`<i class="ti ti-notes mn-ev-noted"></i>`:'';
+    const click=S.meetingNotesMode
+      ?` onclick="openMeetingNotes(${eid})"`
+      :` onclick="openEventAssign(${eid})"`;
+    const del=!isExt?`<button class="btn-del" onclick="event.stopPropagation();delEvent(${ev.id})" style="font-size:9px;padding:0 1px"><i class="ti ti-x"></i></button>`:isPromoted?`<i class="ti ti-bookmark-filled" style="font-size:9px;opacity:.8;padding:0 2px" title="Registrado en proyecto"></i>`:`<button class="btn-del" onclick="event.stopPropagation();promoteIcsEvent(${eid})" style="font-size:9px;padding:0 1px" title="Añadir a proyecto"><i class="ti ti-tag"></i></button>`;
+    const tLabel=ev.endTime?`${ev.time}–${ev.endTime}`:ev.time;
+    const cursorStyle=isExt?'cursor:pointer;':'';
+    const evTitle=`${tLabel} · ${ev.title||''}${ev.source?' · '+ev.source:''}`.replace(/"/g,'&quot;');
+    html+=`<div class="wt-ev"${drag}${click} title="${evTitle}" style="${cursorStyle}${evOverlap?'right:50%;':''}top:${topPct.toFixed(2)}%;height:${hPct.toFixed(2)}%;border-left-color:${c};background:${c}18;color:${c}"><span class="wt-evtime">${tLabel}${ev.source?' · '+ev.source:''}</span><span class="wt-evtitle">${ev.title}</span><div class="wt-evacts">${del}</div>${noteIcon}</div>`;
+  });
+  taskBlocks.forEach(({t,b},ti)=>{
+    const[th,tm]=(b.time||'00:00').split(':').map(Number);
+    const topPct=Math.max(0,(th+tm/60-HS)/numH*100);
+    const tkOverlap=evR.some(r=>rOverlap(tkR[ti],r));
+    const sh=b.schedH||0.5;
+    const hPct=Math.max(100/numH*0.4,sh/numH*100);
+    const tproj=t.projectId?D.projects.find(p=>p.id===t.projectId):null;
+    const tkTitle=`${ttIcon(t)}${t.title} · ${b.time} · ${sh}h${t.estimateH?' / '+t.estimateH+'h prev.':''}${tproj?' · '+tproj.name:''}`.replace(/"/g,'&quot;');
+    const doneStyle=t.done?'opacity:.5;':'';
+    const titleStyle=t.done?'text-decoration:line-through;':'';
+    const checkBtn=t.done
+      ?`<button class="btn-del wt-tact wt-tact-l" onclick="event.stopPropagation();toggleTodo(${t.id})" style="color:var(--amber)" title="Reabrir tarea"><i class="ti ti-arrow-back-up"></i></button>`
+      :`<button class="btn-del wt-tact wt-tact-l" onclick="event.stopPropagation();openCompleteTask(${t.id})" style="color:var(--amber)" title="Registrar horas / completar"><i class="ti ti-check"></i></button>`;
+    html+=`<div class="wt-ev wt-task-ev" draggable="true" ondragstart="startTimeDrag(event,'task',${t.id},${b.id})" ondragend="this.style.opacity='';_timeDrag={kind:null,id:null}" onclick="openEdit('todo',${t.id})" title="${tkTitle}" style="${doneStyle}${tkOverlap?'left:50%;':''}top:${topPct.toFixed(2)}%;height:${hPct.toFixed(2)}%"><div class="wt-evline1"><span class="wt-evtime">${b.time}</span>${urgencyBadge(t)}${taskDot(t,'margin-top:0')}<span class="wt-evtitle" style="${titleStyle}">${ttIcon(t)}${t.title}</span></div>${sh>=1?`<div class="wt-evline2"><span class="wt-evsched">${sh}h${t.estimateH?` / ${t.estimateH}h`:''}</span>${tproj?`<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">· ${tproj.name}</span>`:''}</div>`:''}${checkBtn}<button class="btn-del wt-tact wt-tact-r" onclick="event.stopPropagation();removeSchedBlock(${t.id},${b.id})" style="color:#E24B4A" title="Quitar de este día"><i class="ti ti-x"></i></button><div class="wt-resize" draggable="false" onclick="event.stopPropagation()" onmousedown="startTaskResize(event,${t.id},${b.id})" ontouchstart="startTaskResize(event,${t.id},${b.id})"></div></div>`;
+  });
+  html+=`</div></div>`;
+  return html;
+}
 function renderWeek(){
   const today=todayStr(),s=S.weekStart;
   document.getElementById('wlabel').textContent=`${fmtS(s)} – ${fmtS(addDays(s,6))}`;
@@ -1746,56 +1815,7 @@ function renderWeek(){
   for(let h=HS;h<HE;h++) html+=`<div class="wt-hlbl">${String(h).padStart(2,'0')}:00</div>`;
   html+=`</div>`;
   for(let i=0;i<7;i++){
-    const d=addDays(s,i),ds=dStr(d),isT=ds===today;
-    const isW=d.getDay()===0||d.getDay()===6;
-    const extDay=EXT.filter(e=>e.date===ds&&e.time);const extDayIds=new Set(extDay.map(e=>e.id));
-    const timedEvs=[...D.events.filter(e=>e.date===ds&&e.time&&(!e.fromIcs||!extDayIds.has(e.icsRef))),...extDay];
-    const taskBlocks=[];D.todos.forEach(t=>{if(t.fromIcs)return;(t.sched||[]).forEach(b=>{if(b.date===ds)taskBlocks.push({t,b});});});
-    // Time ranges (minutes) to detect task↔event overlaps → show them side by side
-    const evR=timedEvs.map(ev=>{const[h,m]=(ev.time||'00:00').split(':').map(Number);const st=h*60+m;const du=ev.endTime?timeDiff(ev.time,ev.endTime):null;return{st,en:st+(du?du*60:30)};});
-    const tkR=taskBlocks.map(({b})=>{const[h,m]=(b.time||'00:00').split(':').map(Number);const st=h*60+m;return{st,en:st+((b.schedH||0.5)*60)};});
-    const rOverlap=(a,b)=>a.st<b.en&&b.st<a.en;
-    html+=`<div class="wt-daycol${isT?' wt-today-col':''}${isW?' wt-weekend-col':''}" ondragover="event.preventDefault();event.dataTransfer.dropEffect='move'" ondrop="dropOnTime(event,'${ds}')">`;
-    for(let h=HS;h<HE;h++) html+=`<div class="wt-slot" onclick="openMDTime('event','${ds}','${String(h).padStart(2,'0')}:00')"></div>`;
-    html+=`<div class="wt-evlayer">`;
-    timedEvs.forEach((ev,ei)=>{
-      const[eh,em]=(ev.time||'00:00').split(':').map(Number);
-      const topPct=Math.max(0,(eh+em/60-HS)/numH*100);
-      const evOverlap=tkR.some(r=>rOverlap(evR[ei],r));
-      const dur=ev.endTime?timeDiff(ev.time,ev.endTime):null;
-      const hPct=dur?Math.max(100/numH*0.4,dur/numH*100):(100/numH*0.4);
-      const c=ev.color||(ev.type==='meeting'?'var(--green)':ev.source?'var(--blue)':'var(--accent)');
-      const isExt=!!ev.source;
-      const isPromoted=isExt&&D.events.some(e=>e.icsRef===ev.id);
-      const drag=!isExt?` draggable="true" ondragstart="startTimeDrag(event,'ev',${ev.id})" ondragend="this.style.opacity='';_timeDrag={kind:null,id:null}"`:'' ;
-      const eid=JSON.stringify(ev.id).replace(/"/g,'&quot;');
-      const hasNotes=D.meetingNotes&&D.meetingNotes.some(n=>n.eventRef===ev.id);
-      const noteIcon=hasNotes?`<i class="ti ti-notes mn-ev-noted"></i>`:'';      
-      const click=S.meetingNotesMode
-        ?` onclick="openMeetingNotes(${eid})"`
-        :` onclick="openEventAssign(${eid})"`;
-      const del=!isExt?`<button class="btn-del" onclick="event.stopPropagation();delEvent(${ev.id})" style="font-size:9px;padding:0 1px"><i class="ti ti-x"></i></button>`:isPromoted?`<i class="ti ti-bookmark-filled" style="font-size:9px;opacity:.8;padding:0 2px" title="Registrado en proyecto"></i>`:`<button class="btn-del" onclick="event.stopPropagation();promoteIcsEvent(${eid})" style="font-size:9px;padding:0 1px" title="Añadir a proyecto"><i class="ti ti-tag"></i></button>`;
-      const tLabel=ev.endTime?`${ev.time}–${ev.endTime}`:ev.time;
-      const cursorStyle=isExt?'cursor:pointer;':'';
-      const evTitle=`${tLabel} · ${ev.title||''}${ev.source?' · '+ev.source:''}`.replace(/"/g,'&quot;');
-      html+=`<div class="wt-ev"${drag}${click} title="${evTitle}" style="${cursorStyle}${evOverlap?'right:50%;':''}top:${topPct.toFixed(2)}%;height:${hPct.toFixed(2)}%;border-left-color:${c};background:${c}18;color:${c}"><span class="wt-evtime">${tLabel}${ev.source?' · '+ev.source:''}</span><span class="wt-evtitle">${ev.title}</span><div class="wt-evacts">${del}</div>${noteIcon}</div>`;
-    });
-    taskBlocks.forEach(({t,b},ti)=>{
-      const[th,tm]=(b.time||'00:00').split(':').map(Number);
-      const topPct=Math.max(0,(th+tm/60-HS)/numH*100);
-      const tkOverlap=evR.some(r=>rOverlap(tkR[ti],r));
-      const sh=b.schedH||0.5;
-      const hPct=Math.max(100/numH*0.4,sh/numH*100);
-      const tproj=t.projectId?D.projects.find(p=>p.id===t.projectId):null;
-      const tkTitle=`${ttIcon(t)}${t.title} · ${b.time} · ${sh}h${t.estimateH?' / '+t.estimateH+'h prev.':''}${tproj?' · '+tproj.name:''}`.replace(/"/g,'&quot;');
-      const doneStyle=t.done?'opacity:.5;':'';
-      const titleStyle=t.done?'text-decoration:line-through;':'';
-      const checkBtn=t.done
-        ?`<button class="btn-del wt-tact wt-tact-l" onclick="event.stopPropagation();toggleTodo(${t.id})" style="color:var(--amber)" title="Reabrir tarea"><i class="ti ti-arrow-back-up"></i></button>`
-        :`<button class="btn-del wt-tact wt-tact-l" onclick="event.stopPropagation();openCompleteTask(${t.id})" style="color:var(--amber)" title="Registrar horas / completar"><i class="ti ti-check"></i></button>`;
-      html+=`<div class="wt-ev wt-task-ev" draggable="true" ondragstart="startTimeDrag(event,'task',${t.id},${b.id})" ondragend="this.style.opacity='';_timeDrag={kind:null,id:null}" onclick="openEdit('todo',${t.id})" title="${tkTitle}" style="${doneStyle}${tkOverlap?'left:50%;':''}top:${topPct.toFixed(2)}%;height:${hPct.toFixed(2)}%"><div class="wt-evline1"><span class="wt-evtime">${b.time}</span>${urgencyBadge(t)}${taskDot(t,'margin-top:0')}<span class="wt-evtitle" style="${titleStyle}">${ttIcon(t)}${t.title}</span></div>${sh>=1?`<div class="wt-evline2"><span class="wt-evsched">${sh}h${t.estimateH?` / ${t.estimateH}h`:''}</span>${tproj?`<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">· ${tproj.name}</span>`:''}</div>`:''}${checkBtn}<button class="btn-del wt-tact wt-tact-r" onclick="event.stopPropagation();removeSchedBlock(${t.id},${b.id})" style="color:#E24B4A" title="Quitar de este día"><i class="ti ti-x"></i></button><div class="wt-resize" draggable="false" onclick="event.stopPropagation()" onmousedown="startTaskResize(event,${t.id},${b.id})" ontouchstart="startTaskResize(event,${t.id},${b.id})"></div></div>`;
-    });
-    html+=`</div></div>`;
+    html+=weekDayCol(dStr(addDays(s,i)));
   }
   html+=`</div>`; // end .wt-body
   // Scheduled vs estimated hours across all pending tasks (total, not just this week)
@@ -1829,32 +1849,31 @@ function renderWeek(){
   document.getElementById('week-grid').innerHTML=html;
 }
 function renderWeekMobile(){
+  // Horizontal day strip: swipe between days, hours vertical with tasks placed. Defaults to today.
   const today=todayStr(),s=S.weekStart;
-  let html='<div class="wgrid">';
+  const HS=8,HE=21;
+  const gutter=`<div class="wm-gutter">${Array.from({length:HE-HS},(_,k)=>`<div class="wt-hlbl">${String(HS+k).padStart(2,'0')}:00</div>`).join('')}</div>`;
+  let todayIdx=-1,pages='';
   for(let i=0;i<7;i++){
     const d=addDays(s,i),ds=dStr(d),isT=ds===today;
-    const evs=allEvFor(ds),tds=D.todos.filter(t=>t.date===ds),tbs=D.timeblocks.filter(tb=>tb.date===ds);
-    html+=`<div class="dcol${isT?' today-col':''}">
-      <div class="dhead"><div class="dname">${DAYS[d.getDay()]}</div><div class="dnum${isT?' today':''}">${d.getDate()}</div></div>
-      <div class="dbody">
-        ${evs.map(ev=>{
-          const hasMN=D.meetingNotes&&D.meetingNotes.some(n=>n.eventRef===ev.id);
-          const mnBtn=`<button class="btn-del" onclick="event.stopPropagation();openMeetingNotes(${ev.id})" style="font-size:10px;padding:1px 2px;color:${hasMN?'var(--blue)':'var(--text3)'}" title="Meeting notes"><i class="ti ti-notebook"></i></button>`;
-          return ev.source
-            ?`<div class="ev ical" style="${ev.color?`border-left-color:${ev.color};color:${ev.color};background:${ev.color}18`:''}"><div style="display:flex;align-items:flex-start;gap:2px"><div style="flex:1"><span class="ev-time">${ev.time||'all-day'} · ${ev.source}</span>${ev.title}</div>${mnBtn}</div></div>`
-            :`<div class="ev" style="display:flex;align-items:flex-start;gap:3px"><div style="flex:1"><span class="ev-time">${ev.time||'all-day'}</span>${ev.title}</div>${mnBtn}<button class="btn-del" onclick="openEdit('event',${ev.id})" style="font-size:10px;padding:1px 2px"><i class="ti ti-pencil"></i></button><button class="btn-del" onclick="delEvent(${ev.id})" style="font-size:10px;padding:1px 2px"><i class="ti ti-x"></i></button></div>`;
-        }).join('')}
-        ${tbs.map(tb=>{const p=D.projects.find(p=>p.id===tb.projectId);const c=p?p.color:'var(--accent)';return`<div class="ev" style="border-left-color:${c};background:${c}18;color:${c};display:flex;align-items:flex-start;gap:3px"><div style="flex:1"><span class="ev-time">${tb.startTime} · ${tb.duration}h</span>${p?p.name:'Bloque'}</div><button class="btn-del" onclick="delTimeblock(${tb.id})" style="font-size:10px;padding:1px 2px;color:${c}"><i class="ti ti-x"></i></button></div>`;}).join('')}
-        ${tds.map(t=>`<div class="tr"><div class="chk${t.done?' on':''}" onclick="toggleTodo(${t.id})"></div>${urgencyBadge(t)}${taskDot(t,'')}<div class="tl${t.done?' done':''}" style="flex:1;${overdueStyle(t)}">${ttIcon(t)}${t.title}${t.rolledFrom?'<span class="rolled">↩</span>':''}</div><button class="btn-del" onclick="openEdit('todo',${t.id})" style="font-size:9px;padding:1px 2px"><i class="ti ti-pencil"></i></button></div>`).join('')}
-        <div class="day-adds">
-          <button class="dadd" onclick="openMD('todo','${ds}')"><i class="ti ti-plus" style="font-size:9px"></i> task</button>
-          <button class="dadd" onclick="openMD('event','${ds}')"><i class="ti ti-plus" style="font-size:9px"></i> event</button>
-        </div>
-      </div>
+    if(isT)todayIdx=i;
+    const untimed=D.todos.filter(t=>t.date===ds&&!(t.sched&&t.sched.length)&&!t.done&&!t.fromIcs);
+    const alldayRow=untimed.length?`<div class="wm-allday" ondragover="event.preventDefault()" ondrop="dropOnAllDay(event,'${ds}')">${untimed.map(t=>`<div class="wm-chip" onclick="openEdit('todo',${t.id})" title="${(t.title||'').replace(/"/g,'&quot;')}">${urgencyBadge(t)}${taskDot(t,'flex-shrink:0')}<span style="${overdueStyle(t)}">${ttIcon(t)}${t.title}${t.rolledFrom?' <span class="rolled">↩</span>':''}</span><button class="btn-del" style="color:var(--amber)" onclick="event.stopPropagation();openCompleteTask(${t.id})" title="Completar"><i class="ti ti-check"></i></button><button class="btn-del" style="color:#E24B4A" onclick="event.stopPropagation();unscheduleTask(${t.id})" title="Quitar de este día"><i class="ti ti-x"></i></button></div>`).join('')}</div>`:'';
+    pages+=`<div class="wm-page">
+      <div class="wm-head${isT?' wm-today':''}"><span class="wm-dname">${DAYS[d.getDay()]}</span> <span class="wm-dnum">${d.getDate()}</span></div>
+      ${alldayRow}
+      <div class="wm-body">${gutter}${weekDayCol(ds,'wm-col')}</div>
     </div>`;
   }
-  html+='</div>';
-  document.getElementById('week-grid').innerHTML=html;
+  document.getElementById('week-grid').innerHTML=`<div class="wm-strip" id="wm-strip">${pages}</div>`;
+  const strip=document.getElementById('wm-strip');
+  if(strip){
+    const idx=todayIdx>=0?todayIdx:0;
+    requestAnimationFrame(()=>{
+      const page=strip.children[idx];
+      if(page)strip.scrollLeft=Math.max(0,page.offsetLeft-(strip.clientWidth-page.offsetWidth)/2);
+    });
+  }
 }
 function startTimeDrag(e,kind,id,bid){
   _timeDrag={kind,id,bid:(bid==null?null:bid)};
