@@ -518,8 +518,11 @@ html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
   .page-area{padding:10px 10px;padding-bottom:calc(8px + env(safe-area-inset-bottom))}
   .wgrid{grid-template-columns:1fr}
   .dcol{min-height:auto}
-  /* week view: horizontal day strip (swipe between days), hours vertical */
-  #page-week.active #week-grid{height:calc(100dvh - 150px);overflow:hidden}
+  /* week view: horizontal day strip (swipe between days), hours vertical — fills the screen minus fixed chrome */
+  .page-area:has(#page-week.active){display:flex;flex-direction:column;overflow:hidden}
+  #page-week.active{flex:1;min-height:0;display:flex;flex-direction:column}
+  #page-week.active .ph{flex-shrink:0}
+  #page-week.active #week-grid{flex:1;min-height:0;overflow:hidden}
   .wm-strip{position:relative;display:flex;height:100%;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
   .wm-page{flex:0 0 88%;scroll-snap-align:center;display:flex;flex-direction:column;min-width:0;padding:0 4px}
   .wm-head{flex-shrink:0;text-align:center;padding:1px 0 6px;font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.05em}
@@ -1782,7 +1785,7 @@ function weekDayCol(ds,extraCls){
     const checkBtn=t.done
       ?`<button class="btn-del wt-tact wt-tact-l" onclick="event.stopPropagation();toggleTodo(${t.id})" style="color:var(--amber)" title="Reabrir tarea"><i class="ti ti-arrow-back-up"></i></button>`
       :`<button class="btn-del wt-tact wt-tact-l" onclick="event.stopPropagation();openCompleteTask(${t.id})" style="color:var(--amber)" title="Registrar horas / completar"><i class="ti ti-check"></i></button>`;
-    html+=`<div class="wt-ev wt-task-ev" draggable="true" ondragstart="startTimeDrag(event,'task',${t.id},${b.id})" ondragend="this.style.opacity='';_timeDrag={kind:null,id:null}" onclick="openEdit('todo',${t.id})" title="${tkTitle}" style="${doneStyle}${tkOverlap?'left:50%;':''}top:${topPct.toFixed(2)}%;height:${hPct.toFixed(2)}%"><div class="wt-evline1"><span class="wt-evtime">${b.time}</span>${urgencyBadge(t)}${taskDot(t,'margin-top:0')}<span class="wt-evtitle" style="${titleStyle}">${ttIcon(t)}${t.title}</span></div>${sh>=1?`<div class="wt-evline2"><span class="wt-evsched">${sh}h${t.estimateH?` / ${t.estimateH}h`:''}</span>${tproj?`<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">· ${tproj.name}</span>`:''}</div>`:''}${checkBtn}<button class="btn-del wt-tact wt-tact-r" onclick="event.stopPropagation();removeSchedBlock(${t.id},${b.id})" style="color:#E24B4A" title="Quitar de este día"><i class="ti ti-x"></i></button><div class="wt-resize" draggable="false" onclick="event.stopPropagation()" onmousedown="startTaskResize(event,${t.id},${b.id})" ontouchstart="startTaskResize(event,${t.id},${b.id})"></div></div>`;
+    html+=`<div class="wt-ev wt-task-ev" draggable="true" ondragstart="startTimeDrag(event,'task',${t.id},${b.id})" ondragend="this.style.opacity='';_timeDrag={kind:null,id:null}" onclick="openEdit('todo',${t.id})" title="${tkTitle}" style="${doneStyle}${tkOverlap?'left:50%;':''}top:${topPct.toFixed(2)}%;height:${hPct.toFixed(2)}%"><div class="wt-evline1"><span class="wt-evtime">${b.time}</span>${urgencyBadge(t)}${t.projectId?taskDot(t,'margin-top:0'):''}<span class="wt-evtitle" style="${titleStyle}">${ttIcon(t)}${t.title}</span></div>${sh>=1?`<div class="wt-evline2"><span class="wt-evsched">${sh}h${t.estimateH?` / ${t.estimateH}h`:''}</span>${tproj?`<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">· ${tproj.name}</span>`:''}</div>`:''}${checkBtn}<button class="btn-del wt-tact wt-tact-r" onclick="event.stopPropagation();removeSchedBlock(${t.id},${b.id})" style="color:#E24B4A" title="Quitar de este día"><i class="ti ti-x"></i></button><div class="wt-resize" draggable="false" onclick="event.stopPropagation()" onmousedown="startTaskResize(event,${t.id},${b.id})" ontouchstart="startTaskResize(event,${t.id},${b.id})"></div></div>`;
   });
   html+=`</div></div>`;
   return html;
@@ -1865,7 +1868,7 @@ function renderWeekMobile(){
     const d=addDays(s,i),ds=dStr(d),isT=ds===today;
     if(isT)todayIdx=i;
     const untimed=D.todos.filter(t=>t.date===ds&&!(t.sched&&t.sched.length)&&!t.done&&!t.fromIcs);
-    const alldayRow=untimed.length?`<div class="wm-allday" ondragover="event.preventDefault()" ondrop="dropOnAllDay(event,'${ds}')">${untimed.map(t=>`<div class="wm-chip" onclick="openEdit('todo',${t.id})" title="${(t.title||'').replace(/"/g,'&quot;')}">${urgencyBadge(t)}${taskDot(t,'flex-shrink:0')}<span style="${overdueStyle(t)}">${ttIcon(t)}${t.title}${t.rolledFrom?' <span class="rolled">↩</span>':''}</span><button class="btn-del" style="color:var(--amber)" onclick="event.stopPropagation();openCompleteTask(${t.id})" title="Completar"><i class="ti ti-check"></i></button><button class="btn-del" style="color:#E24B4A" onclick="event.stopPropagation();unscheduleTask(${t.id})" title="Quitar de este día"><i class="ti ti-x"></i></button></div>`).join('')}</div>`:'';
+    const alldayRow=untimed.length?`<div class="wm-allday" ondragover="event.preventDefault()" ondrop="dropOnAllDay(event,'${ds}')">${untimed.map(t=>`<div class="wm-chip" onclick="openEdit('todo',${t.id})" title="${(t.title||'').replace(/"/g,'&quot;')}">${urgencyBadge(t)}${t.projectId?taskDot(t,'flex-shrink:0;margin-top:0'):''}<span style="${overdueStyle(t)}">${ttIcon(t)}${t.title}${t.rolledFrom?' <span class="rolled">↩</span>':''}</span><button class="btn-del" style="color:var(--amber)" onclick="event.stopPropagation();openCompleteTask(${t.id})" title="Completar"><i class="ti ti-check"></i></button><button class="btn-del" style="color:#E24B4A" onclick="event.stopPropagation();unscheduleTask(${t.id})" title="Quitar de este día"><i class="ti ti-x"></i></button></div>`).join('')}</div>`:'';
     pages+=`<div class="wm-page">
       <div class="wm-head${isT?' wm-today':''}"><span class="wm-dname">${DAYS[d.getDay()]}</span> <span class="wm-dnum">${d.getDate()}</span></div>
       ${alldayRow}
