@@ -16,7 +16,7 @@
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#f7f6f3;--surface:#fff;--surface2:#f0efe9;--border:rgba(0,0,0,0.09);--border2:rgba(0,0,0,0.16);
+  --bg:#f7f6f3;--surface:#fff;--surface2:#f0efe9;--border:rgba(0,0,0,0.09);--border2:rgba(0,0,0,0.16);--mshade:rgba(0,0,0,0.045);
   --text:#1a1917;--text2:#6b6a65;--text3:#a09f9a;
   --accent:#534AB7;--accent-l:#EEEDFE;
   --green:#0F6E56;--green-l:#E1F5EE;
@@ -32,7 +32,7 @@
   --filters-h:23px;--filters-mb:12px;
 }
 html.dark:root{
-  --bg:#1a1917;--surface:#242320;--surface2:#2e2d29;--border:rgba(255,255,255,0.09);--border2:rgba(255,255,255,0.16);
+  --bg:#1a1917;--surface:#242320;--surface2:#2e2d29;--border:rgba(255,255,255,0.09);--border2:rgba(255,255,255,0.16);--mshade:rgba(255,255,255,0.06);
   --text:#f0efe9;--text2:#9e9d97;--text3:#5e5d58;
   --accent-l:#2a2660;--green-l:#0a2e25;--amber-l:#2e1f05;--red-l:#2e0f0f;--blue-l:#0c2340
 }
@@ -230,6 +230,8 @@ html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
 .mcell{background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);min-height:120px;padding:4px 5px;overflow:hidden;min-width:0}
 .mcell.weekend{background:var(--bg)}
 .mcell.today-cell{border-color:var(--accent)}
+/* alternating month bands (overlay, stacks over any cell background) */
+.mcell.mshade{background-image:linear-gradient(var(--mshade),var(--mshade))}
 .mcell.other{opacity:.4}
 .mc-n{font-size:12px;font-weight:600;margin-bottom:2px}
 .mc-n.tn{color:var(--accent)}
@@ -546,6 +548,8 @@ html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
   .mn-editor{min-height:80px;max-height:150px}
   .plan-bubble{font-size:7px;line-height:1;padding:0 3px;margin-top:1px;cursor:default}
   .mcell{min-height:60px;padding:3px 4px}
+  /* month view scrolls between months on mobile too */
+  #page-month.active #month-grid{height:calc(100dvh - 200px);overflow-y:auto;-webkit-overflow-scrolling:touch}
   /* Floating add button (To-dos / Ideas) replaces the top-right button */
   .fab-add-mobile{
     position:fixed;left:16px;
@@ -1975,10 +1979,7 @@ function changeWeek(d){S.weekStart=addDays(S.weekStart,d*7);renderWeek()}
 
 // ── MONTH ──────────────────────────────────────────────────────────────────
 let _monthScrollRaf=null,_shadeStyle=null;
-function updateMonthShading(y,m){
-  if(!_shadeStyle){_shadeStyle=document.createElement('style');_shadeStyle.id='month-shade';document.head.appendChild(_shadeStyle);}
-  _shadeStyle.textContent=`#month-grid .mcell:not([data-ym="${y}-${m}"]){opacity:.45}`;
-}
+function updateMonthShading(y,m){/* months are distinguished by alternating shading (mshade) at render — no dimming */}
 function onMonthGridScroll(){
   if(_monthScrollRaf)return;
   _monthScrollRaf=requestAnimationFrame(()=>{
@@ -2040,23 +2041,9 @@ function renderMonth(){
     return`<div class="${cellCls}" ${clickAttr} ${dragHandlers}><div class="mc-n${isT?' tn':''}">${cur.getDate()}</div><div class="mcdots">${dots}</div>${holBadge}${cusBadge}${vacBadge}${planBubbles}${hoursEl}</div>`;
   }
 
-  if(window.innerWidth<701){
-    // ── MOBILE: single month, no infinite scroll ─────────────────────────
-    if(_shadeStyle)_shadeStyle.textContent='';
-    grid.onscroll=null;
-    const last=new Date(y0,m0+1,0);
-    let html=`<div class="dow-row">${MON_DAYS.map(dy=>`<div class="dlabel">${dy}</div>`).join('')}</div>`;
-    let cur=new Date(y0,m0,1);
-    const fd=cur.getDay()||7;cur.setDate(cur.getDate()-(fd-1));
-    let safe=0;
-    while(cur<=last&&safe++<8){
-      html+=`<div class="mweek">`;
-      for(let i=0;i<7;i++){html+=cellHtml(cur,cur.getMonth()!==m0,true);cur.setDate(cur.getDate()+1);}
-      html+=`</div>`;
-    }
-    grid.innerHTML=html;
-  } else {
-    // ── DESKTOP: continuous 25-month scroll ──────────────────────────────
+  {
+    // ── Continuous 25-month scroll (mobile + desktop) ────────────────────
+    const isMob=window.innerWidth<701;
     const holCache={};
     function getHol(y){if(!holCache[y])holCache[y]=getHolidays(y);return holCache[y];}
     let startDate=new Date(y0,m0-12,1);
@@ -2090,9 +2077,10 @@ function renderMonth(){
         const cusBadge=isCus?`<span class="mc-badge mc-hol">Festivo</span>`:'';
         const vacBadge=isVac?`<span class="mc-badge mc-vac">Vacaciones</span>`:'';
         const isWeekend=cur.getDay()===0||cur.getDay()===6;
-        const cellCls=`mcell${isT?' today-cell':''}${isWeekend?' weekend':''}${(isHol||isCus)?' hol-cell':''}${isVac?' vac-cell':''}`;const cellYm=`${cur.getFullYear()}-${cur.getMonth()}`;
+        const shaded=((cur.getFullYear()*12+cur.getMonth())%2)===1;
+        const cellCls=`mcell${isT?' today-cell':''}${isWeekend?' weekend':''}${(isHol||isCus)?' hol-cell':''}${isVac?' vac-cell':''}${shaded?' mshade':''}`;const cellYm=`${cur.getFullYear()}-${cur.getMonth()}`;
         const cellPlans=(D.plans||[]).filter(p=>p.days&&p.days.includes(ds));
-        const planBubbles=cellPlans.map(p=>`<div class="plan-bubble" style="background:${p.color}" onclick="event.stopPropagation();removePlanFromDay(${p.id},'${ds}')" title="${(p.title||'').replace(/"/g,'&quot;')}">${(p.title||'').replace(/</g,'&lt;')}</div>`).join('');
+        const planBubbles=cellPlans.map(p=>`<div class="plan-bubble" style="background:${p.color}"${isMob?'':` onclick="event.stopPropagation();removePlanFromDay(${p.id},'${ds}')"`} title="${(p.title||'').replace(/"/g,'&quot;')}">${(p.title||'').replace(/</g,'&lt;')}</div>`).join('');
         const dragHandlers=`ondragover="event.preventDefault();this.classList.add('plan-drop-hover')" ondragleave="if(!this.contains(event.relatedTarget))this.classList.remove('plan-drop-hover')" ondrop="dropPlanOnDay(event,'${ds}')"`;
         const clickAttr=paint
           ?`onclick="toggleDayState('${ds}')" title="1 clic: vacaciones · 2 clics: festivo · 3 clics: quitar"`
