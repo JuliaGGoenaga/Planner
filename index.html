@@ -1575,7 +1575,7 @@ function urgencyBadge(t){
   const over=isOverdue(t);
   const bg=over?'#E24B4A':m[1];
   const ring=over?';box-shadow:0 0 0 2px #E24B4A66':'';
-  return`<span style="display:inline-flex;align-items:center;justify-content:center;width:13px;height:13px;border-radius:50%;background:${bg};color:#fff;font-size:8px;font-weight:700;line-height:1;flex-shrink:0${ring}" title="${over?'¡Fuera de plazo! ':''}${t.urgency==='high'?'Urgente':t.urgency==='med'?'Media':'Baja'}">${m[0]}</span>`;
+  return`<span style="display:inline-flex;align-items:center;justify-content:center;width:13px;min-width:13px;max-width:13px;height:13px;border-radius:50%;background:${bg};color:#fff;font-size:8px;font-weight:700;line-height:1;flex:0 0 13px${ring}" title="${over?'¡Fuera de plazo! ':''}${t.urgency==='high'?'Urgente':t.urgency==='med'?'Media':'Baja'}">${m[0]}</span>`;
 }
 function timeDiff(start,end){
   if(!start||!end)return null;
