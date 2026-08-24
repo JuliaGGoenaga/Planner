@@ -127,6 +127,7 @@ html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;background:
 .rolled{font-size:8px;background:var(--amber-l);color:var(--amber);border-radius:8px;padding:0 4px;margin-left:2px;vertical-align:middle}
 .day-adds{display:flex;gap:3px;margin-top:3px;flex-wrap:wrap}
 .dadd{background:none;border:1px dashed var(--border2);border-radius:3px;color:var(--text3);font-size:10px;padding:2px 4px;cursor:pointer;display:flex;align-items:center;gap:2px;font-family:inherit}
+@media(min-width:701px){.wk-viewtoggle{display:none}}
 .dadd:hover{color:var(--text2);background:var(--surface2)}
 
 /* ── WEEK TIME GRID (desktop only — mobile keeps normal scroll) ── */
@@ -524,11 +525,13 @@ html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
   #page-week.active .ph{flex-shrink:0}
   #page-week.active #week-grid{flex:1;min-height:0;overflow:hidden}
   .wm-strip{position:relative;display:flex;height:100%;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
-  .wm-page{flex:0 0 88%;scroll-snap-align:center;display:flex;flex-direction:column;min-width:0;padding:0 4px}
+  .wm-page{flex:0 0 66%;scroll-snap-align:start;display:flex;flex-direction:column;min-width:0;padding:0 4px}
   .wm-head{flex-shrink:0;text-align:center;padding:1px 0 6px;font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.05em}
   .wm-head .wm-dnum{font-size:17px;font-weight:800;color:var(--text)}
   .wm-head.wm-today .wm-dnum{color:#fff;background:var(--accent);border-radius:20px;padding:0 9px;display:inline-block}
-  .wm-allday{flex-shrink:0;display:flex;flex-direction:column;gap:3px;margin-bottom:5px;max-height:92px;overflow-y:auto}
+  .wm-allday{flex-shrink:0;display:flex;flex-direction:column;gap:3px;margin-bottom:5px;height:68px;overflow-y:auto}
+  .wm-allday.wm-allday-empty{background:var(--surface2);border:1px dashed var(--border);border-radius:var(--rs)}
+  .wm-chip .udot{margin-top:0}
   .wm-chip{display:flex;align-items:center;gap:4px;font-size:11px;padding:3px 6px;border-radius:6px;background:var(--amber-l);color:var(--amber)}
   .wm-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
   .wm-body{flex:1;min-height:0;display:flex;border:1px solid var(--border);border-radius:var(--rs);overflow:hidden;background:var(--surface)}
@@ -707,6 +710,7 @@ html.dark .cpick{box-shadow:0 0 0 1px rgba(255,255,255,0.2)}
               <button class="btn btn-sm" onclick="changeWeek(1)"><i class="ti ti-chevron-right"></i></button>
             </div>
             <button class="btn btn-sm" onclick="S.weekStart=getMonday(new Date());renderWeek()" title="Ir a la semana actual"><i class="ti ti-calendar-today"></i> Hoy</button>
+            <button class="btn btn-sm wk-viewtoggle" id="wk-view-btn" onclick="toggleWeekMobileView()" title="Cambiar vista"><i class="ti ti-list"></i> Lista</button>
             <button class="btn" onclick="openM('event')"><i class="ti ti-calendar-plus"></i> Event</button>
             <button class="btn btn-p" onclick="openM('todo')"><i class="ti ti-plus"></i> To-do</button>
             <button class="btn" id="mn-toggle-btn" onclick="toggleMeetingNotesMode()"><i class="ti ti-notebook"></i> Meeting Notes</button>
@@ -995,7 +999,7 @@ const NOTE_CATS=[
 const isMobile=()=>window.innerWidth<=700;
 
 // ── STATE ──────────────────────────────────────────────────────────────────
-let S={weekStart:getMonday(new Date()),monthDate:new Date(),yearDate:new Date(),filter:'all',noteFilter:'all',noteSort:'newest',mType:null,mDay:null,editId:null,mProjId:null,nextId:Date.now(),sidebarCollapsed:false,meetingNotesMode:false,yearPaintMode:false,monthPaintMode:false,selDay:todayStr(),todoGroupBy:'project',typeFilter:'all'};
+let S={weekStart:getMonday(new Date()),monthDate:new Date(),yearDate:new Date(),filter:'all',noteFilter:'all',noteSort:'newest',mType:null,mDay:null,editId:null,mProjId:null,nextId:Date.now(),sidebarCollapsed:false,meetingNotesMode:false,yearPaintMode:false,monthPaintMode:false,selDay:todayStr(),todoGroupBy:'project',typeFilter:'all',weekMobileView:'hours'};
 let D={events:[],todos:[],projects:[],timeblocks:[],meetingNotes:[],notes:[],topics:[
   {id:1,name:'Work',icon:'ti-briefcase'},
   {id:2,name:'Personal',icon:'ti-heart'},
@@ -1858,7 +1862,14 @@ function renderWeek(){
   html+=`</div>`; // end .wt-wrap
   document.getElementById('week-grid').innerHTML=html;
 }
+function _updateWeekViewBtn(){
+  const b=document.getElementById('wk-view-btn');if(!b)return;
+  b.innerHTML=S.weekMobileView==='list'?'<i class="ti ti-clock-hour-9"></i> Horas':'<i class="ti ti-list"></i> Lista';
+}
+function toggleWeekMobileView(){S.weekMobileView=S.weekMobileView==='list'?'hours':'list';renderWeek();}
 function renderWeekMobile(){
+  _updateWeekViewBtn();
+  if(S.weekMobileView==='list'){renderWeekMobileList();return;}
   // Horizontal day strip: swipe between days, hours vertical with tasks placed. Defaults to today.
   const today=todayStr(),s=S.weekStart;
   const HS=8,HE=21;
@@ -1868,22 +1879,52 @@ function renderWeekMobile(){
     const d=addDays(s,i),ds=dStr(d),isT=ds===today;
     if(isT)todayIdx=i;
     const untimed=D.todos.filter(t=>t.date===ds&&!(t.sched&&t.sched.length)&&!t.done&&!t.fromIcs);
-    const alldayRow=untimed.length?`<div class="wm-allday" ondragover="event.preventDefault()" ondrop="dropOnAllDay(event,'${ds}')">${untimed.map(t=>`<div class="wm-chip" onclick="openEdit('todo',${t.id})" title="${(t.title||'').replace(/"/g,'&quot;')}">${urgencyBadge(t)}${t.projectId?taskDot(t,'flex-shrink:0;margin-top:0'):''}<span style="${overdueStyle(t)}">${ttIcon(t)}${t.title}${t.rolledFrom?' <span class="rolled">↩</span>':''}</span><button class="btn-del" style="color:var(--amber)" onclick="event.stopPropagation();openCompleteTask(${t.id})" title="Completar"><i class="ti ti-check"></i></button><button class="btn-del" style="color:#E24B4A" onclick="event.stopPropagation();unscheduleTask(${t.id})" title="Quitar de este día"><i class="ti ti-x"></i></button></div>`).join('')}</div>`:'';
+    // Fixed-height "sin hora" strip (scrolls inside) so every day column starts at the same height
+    const alldayRow=`<div class="wm-allday${untimed.length?'':' wm-allday-empty'}" ondragover="event.preventDefault()" ondrop="dropOnAllDay(event,'${ds}')">${untimed.map(t=>`<div class="wm-chip" onclick="openEdit('todo',${t.id})" title="${(t.title||'').replace(/"/g,'&quot;')}">${urgencyBadge(t)}<span style="${overdueStyle(t)}">${ttIcon(t)}${t.title}${t.rolledFrom?' <span class="rolled">↩</span>':''}</span><button class="btn-del" style="color:var(--amber)" onclick="event.stopPropagation();openCompleteTask(${t.id})" title="Completar"><i class="ti ti-check"></i></button><button class="btn-del" style="color:#E24B4A" onclick="event.stopPropagation();unscheduleTask(${t.id})" title="Quitar de este día"><i class="ti ti-x"></i></button></div>`).join('')}</div>`;
     pages+=`<div class="wm-page">
       <div class="wm-head${isT?' wm-today':''}"><span class="wm-dname">${DAYS[d.getDay()]}</span> <span class="wm-dnum">${d.getDate()}</span></div>
       ${alldayRow}
       <div class="wm-body">${gutter}${weekDayCol(ds,'wm-col')}</div>
     </div>`;
   }
-  document.getElementById('week-grid').innerHTML=`<div class="wm-strip" id="wm-strip">${pages}</div>`;
+  const wg0=document.getElementById('week-grid');wg0.style.overflowY='hidden';
+  wg0.innerHTML=`<div class="wm-strip" id="wm-strip">${pages}</div>`;
   const strip=document.getElementById('wm-strip');
   if(strip){
     const idx=todayIdx>=0?todayIdx:0;
     requestAnimationFrame(()=>{
       const page=strip.children[idx];
-      if(page)strip.scrollLeft=Math.max(0,page.offsetLeft-(strip.clientWidth-page.offsetWidth)/2);
+      if(page)strip.scrollLeft=Math.max(0,page.offsetLeft-4);
     });
   }
+}
+function renderWeekMobileList(){
+  const today=todayStr(),s=S.weekStart;
+  let html='<div class="wgrid">';
+  for(let i=0;i<7;i++){
+    const d=addDays(s,i),ds=dStr(d),isT=ds===today;
+    const evs=allEvFor(ds),tds=D.todos.filter(t=>t.date===ds),tbs=D.timeblocks.filter(tb=>tb.date===ds);
+    html+=`<div class="dcol${isT?' today-col':''}">
+      <div class="dhead"><div class="dname">${DAYS[d.getDay()]}</div><div class="dnum${isT?' today':''}">${d.getDate()}</div></div>
+      <div class="dbody">
+        ${evs.map(ev=>{
+          const hasMN=D.meetingNotes&&D.meetingNotes.some(n=>n.eventRef===ev.id);
+          const mnBtn=`<button class="btn-del" onclick="event.stopPropagation();openMeetingNotes(${ev.id})" style="font-size:10px;padding:1px 2px;color:${hasMN?'var(--blue)':'var(--text3)'}" title="Meeting notes"><i class="ti ti-notebook"></i></button>`;
+          return ev.source
+            ?`<div class="ev ical" style="${ev.color?`border-left-color:${ev.color};color:${ev.color};background:${ev.color}18`:''}"><div style="display:flex;align-items:flex-start;gap:2px"><div style="flex:1"><span class="ev-time">${ev.time||'all-day'} · ${ev.source}</span>${ev.title}</div>${mnBtn}</div></div>`
+            :`<div class="ev" style="display:flex;align-items:flex-start;gap:3px"><div style="flex:1"><span class="ev-time">${ev.time||'all-day'}</span>${ev.title}</div>${mnBtn}<button class="btn-del" onclick="openEdit('event',${ev.id})" style="font-size:10px;padding:1px 2px"><i class="ti ti-pencil"></i></button><button class="btn-del" onclick="delEvent(${ev.id})" style="font-size:10px;padding:1px 2px"><i class="ti ti-x"></i></button></div>`;
+        }).join('')}
+        ${tbs.map(tb=>{const p=D.projects.find(p=>p.id===tb.projectId);const c=p?p.color:'var(--accent)';return`<div class="ev" style="border-left-color:${c};background:${c}18;color:${c};display:flex;align-items:flex-start;gap:3px"><div style="flex:1"><span class="ev-time">${tb.startTime} · ${tb.duration}h</span>${p?p.name:'Bloque'}</div><button class="btn-del" onclick="delTimeblock(${tb.id})" style="font-size:10px;padding:1px 2px;color:${c}"><i class="ti ti-x"></i></button></div>`;}).join('')}
+        ${tds.map(t=>`<div class="tr"><div class="chk${t.done?' on':''}" onclick="toggleTodo(${t.id})"></div>${urgencyBadge(t)}<div class="tl${t.done?' done':''}" style="flex:1;${overdueStyle(t)}">${ttIcon(t)}${t.title}${t.rolledFrom?'<span class="rolled">↩</span>':''}</div><button class="btn-del" onclick="openEdit('todo',${t.id})" style="font-size:9px;padding:1px 2px"><i class="ti ti-pencil"></i></button></div>`).join('')}
+        <div class="day-adds">
+          <button class="dadd" onclick="openMD('todo','${ds}')"><i class="ti ti-plus" style="font-size:9px"></i> task</button>
+          <button class="dadd" onclick="openMD('event','${ds}')"><i class="ti ti-plus" style="font-size:9px"></i> event</button>
+        </div>
+      </div>
+    </div>`;
+  }
+  html+='</div>';
+  const wg=document.getElementById('week-grid');wg.innerHTML=html;wg.style.overflowY='auto';wg.style.webkitOverflowScrolling='touch';
 }
 function startTimeDrag(e,kind,id,bid){
   _timeDrag={kind,id,bid:(bid==null?null:bid)};
