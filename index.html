@@ -533,7 +533,7 @@ html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
   .wm-allday.wm-allday-empty{background:var(--surface2);border:1px dashed var(--border);border-radius:var(--rs)}
   .wm-chip .udot{margin-top:0}
   .wm-chip{display:flex;align-items:center;gap:4px;font-size:11px;padding:3px 6px;border-radius:6px;background:var(--amber-l);color:var(--amber)}
-  .wm-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+  .wm-chip .wm-chip-t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
   .wm-body{flex:1;min-height:0;display:flex;border:1px solid var(--border);border-radius:var(--rs);overflow:hidden;background:var(--surface)}
   .wm-gutter{width:32px;flex-shrink:0;display:flex;flex-direction:column;background:var(--surface2);border-right:1px solid var(--border)}
   .wm-col{flex:1;min-width:0}
@@ -1880,7 +1880,7 @@ function renderWeekMobile(){
     if(isT)todayIdx=i;
     const untimed=D.todos.filter(t=>t.date===ds&&!(t.sched&&t.sched.length)&&!t.done&&!t.fromIcs);
     // Fixed-height "sin hora" strip (scrolls inside) so every day column starts at the same height
-    const alldayRow=`<div class="wm-allday${untimed.length?'':' wm-allday-empty'}" ondragover="event.preventDefault()" ondrop="dropOnAllDay(event,'${ds}')">${untimed.map(t=>`<div class="wm-chip" onclick="openEdit('todo',${t.id})" title="${(t.title||'').replace(/"/g,'&quot;')}">${urgencyBadge(t)}<span style="${overdueStyle(t)}">${ttIcon(t)}${t.title}${t.rolledFrom?' <span class="rolled">↩</span>':''}</span><button class="btn-del" style="color:var(--amber)" onclick="event.stopPropagation();openCompleteTask(${t.id})" title="Completar"><i class="ti ti-check"></i></button><button class="btn-del" style="color:#E24B4A" onclick="event.stopPropagation();unscheduleTask(${t.id})" title="Quitar de este día"><i class="ti ti-x"></i></button></div>`).join('')}</div>`;
+    const alldayRow=`<div class="wm-allday${untimed.length?'':' wm-allday-empty'}" ondragover="event.preventDefault()" ondrop="dropOnAllDay(event,'${ds}')">${untimed.map(t=>`<div class="wm-chip" onclick="openEdit('todo',${t.id})" title="${(t.title||'').replace(/"/g,'&quot;')}">${urgencyBadge(t)}<span class="wm-chip-t" style="${overdueStyle(t)}">${ttIcon(t)}${t.title}${t.rolledFrom?' <span class="rolled">↩</span>':''}</span><button class="btn-del" style="color:var(--amber)" onclick="event.stopPropagation();openCompleteTask(${t.id})" title="Completar"><i class="ti ti-check"></i></button><button class="btn-del" style="color:#E24B4A" onclick="event.stopPropagation();unscheduleTask(${t.id})" title="Quitar de este día"><i class="ti ti-x"></i></button></div>`).join('')}</div>`;
     pages+=`<div class="wm-page">
       <div class="wm-head${isT?' wm-today':''}"><span class="wm-dname">${DAYS[d.getDay()]}</span> <span class="wm-dnum">${d.getDate()}</span></div>
       ${alldayRow}
