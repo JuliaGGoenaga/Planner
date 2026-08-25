@@ -461,12 +461,16 @@ html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
 
 /* ── MEETING NOTES ── */
 .mn-btn-active{background:var(--blue) !important;color:#fff !important;border-color:var(--blue) !important}
-.mn-toolbar{display:flex;gap:3px;margin-bottom:4px}
+.mn-toolbar{display:flex;gap:3px;margin-bottom:4px;flex-wrap:wrap}
 .mn-tb-btn{background:var(--surface2);border:1px solid var(--border2);border-radius:3px;width:24px;height:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--text2);font-family:inherit}
 .mn-tb-btn:hover{background:var(--border2);color:var(--text)}
+.mn-tb-sep{width:1px;align-self:stretch;background:var(--border2);margin:2px 2px}
 .mn-editor{min-height:110px;max-height:260px;overflow-y:auto;border:1px solid var(--border2);border-radius:var(--rs);padding:5px 7px;background:var(--surface2);color:var(--text);font-size:13px;line-height:1.5;outline:none}
 .mn-editor:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:transparent}
 .mn-editor b,.mn-editor strong{font-weight:700}.mn-editor i,.mn-editor em{font-style:italic}
+.mn-editor u{text-decoration:underline}.mn-editor s,.mn-editor strike{text-decoration:line-through}
+.mn-editor h3{font-size:16px;font-weight:700;margin:4px 0 2px}
+.mn-editor ol{padding-left:20px}.mn-editor ul{padding-left:20px}
 .mn-editor[data-ph]:empty:before{content:attr(data-ph);color:var(--text3);pointer-events:none}
 .mn-badge{display:inline-flex;align-items:center;gap:3px;background:var(--blue-l);color:var(--blue);border-radius:10px;padding:1px 7px;font-size:9px;font-weight:600;margin:1px 2px 1px 0}
 .mn-ev-noted{position:absolute;bottom:2px;right:3px;font-size:8px;color:var(--blue);opacity:.8}
@@ -2791,7 +2795,7 @@ function buildM(){
     <div class="ff"><label>Título <span style="font-size:10px;color:var(--text3);font-weight:400">(opcional)</span></label><input id="m-t" placeholder="Título de la nota…"/></div>
     <div class="ff"><label>Contenido</label>
       ${_mnToolbar()}
-      <div class="mn-editor" id="m-body" contenteditable="true" spellcheck="true" data-ph="Escribe aquí…" style="min-height:160px;max-height:340px"></div>
+      <div class="mn-editor" id="m-body" contenteditable="true" spellcheck="true" data-ph="Escribe aquí…" style="min-height:300px;max-height:62vh"></div>
     </div>
     <div class="ff"><label>Categoría o proyecto</label>
       <select id="m-ncat">
@@ -2843,6 +2847,7 @@ function buildM(){
   document.getElementById('mbody').innerHTML=b;
   if(type==='monthtarget')mtPreview(monthCapacityNow());
   if(type==='forecast'){const mb=document.querySelector('.mbox');if(mb)mb.style.maxWidth='760px';fcRecalc();}
+  if(type==='note'){const mb=document.querySelector('.mbox');if(mb)mb.style.maxWidth='680px';}
   if(type==='todo'&&S.newTodoProj){const mp=document.getElementById('m-proj');if(mp)mp.value=S.newTodoProj;S.newTodoProj=null;}
   if(type==='logdaytask'){const mp=document.getElementById('m-proj');if(mp&&mp.value)filterDayTasks(mp.value);}
   const macts=document.getElementById('macts');
@@ -3457,11 +3462,26 @@ function toggleMeetingNotesMode(){
   if(btn)btn.className=S.meetingNotesMode?'btn mn-btn-active':'btn';
   renderWeek();
 }
+function mnCmd(cmd,val){document.execCommand('styleWithCSS',false,true);document.execCommand(cmd,false,val||null);}
+function mnBlock(tag){
+  // toggle a block format (title vs normal paragraph)
+  const cur=(document.queryCommandValue('formatBlock')||'').toLowerCase();
+  document.execCommand('formatBlock',false,cur===tag?'<div>':'<'+tag+'>');
+}
 function _mnToolbar(){
   return`<div class="mn-toolbar">
     <button type="button" class="mn-tb-btn" onmousedown="event.preventDefault();document.execCommand('bold')" title="Negrita"><b>B</b></button>
     <button type="button" class="mn-tb-btn" onmousedown="event.preventDefault();document.execCommand('italic')" title="Cursiva"><em>I</em></button>
-    <button type="button" class="mn-tb-btn" onmousedown="event.preventDefault();document.execCommand('insertUnorderedList')" title="Lista"><i class="ti ti-list" style="font-size:12px"></i></button>
+    <button type="button" class="mn-tb-btn" onmousedown="event.preventDefault();document.execCommand('underline')" title="Subrayado"><u>U</u></button>
+    <button type="button" class="mn-tb-btn" onmousedown="event.preventDefault();document.execCommand('strikeThrough')" title="Tachado"><s>S</s></button>
+    <span class="mn-tb-sep"></span>
+    <button type="button" class="mn-tb-btn" onmousedown="event.preventDefault();mnBlock('h3')" title="Título"><b style="font-size:13px">T</b></button>
+    <button type="button" class="mn-tb-btn" onmousedown="event.preventDefault();document.execCommand('insertUnorderedList')" title="Lista"><i class="ti ti-list" style="font-size:13px"></i></button>
+    <button type="button" class="mn-tb-btn" onmousedown="event.preventDefault();document.execCommand('insertOrderedList')" title="Lista numerada"><i class="ti ti-list-numbers" style="font-size:13px"></i></button>
+    <span class="mn-tb-sep"></span>
+    <button type="button" class="mn-tb-btn" onmousedown="event.preventDefault();mnCmd('hiliteColor','#FDE68A')" title="Resaltar"><i class="ti ti-highlight" style="font-size:13px"></i></button>
+    <button type="button" class="mn-tb-btn" onmousedown="event.preventDefault();mnCmd('foreColor','#534AB7')" title="Color de texto"><span style="color:#534AB7;font-weight:800">A</span></button>
+    <button type="button" class="mn-tb-btn" onmousedown="event.preventDefault();document.execCommand('removeFormat')" title="Quitar formato"><i class="ti ti-clear-formatting" style="font-size:13px"></i></button>
   </div>`;
 }
 function openMeetingNotes(evId){
