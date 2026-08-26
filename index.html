@@ -1507,7 +1507,7 @@ function doRollover(){
     if(t.time&&!t.sched){t.sched=[{id:nid(),date:t.date,time:t.time,schedH:t.schedH||0.5}];delete t.time;delete t.schedH;delete t.endTime;changed=true;}
     if(t.done)return;
     // roll the task's list date forward to today
-    if(t.date&&t.date<today){if(!t.rolledFrom)t.rolledFrom=t.date;t.date=today;changed=true;}
+    if(t.date&&t.date<today){if(!t.rolledFrom)t.rolledFrom=t.date;t.date=today;if(t.urgency!=='high')t.urgency='high';changed=true;}
     // drop scheduled blocks that belong to days already gone
     if(t.sched&&t.sched.length){const kept=t.sched.filter(b=>b.date&&b.date>=today);if(kept.length!==t.sched.length){if(kept.length)t.sched=kept;else delete t.sched;changed=true;}}
   });
@@ -2236,8 +2236,8 @@ function renderTodos(){
   else if(S.filter==='done')items=items.filter(t=>t.done);
   if(S.typeFilter==='mgmt')items=items.filter(t=>t.ttype==='mgmt');
   else if(S.typeFilter==='work')items=items.filter(t=>t.ttype==='work');
-  // Hide completed tasks created before this month (fall back to scheduled date if no creation date)
-  if(S.filter!=='done'){const curMonth=today.slice(0,7);items=items.filter(t=>{if(!t.done)return true;const ref=(t.createdAt||t.date||'').slice(0,7);return!(ref&&ref<curMonth);});}
+  // Hide completed tasks not from this month (by creation date, else scheduled date; no reference = treated as old)
+  if(S.filter!=='done'){const curMonth=today.slice(0,7);items=items.filter(t=>{if(!t.done)return true;const ref=(t.createdAt||t.date||'').slice(0,7);return ref>=curMonth;});}
   if(S.todoGroupBy==='project'){renderTodosByProject(items,today);return}
   const tc=t=>{
     const proj=t.projectId?D.projects.find(p=>p.id===t.projectId):null;
