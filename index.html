@@ -2236,6 +2236,8 @@ function renderTodos(){
   else if(S.filter==='done')items=items.filter(t=>t.done);
   if(S.typeFilter==='mgmt')items=items.filter(t=>t.ttype==='mgmt');
   else if(S.typeFilter==='work')items=items.filter(t=>t.ttype==='work');
+  // Hide completed tasks dated in a previous month (unless the "Done" filter is active)
+  if(S.filter!=='done'){const monthStart=today.slice(0,8)+'01';items=items.filter(t=>!(t.done&&t.date&&t.date<monthStart));}
   if(S.todoGroupBy==='project'){renderTodosByProject(items,today);return}
   const tc=t=>{
     const proj=t.projectId?D.projects.find(p=>p.id===t.projectId):null;
