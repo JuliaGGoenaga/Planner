@@ -2236,8 +2236,8 @@ function renderTodos(){
   else if(S.filter==='done')items=items.filter(t=>t.done);
   if(S.typeFilter==='mgmt')items=items.filter(t=>t.ttype==='mgmt');
   else if(S.typeFilter==='work')items=items.filter(t=>t.ttype==='work');
-  // Hide completed tasks from previous months (by completion date, else scheduled date, else creation date)
-  if(S.filter!=='done'){const curMonth=today.slice(0,7);items=items.filter(t=>{if(!t.done)return true;const ref=(t.completedAt||t.date||t.createdAt||'').slice(0,7);return!(ref&&ref<curMonth);});}
+  // Hide completed tasks created before this month (fall back to scheduled date if no creation date)
+  if(S.filter!=='done'){const curMonth=today.slice(0,7);items=items.filter(t=>{if(!t.done)return true;const ref=(t.createdAt||t.date||'').slice(0,7);return!(ref&&ref<curMonth);});}
   if(S.todoGroupBy==='project'){renderTodosByProject(items,today);return}
   const tc=t=>{
     const proj=t.projectId?D.projects.find(p=>p.id===t.projectId):null;
@@ -2336,7 +2336,6 @@ function toggleTodo(id,re){
   // Marking a project-assigned task as complete → prompt for hours + day
   if(!t.done&&t.projectId){openCompleteTask(id);return;}
   t.done=!t.done;
-  if(t.done)t.completedAt=new Date().toISOString();else delete t.completedAt;
   sched();
   if(re)renderTodos();else renderWeek();
 }
@@ -2991,15 +2990,15 @@ function saveM(){
         pid=selPid;if(!D.projects.find(p=>p.id===pid))return;
         // Reuse an existing task with the same name so hours sum; new ones default to completed
         let task=D.todos.find(t=>t.title===newTitle&&t.projectId===pid);
-        if(!task){task={id:nid(),title:newTitle,date:S.mDay||todayStr(),urgency:'med',done:true,projectId:pid,createdAt:new Date().toISOString(),completedAt:new Date().toISOString()};D.todos.push(task);}
-        else{task.done=true;task.completedAt=new Date().toISOString();}
+        if(!task){task={id:nid(),title:newTitle,date:S.mDay||todayStr(),urgency:'med',done:true,projectId:pid,createdAt:new Date().toISOString()};D.todos.push(task);}
+        else{task.done=true;}
         desc=newTitle;
       }else{
         const tid=parseInt(gv('m-task'));
         const task=D.todos.find(t=>t.id===tid);if(!task)return;
         pid=task.projectId||selPid; // log to the task's own project, or the selected one
         desc=task.title;
-        if(markDone){task.done=true;task.completedAt=new Date().toISOString();}
+        if(markDone)task.done=true;
       }
       const p=D.projects.find(p=>p.id===pid);if(!p)return;
       if(!p.manualEntries)p.manualEntries=[];
@@ -3007,7 +3006,7 @@ function saveM(){
     }
     else if(type==='completetask'){
       const t=D.todos.find(t=>t.id===S.completeTaskId);if(!t)return;
-      t.done=true;t.completedAt=new Date().toISOString();
+      t.done=true;
       const dur=parseFloat(gv('m-dur'))||0;
       const date=gv('m-d')||todayStr();
       if(dur>0&&t.projectId){
@@ -3023,7 +3022,7 @@ function saveM(){
       const date=gv('m-d')||todayStr();
       if(!p.manualEntries)p.manualEntries=[];
       p.manualEntries.push({id,date,hours:dur,desc:t.title});
-      const doneEl=document.getElementById('m-done');if(doneEl&&doneEl.checked){t.done=true;t.completedAt=new Date().toISOString();}
+      const doneEl=document.getElementById('m-done');if(doneEl&&doneEl.checked)t.done=true;
     }
     else if(type==='timeblock'){const pid=parseInt(gv('m-proj'));const dur=parseFloat(gv('m-dur'))||1;D.timeblocks.push({id,date:gv('m-d'),startTime:gv('m-time'),duration:dur,projectId:pid});const p=D.projects.find(p=>p.id===pid);if(p)p.hoursUsed=Math.round((p.hoursUsed+dur)*10)/10;}
     else if(type==='topic'){const n=gv('m-t').trim();if(!n)return;D.topics.push({id,name:n,icon:gv('m-icon')})}
