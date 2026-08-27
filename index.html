@@ -2371,8 +2371,9 @@ function dayLoggedH(ds){
   D.projects.forEach(p=>{
     (p.manualEntries||[]).filter(e=>e.date===ds).forEach(e=>h+=e.hours||0);
     D.timeblocks.filter(tb=>tb.projectId===p.id&&tb.date===ds).forEach(tb=>h+=tb.duration||0);
-    D.events.filter(e=>e.projectId===p.id&&e.date===ds&&e.duration).forEach(e=>h+=e.duration||0);
   });
+  // Events with logged hours count regardless of project (calendar events only when assigned to one)
+  D.events.filter(e=>e.date===ds&&e.duration&&(!e.fromIcs||e.projectId)).forEach(e=>h+=e.duration||0);
   return Math.round(h*10)/10;
 }
 function pickTask(el,id){
@@ -2935,23 +2936,20 @@ function saveM(){
       if(projectId)n.projectId=projectId;else delete n.projectId;
     }else if(type==='assignevent'){
       const pid=parseInt(gv('m-proj'))||null;
+      const dur=parseFloat(gv('m-dur'));
       // Reuse an existing copy: match by own id, or by icsRef to a calendar event already promoted
       let ev=D.events.find(e=>e.id===S.mEventId)||D.events.find(e=>e.icsRef===S.mEventId);
       // If still not found, it's a calendar (EXT) event not yet promoted - promote it once
       if(!ev){
-        if(!pid)return; // nothing to do: unassigning a calendar event that was never assigned
+        if(!pid&&!(dur>0))return; // nothing to do: no project and no hours on an unpromoted calendar event
         const extEv=EXT.find(e=>e.id===S.mEventId);if(!extEv)return;
         const dur0=extEv.endTime&&extEv.time?timeDiff(extEv.time,extEv.endTime):null;
         ev={id:nid(),title:extEv.title,date:extEv.date,time:extEv.time||'',endTime:extEv.endTime||'',duration:dur0||null,type:'ical',fromIcs:true,icsRef:extEv.id};
         D.events.push(ev);
       }
-      if(pid){
-        ev.projectId=pid;
-        const dur=parseFloat(gv('m-dur'));
-        if(dur>0)ev.duration=dur;
-      }else{
-        delete ev.projectId;delete ev.duration;
-      }
+      // Project and logged hours are independent: you can log hours to a meeting without a project
+      if(pid)ev.projectId=pid;else delete ev.projectId;
+      if(dur>0)ev.duration=dur;else delete ev.duration;
     }else if(type==='editmanual'){
       const dur=parseFloat(gv('m-dur'))||0;if(!dur)return;
       const oldP=D.projects.find(p=>p.id===S.mProjId);if(!oldP)return;
