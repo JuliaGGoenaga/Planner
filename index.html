@@ -2371,8 +2371,9 @@ function dayLoggedH(ds){
   D.projects.forEach(p=>{
     (p.manualEntries||[]).filter(e=>e.date===ds).forEach(e=>h+=e.hours||0);
     D.timeblocks.filter(tb=>tb.projectId===p.id&&tb.date===ds).forEach(tb=>h+=tb.duration||0);
-    D.events.filter(e=>e.projectId===p.id&&e.date===ds&&e.duration).forEach(e=>h+=e.duration||0);
   });
+  // Any stored event with logged hours counts (calendar events only exist here once the user has acted on them)
+  D.events.filter(e=>e.date===ds&&e.duration).forEach(e=>h+=e.duration||0);
   return Math.round(h*10)/10;
 }
 function pickTask(el,id){
@@ -2770,7 +2771,7 @@ function buildM(){
     b=`
     <div class="ff"><label>Evento</label><div style="font-size:12px;color:var(--text2);padding:6px;background:var(--surface2);border-radius:4px">${(ev.title||'').replace(/</g,'&lt;')}<div style="font-size:10px;color:var(--text3);margin-top:2px">${info}</div></div></div>
     <div class="ff"><label>Proyecto</label><select id="m-proj">${D.projects.length?projOpts:'<option value="">Crea un proyecto primero</option>'}</select></div>
-    <div class="ff"><label>Duración (horas)</label><input id="m-dur" type="number" min="0.25" step="0.25" value="${ev.duration||''}" placeholder="ej. 1.5"/></div>`;}
+    <div class="ff"><label>Horas dedicadas</label><input id="m-dur" type="number" min="0.25" step="0.25" value="${ev.duration||(ev.time&&ev.endTime?timeDiff(ev.time,ev.endTime):'')||''}" placeholder="ej. 1.5"/><div class="snote">Se cuentan como horas del día aunque no elijas proyecto.</div></div>`;}
   else if(type==='editmanual'){
     const p=D.projects.find(p=>p.id===S.mProjId);const e=p&&(p.manualEntries||[]).find(x=>x.id===ed);if(!e)return;
     const projOpts=D.projects.map(pp=>`<option value="${pp.id}"${pp.id===S.mProjId?' selected':''}>${pp.name}</option>`).join('');
@@ -2935,23 +2936,20 @@ function saveM(){
       if(projectId)n.projectId=projectId;else delete n.projectId;
     }else if(type==='assignevent'){
       const pid=parseInt(gv('m-proj'))||null;
+      const dur=parseFloat(gv('m-dur'));
       // Reuse an existing copy: match by own id, or by icsRef to a calendar event already promoted
       let ev=D.events.find(e=>e.id===S.mEventId)||D.events.find(e=>e.icsRef===S.mEventId);
       // If still not found, it's a calendar (EXT) event not yet promoted - promote it once
       if(!ev){
-        if(!pid)return; // nothing to do: unassigning a calendar event that was never assigned
+        if(!pid&&!(dur>0))return; // nothing to do: no project and no hours on an unpromoted calendar event
         const extEv=EXT.find(e=>e.id===S.mEventId);if(!extEv)return;
         const dur0=extEv.endTime&&extEv.time?timeDiff(extEv.time,extEv.endTime):null;
         ev={id:nid(),title:extEv.title,date:extEv.date,time:extEv.time||'',endTime:extEv.endTime||'',duration:dur0||null,type:'ical',fromIcs:true,icsRef:extEv.id};
         D.events.push(ev);
       }
-      if(pid){
-        ev.projectId=pid;
-        const dur=parseFloat(gv('m-dur'));
-        if(dur>0)ev.duration=dur;
-      }else{
-        delete ev.projectId;delete ev.duration;
-      }
+      // Project and logged hours are independent: you can log hours to a meeting without a project
+      if(pid)ev.projectId=pid;else delete ev.projectId;
+      if(dur>0)ev.duration=dur;else delete ev.duration;
     }else if(type==='editmanual'){
       const dur=parseFloat(gv('m-dur'))||0;if(!dur)return;
       const oldP=D.projects.find(p=>p.id===S.mProjId);if(!oldP)return;
@@ -3265,8 +3263,10 @@ function renderTodayPanel(){
   const sel=S.selDay||today;
   const selD=new Date(sel+'T00:00:00');
   const isToday=sel===today;
-  const extSel=EXT.filter(e=>e.date===sel&&e.time);const extSelIds=new Set(extSel.map(e=>e.id));
-  const evs=[...D.events.filter(e=>e.date===sel&&e.time&&(!e.fromIcs||!extSelIds.has(e.icsRef))),...extSel].sort((a,b)=>(a.time||'').localeCompare(b.time||''));
+  const extSel=EXT.filter(e=>e.date===sel&&e.time);
+  // For calendar events already promoted (assigned project/hours), show the stored copy, not the raw calendar one
+  const promotedRefs=new Set(D.events.filter(e=>e.fromIcs&&e.icsRef).map(e=>e.icsRef));
+  const evs=[...D.events.filter(e=>e.date===sel&&e.time),...extSel.filter(e=>!promotedRefs.has(e.id))].sort((a,b)=>(a.time||'').localeCompare(b.time||''));
   // Tasks scheduled (block) on this day — shown with their hour
   const schedByTask={};
   D.todos.forEach(t=>{if(t.done)return;(t.sched||[]).forEach(b=>{if(b.date===sel&&(!schedByTask[t.id]||b.time<schedByTask[t.id].time))schedByTask[t.id]={...t,_kind:'task',time:b.time};});});
@@ -3282,7 +3282,7 @@ function renderTodayPanel(){
   const assignedH=Math.round((
     D.projects.reduce((s,p)=>s+(p.manualEntries||[]).filter(e=>e.date===sel).reduce((a,e)=>a+(e.hours||0),0),0)
     +D.timeblocks.filter(tb=>tb.date===sel).reduce((s,tb)=>s+(tb.duration||0),0)
-    +D.events.filter(e=>e.date===sel&&e.duration&&(!e.fromIcs||e.projectId)).reduce((s,e)=>s+(e.duration||0),0)
+    +D.events.filter(e=>e.date===sel&&e.duration).reduce((s,e)=>s+(e.duration||0),0)
   )*10)/10;
   let html=`<div class="mtp-head">
     <i class="ti ti-calendar-today" style="font-size:11px"></i>
@@ -3308,10 +3308,10 @@ function renderTodayPanel(){
     allItems.forEach(item=>{
       if(item._kind==='ev'){
         const c=item.color||(item.source?'var(--blue)':'var(--accent)');
-        const dur=item.endTime&&item.time?timeDiff(item.time,item.endTime):null;
+        const dur=item.duration||(item.endTime&&item.time?timeDiff(item.time,item.endTime):null);
         const safeTitle=(item.title||'').replace(/</g,'&lt;').replace(/>/g,'&gt;');
         const isExt=!!item.source;
-        const isUnassigned=!item.projectId;
+        const isUnassigned=!item.projectId&&!item.duration;
         const eid=JSON.stringify(item.id).replace(/"/g,'&quot;');
         const click=`onclick="openEventAssign(${eid})"`;
         html+=`<div class="mtp-item" ${click} style="cursor:pointer${isUnassigned?';opacity:.7;border:1px dashed var(--border);border-radius:4px;padding:6px;margin:-4px -2px':''}">          <div class="mtp-time">${item.time||''}</div>          <div style="width:2px;background:${c};border-radius:1px;flex-shrink:0;align-self:stretch"></div>
