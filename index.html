@@ -374,16 +374,13 @@ html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
 .ichip.ichip-task .ti-sparkles{display:none}
 .ichip.ichip-done .ichip-t{text-decoration:line-through;color:var(--text3)}
 .ichip.ichip-done{opacity:.75}
-.ichk{width:14px;height:14px;border:1.5px solid var(--border2);border-radius:4px;flex-shrink:0;cursor:pointer;margin-top:1px;position:relative}
-.ichk.on{background:var(--green);border-color:var(--green)}
-.ichk.on::after{content:'✓';color:#fff;font-size:9px;line-height:1;position:absolute;top:1px;left:2px}
-.idel{background:none;border:none;cursor:pointer;color:var(--text3);padding:1px;opacity:0}
-.ichip:hover .idel{opacity:1}
-.idel:hover{color:var(--red)}
-.ichip-conv{background:none;border:none;cursor:pointer;color:var(--text3);padding:1px 2px;border-radius:3px;opacity:0;font-family:inherit;line-height:1;flex-shrink:0}
-.ichip:hover .ichip-conv{opacity:1}
-@media(hover:none){.idel,.ichip-conv{opacity:.6}}
-.ichip-conv:hover{color:var(--green);background:var(--green-l)}
+.iact{background:none;border:none;cursor:pointer;color:var(--text3);padding:1px 2px;border-radius:3px;opacity:.6;font-family:inherit;line-height:1;flex-shrink:0}
+.iact:hover{opacity:1}
+.idone.on{opacity:1;color:var(--green)}
+.idel{background:none;border:none;cursor:pointer;color:var(--text3);padding:1px 2px;border-radius:3px;opacity:.6;flex-shrink:0;line-height:1}
+.idel:hover{opacity:1;color:var(--red)}
+.ichip-conv{background:none;border:none;cursor:pointer;color:var(--text3);padding:1px 2px;border-radius:3px;opacity:.6;font-family:inherit;line-height:1;flex-shrink:0}
+.ichip-conv:hover{opacity:1;color:var(--green);background:var(--green-l)}
 .ichip.ichip-task .ichip-conv{opacity:1;color:var(--green)}
 
 /* ── SETUP ── */
@@ -2593,10 +2590,10 @@ function renderIdeas(){
           const convTitle=linked?'Tarea creada — clic para desvincular':'Convertir en tarea';
           const convIcon=linked?'ti-checks':'ti-arrow-right';
           return`<div class="ichip${cls}${idea.done?' ichip-done':''}" onclick="openEdit('idea',${idea.id})" title="Clic para editar la idea">
-          <div class="ichk${idea.done?' on':''}" onclick="event.stopPropagation();toggleIdea(${idea.id})" title="Marcar como completada"></div>
           <i class="ti ti-sparkles"></i>${linked?'<i class="ti ti-check" style="flex-shrink:0;font-size:10px"></i>':''}<span class="ichip-t" style="flex:1">${idea.text}</span>
-          <button class="ichip-conv" onclick="event.stopPropagation();ideaToTask(${idea.id})" title="${convTitle}"><i class="ti ${convIcon}" style="font-size:10px"></i></button>
-          <button class="idel" onclick="event.stopPropagation();delIdea(${idea.id})" title="Borrar idea"><i class="ti ti-x" style="font-size:10px"></i></button>
+          <button class="iact idone${idea.done?' on':''}" onclick="event.stopPropagation();toggleIdea(${idea.id})" title="${idea.done?'Marcar como no completada':'Marcar como completada'}"><i class="ti ti-${idea.done?'circle-check-filled':'circle-check'}" style="font-size:13px"></i></button>
+          <button class="ichip-conv" onclick="event.stopPropagation();ideaToTask(${idea.id})" title="${convTitle}"><i class="ti ${convIcon}" style="font-size:11px"></i></button>
+          <button class="idel" onclick="event.stopPropagation();delIdea(${idea.id})" title="Borrar idea"><i class="ti ti-x" style="font-size:11px"></i></button>
         </div>`;}).join('')}
         ${!ideas.length?`<div style="font-size:11px;color:var(--text3);padding:6px 3px">No ideas yet</div>`:''}
       </div></div>`;
