@@ -472,8 +472,16 @@ html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
 .mn-editor:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:transparent}
 .mn-editor b,.mn-editor strong{font-weight:700}.mn-editor i,.mn-editor em{font-style:italic}
 .mn-editor u{text-decoration:underline}.mn-editor s,.mn-editor strike{text-decoration:line-through}
+.mn-editor h2{font-size:19px;font-weight:800;margin:6px 0 2px}
 .mn-editor h3{font-size:16px;font-weight:700;margin:4px 0 2px}
 .mn-editor ol{padding-left:20px}.mn-editor ul{padding-left:20px}
+/* read-only note view */
+.mn-view{font-size:14px;line-height:1.6;max-height:74vh;overflow-y:auto;word-break:break-word;color:var(--text)}
+.mn-view h2{font-size:19px;font-weight:800;margin:8px 0 3px}
+.mn-view h3{font-size:16px;font-weight:700;margin:6px 0 2px}
+.mn-view ul,.mn-view ol{padding-left:22px;margin:4px 0}
+.mn-view a{color:var(--accent);text-decoration:underline;word-break:break-all}
+.mn-view u{text-decoration:underline}.mn-view s,.mn-view strike{text-decoration:line-through}
 .mn-editor[data-ph]:empty:before{content:attr(data-ph);color:var(--text3);pointer-events:none}
 .mn-badge{display:inline-flex;align-items:center;gap:3px;background:var(--blue-l);color:var(--blue);border-radius:10px;padding:1px 7px;font-size:9px;font-weight:600;margin:1px 2px 1px 0}
 .mn-ev-noted{position:absolute;bottom:2px;right:3px;font-size:8px;color:var(--blue);opacity:.8}
@@ -2440,19 +2448,23 @@ function renderProjects(){
     const totalH=Math.round((manualH+tbH+evH)*10)/10;
     // Planned & completion are based on the month's selected tasks
     const estH=Math.round(monthTasks.reduce((s,t)=>s+(t.estimateH||0),0)*10)/10;
-    const doneH=Math.round(monthTasks.reduce((s,t)=>s+taskLoggedH(t),0)*10)/10;
-    // Meta (previsto): a manual % of the month's capacity overrides the sum of task estimates
+    // Meta (previsto) del proyecto: % de la capacidad del mes (ocupación) o, si no, la suma de horas previstas
     const metaH=p.monthTargetPct?Math.round(p.monthTargetPct/100*goal*10)/10:estH;
     plannedEst+=metaH;loggedTotal+=totalH;
-    const compPct=metaH>0?Math.min(100,Math.round(doneH/metaH*100)):(goal>0?Math.min(100,Math.round(totalH/goal*100)):0);
+    // La barra compara las horas DEDICADAS (registradas este mes) con la meta del proyecto
+    const compPct=metaH>0?Math.min(100,Math.round(totalH/metaH*100)):0;
+    // Also show tasks with hours logged this month even if completed / not in the month plan
+    const loggedTitles=new Set(manualEntries.map(e=>e.desc));
+    const extraLogged=allProjectTasks.filter(t=>!monthTasks.includes(t)&&loggedTitles.has(t.title));
+    const displayTasks=[...monthTasks,...extraLogged];
     // Manual entries not tied to any project task (e.g. from done/old tasks) — shown as their own struck rows
     const taskTitleSet=new Set(allProjectTasks.map(t=>t.title));
     const orphanManual={};
     manualEntries.forEach(e=>{const d=(e.desc||'Horas manuales');if(taskTitleSet.has(d))return;orphanManual[d]=Math.round(((orphanManual[d]||0)+(e.hours||0))*10)/10;});
     const orphanEntries=Object.entries(orphanManual);
-    const taskRows=(monthTasks.length||tbEntries.length||orphanEntries.length)?`<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:7px">
+    const taskRows=(displayTasks.length||tbEntries.length||orphanEntries.length)?`<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:7px">
       <div style="font-size:9px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">Tareas del mes</div>
-      ${monthTasks.map(t=>{
+      ${displayTasks.map(t=>{
         const accH=taskLoggedH(t);
         return`<div onclick="openEdit('todo',${t.id})" title="Editar tarea" style="cursor:pointer;font-size:10px;color:${t.done?'var(--text3)':'var(--text2)'};display:flex;align-items:center;gap:4px;padding:2px 0${t.done?';opacity:.7':''}">
         <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${t.done?'text-decoration:line-through':overdueStyle(t)}">${ttIcon(t)}${t.done?'✓':'○'} ${t.title}${t.date?` <span style="color:var(--text3);font-size:9px">${fmtS(new Date(t.date))}</span>`:'<span style="color:var(--text3);font-size:9px"> · sin fecha</span>'}</span>
@@ -2487,7 +2499,7 @@ function renderProjects(){
       </div>
       <div class="pdesc">${p.desc||''}</div>
       <div class="phrow"><span style="font-weight:600;color:${p.color}">${totalH}h este mes</span><span class="meta-chip" onclick="openMonthTarget(${p.id})" title="Fijar meta mensual (% del total del mes)" style="cursor:pointer;text-decoration:underline dotted;text-underline-offset:2px">meta ${metaH}h${p.monthTargetPct?` · ${p.monthTargetPct}%`:''}</span></div>
-      ${(metaH>0||manualH>0||tbH>0||evH>0)?`<div class="phrow" style="font-size:10px;color:var(--text3);margin-top:-4px;margin-bottom:4px"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${(manualH>0||tbH>0||evH>0)?`${manualH}h manuales${tbH>0?` · ${tbH}h bloques`:''}${evH>0?` · ${evH}h eventos`:''}`:''}</span>${metaH>0?`<span style="flex-shrink:0;padding-left:6px">${doneH}h / ${metaH}h · ${compPct}%</span>`:''}</div>`:''}
+      ${(metaH>0||manualH>0||tbH>0||evH>0)?`<div class="phrow" style="font-size:10px;color:var(--text3);margin-top:-4px;margin-bottom:4px"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${(manualH>0||tbH>0||evH>0)?`${manualH}h manuales${tbH>0?` · ${tbH}h bloques`:''}${evH>0?` · ${evH}h eventos`:''}`:''}</span>${metaH>0?`<span style="flex-shrink:0;padding-left:6px">${totalH}h / ${metaH}h · ${compPct}%</span>`:''}</div>`:''}
       <div class="hbar"><div class="hfill" style="width:${compPct}%;background:${p.color}"></div></div>
       <div class="pacts">
         <button class="btn btn-sm" onclick="openMonthTasks(${p.id})"><i class="ti ti-calendar-check"></i> Tareas del mes</button>
@@ -2814,6 +2826,10 @@ function buildM(){
       </select>
     </div>`;
   }
+  else if(type==='noteview'){
+    const n=D.notes.find(x=>x.id===S.editId);
+    b=n?`<div id="note-view" class="mn-view">${n.body||'<span style="color:var(--text3)">(nota vacía)</span>'}</div>`:'';
+  }
   else if(type==='plan')b=`
     <div class="ff"><label>Nombre del plan</label><input id="m-t" placeholder="Ej. Viaje a París, Sprint de diseño…"/></div>
     <div class="ff"><label>Color</label>
@@ -2857,6 +2873,12 @@ function buildM(){
   if(type==='monthtarget')mtPreview(monthCapacityNow());
   if(type==='forecast'){const mb=document.querySelector('.mbox');if(mb)mb.style.maxWidth='760px';fcRecalc();}
   if(type==='note'){const mb=document.querySelector('.mbox');if(mb)mb.style.maxWidth='680px';}
+  if(type==='noteview'){
+    const n=D.notes.find(x=>x.id===S.editId);
+    document.getElementById('mtitle').textContent=(n&&n.title)||'Nota';
+    const mb=document.querySelector('.mbox');if(mb)mb.style.maxWidth='680px';
+    _linkify(document.getElementById('note-view'));
+  }
   if(type==='todo'&&S.newTodoProj){const mp=document.getElementById('m-proj');if(mp)mp.value=S.newTodoProj;S.newTodoProj=null;}
   if(type==='logdaytask'){const mp=document.getElementById('m-proj');if(mp&&mp.value)filterDayTasks(mp.value);}
   const macts=document.getElementById('macts');
@@ -2866,6 +2888,7 @@ function buildM(){
     else if(type==='monthtasks')macts.innerHTML=`<button class="btn btn-p" onclick="closeM()">Listo</button>`;
     else if(type==='monthtarget')macts.innerHTML=`<button class="btn" style="color:#E24B4A;border-color:#E24B4A66;margin-right:auto" onclick="clearMonthTarget()">Quitar meta</button><button class="btn" onclick="closeM()">Cancelar</button><button class="btn btn-p" onclick="saveM()">Guardar</button>`;
     else if(type==='forecast')macts.innerHTML=`<button class="btn" onclick="closeM()">Cancelar</button><button class="btn btn-p" onclick="saveM()">Guardar</button>`;
+    else if(type==='noteview')macts.innerHTML=`<button class="btn" onclick="closeM()">Cerrar</button><button class="btn btn-p" onclick="openEdit('note',${S.editId})"><i class="ti ti-pencil"></i> Editar</button>`;
     else macts.innerHTML=`<button class="btn" onclick="closeM()">Cancel</button><button class="btn btn-p" onclick="saveM()">Save</button>`;
   }
   document.getElementById('mo').classList.add('open');
@@ -3483,14 +3506,35 @@ function _mnToolbar(){
     <button type="button" class="mn-tb-btn" onmousedown="event.preventDefault();document.execCommand('underline')" title="Subrayado"><u>U</u></button>
     <button type="button" class="mn-tb-btn" onmousedown="event.preventDefault();document.execCommand('strikeThrough')" title="Tachado"><s>S</s></button>
     <span class="mn-tb-sep"></span>
-    <button type="button" class="mn-tb-btn" onmousedown="event.preventDefault();mnBlock('h3')" title="Título"><b style="font-size:13px">T</b></button>
-    <button type="button" class="mn-tb-btn" onmousedown="event.preventDefault();document.execCommand('insertUnorderedList')" title="Lista"><i class="ti ti-list" style="font-size:13px"></i></button>
+    <button type="button" class="mn-tb-btn" onmousedown="event.preventDefault();mnBlock('h2')" title="Título"><b style="font-size:14px">T</b></button>
+    <button type="button" class="mn-tb-btn" onmousedown="event.preventDefault();mnBlock('h3')" title="Subtítulo"><b style="font-size:11px">t</b></button>
+    <button type="button" class="mn-tb-btn" onmousedown="event.preventDefault();document.execCommand('insertUnorderedList')" title="Lista con viñetas"><i class="ti ti-list" style="font-size:13px"></i></button>
     <button type="button" class="mn-tb-btn" onmousedown="event.preventDefault();document.execCommand('insertOrderedList')" title="Lista numerada"><i class="ti ti-list-numbers" style="font-size:13px"></i></button>
     <span class="mn-tb-sep"></span>
     <button type="button" class="mn-tb-btn" onmousedown="event.preventDefault();mnCmd('hiliteColor','#FDE68A')" title="Resaltar"><i class="ti ti-highlight" style="font-size:13px"></i></button>
     <button type="button" class="mn-tb-btn" onmousedown="event.preventDefault();mnCmd('foreColor','#534AB7')" title="Color de texto"><span style="color:#534AB7;font-weight:800">A</span></button>
     <button type="button" class="mn-tb-btn" onmousedown="event.preventDefault();document.execCommand('removeFormat')" title="Quitar formato"><i class="ti ti-clear-formatting" style="font-size:13px"></i></button>
   </div>`;
+}
+function openNoteView(id){S.mType='noteview';S.editId=id;S.mDay=null;buildM();}
+// Make links clickable in the read-only note view: existing <a> open in a new tab, and bare URLs become links
+function _linkify(el){
+  if(!el)return;
+  el.querySelectorAll('a').forEach(a=>{a.target='_blank';a.rel='noopener noreferrer';});
+  const rx=/(https?:\/\/[^\s<]+)/;
+  const walk=node=>{
+    [...node.childNodes].forEach(c=>{
+      if(c.nodeType===3){
+        const t=c.nodeValue;
+        if(rx.test(t)){
+          const span=document.createElement('span');
+          span.innerHTML=t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/(https?:\/\/[^\s<]+)/g,'<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+          c.replaceWith(span);
+        }
+      }else if(c.nodeType===1&&c.tagName!=='A'){walk(c);}
+    });
+  };
+  walk(el);
 }
 function openMeetingNotes(evId){
   const ev=[...D.events,...EXT].find(e=>e.id===evId);
@@ -3566,12 +3610,13 @@ function renderNotes(){
     const cat=n.category?NOTE_CATS.find(c=>c.id===n.category):null;
     const proj=n.projectId?D.projects.find(p=>p.id===n.projectId):null;
     const badge=cat?`<span style="font-size:9px;color:${cat.color};background:${cat.color}18;padding:1px 5px;border-radius:8px;flex-shrink:0">${cat.label}</span>`:proj?`<span style="font-size:9px;color:${proj.color};background:${proj.color}18;padding:1px 5px;border-radius:8px;flex-shrink:0">${proj.name}</span>`:'';
-    return`<div class="note-card" onclick="openEdit('note',${n.id})">
+    return`<div class="note-card" onclick="openNoteView(${n.id})">
       <div class="note-card-head">
         <i class="ti ti-file-text" style="font-size:14px;color:var(--text3);flex-shrink:0;margin-top:1px"></i>
         <div class="note-card-title">${safeTitle}</div>
         ${badge}
         <span style="font-size:9px;color:var(--text3);white-space:nowrap;flex-shrink:0">${when}</span>
+        <button class="btn-del" onclick="event.stopPropagation();openEdit('note',${n.id})" style="flex-shrink:0;padding:2px 4px" title="Editar"><i class="ti ti-pencil" style="font-size:12px"></i></button>
         <button class="btn-del" onclick="event.stopPropagation();delNote(${n.id})" style="color:var(--red);flex-shrink:0;padding:2px 4px"><i class="ti ti-trash" style="font-size:12px"></i></button>
       </div>
       ${preview?`<div class="note-card-preview">${preview.replace(/</g,'&lt;')}${(n.body||'').length>130?'\u2026':''}</div>`:''}
