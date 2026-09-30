@@ -2515,7 +2515,7 @@ function renderProjects(){
 function renderOccupation(goal,plannedEst,loggedTotal,month,vacH,vacDays){
   const side=document.getElementById('proj-side');if(!side)return;
   const mesName=MESES[month-1];
-  if(goal<=0){side.innerHTML=`<div class="occ-card" onclick="openForecast()" style="cursor:pointer"><div class="occ-title"><i class="ti ti-gauge"></i> Ocupación · ${mesName}</div><div style="font-size:12px;color:var(--text3)">Mes sin horas laborables.</div><div style="font-size:10px;color:var(--accent);margin-top:8px"><i class="ti ti-chart-bar"></i> Previsión a 6 meses</div></div>`;return;}
+  if(goal<=0){side.innerHTML=`<div class="occ-card" onclick="openForecast()" style="cursor:pointer"><div class="occ-title"><i class="ti ti-gauge"></i> Ocupación · ${mesName}</div><div style="font-size:12px;color:var(--text3)">Mes sin horas laborables.</div><div style="display:flex;gap:12px;margin-top:8px;font-size:10px"><span style="color:var(--accent);cursor:pointer"><i class="ti ti-chart-bar"></i> Previsión 6 meses</span><span style="color:var(--accent);cursor:pointer" onclick="event.stopPropagation();openPastDedication()"><i class="ti ti-history"></i> Dedicación pasada</span></div></div>`;return;}
   const occupied=Math.round((plannedEst+vacH)*10)/10;
   const occPct=Math.round(occupied/goal*100);
   const col=occPct>100?'var(--red)':occPct>=80?'var(--amber)':'var(--green)';
@@ -2529,7 +2529,10 @@ function renderOccupation(goal,plannedEst,loggedTotal,month,vacH,vacDays){
     <div class="occ-row"><span>Registrado</span><b>${Math.round(loggedTotal*10)/10}h</b></div>
     ${vacH>0?`<div style="font-size:10px;color:var(--text3);margin-top:6px;line-height:1.4"><i class="ti ti-beach"></i> ${vacH} h (${vacDays} ${vacDays===1?'día':'días'}) de vacaciones, contadas como previstas.</div>`:''}
     ${occPct>100?'<div style="font-size:10px;color:var(--red);margin-top:6px;line-height:1.4">Has previsto más horas de las disponibles este mes.</div>':''}
-    <div style="font-size:10px;color:var(--accent);margin-top:8px"><i class="ti ti-chart-bar"></i> Previsión a 6 meses</div>
+    <div style="display:flex;gap:12px;margin-top:8px;font-size:10px">
+      <span style="color:var(--accent);cursor:pointer"><i class="ti ti-chart-bar"></i> Previsión 6 meses</span>
+      <span style="color:var(--accent);cursor:pointer" onclick="event.stopPropagation();openPastDedication()"><i class="ti ti-history"></i> Dedicación pasada</span>
+    </div>
   </div>`;
 }
 function removeFromMonth(id){const t=D.todos.find(t=>t.id===id);if(!t)return;delete t.monthPlan;sched();renderProjects();}
@@ -2564,6 +2567,26 @@ function nextNMonths(n){
   return out;
 }
 function openForecast(){S.mType='forecast';S.mDay=null;S.editId=null;S.mProjId=null;buildM();}
+function recentNMonths(n){
+  const out=[];const d=new Date();d.setDate(1);
+  for(let i=0;i<n;i++){
+    const y=d.getFullYear(),m=d.getMonth()+1;const ym=`${y}-${String(m).padStart(2,'0')}`;
+    const holidays=Object.keys(getHolidays(y)).filter(x=>x.startsWith(ym));
+    const customHols=(D.customHolidays||[]).filter(x=>x.startsWith(ym));
+    const cap=monthlyGoalHours(y,m,[...new Set([...holidays,...customHols])]);
+    out.push({ym,label:MESES[m-1].slice(0,3)+' '+String(y).slice(2),cap});
+    d.setMonth(d.getMonth()-1);
+  }
+  return out; // most recent first
+}
+function projMonthHours(p,ym){
+  let h=0;
+  (p.manualEntries||[]).forEach(e=>{if(e.date&&e.date.startsWith(ym))h+=e.hours||0;});
+  D.timeblocks.forEach(tb=>{if(tb.projectId===p.id&&tb.date&&tb.date.startsWith(ym))h+=tb.duration||0;});
+  D.events.forEach(e=>{if(e.projectId===p.id&&e.date&&e.date.startsWith(ym)&&e.duration)h+=e.duration||0;});
+  return Math.round(h*10)/10;
+}
+function openPastDedication(){S.mType='pastded';S.mDay=null;S.editId=null;S.mProjId=null;buildM();}
 function fcRecalc(){
   if(!_fcCtx)return;
   _fcCtx.forEach(mo=>{
@@ -2696,7 +2719,7 @@ function openEdit(type,id){
 }
 function buildM(){
   const type=S.mType,day=S.mDay||(type==='todo'?'':todayStr()),ed=S.editId;
-  const addT={todo:'Add to-do',event:'Add event',project:'New project',timeblock:'Add time block',topic:'New topic',idea:'New idea',note:'Nueva nota',plan:'Nuevo plan',loghours:'Registrar horas manuales',logdaytask:'Registrar horas del día',assignevent:'Asignar evento a proyecto',completetask:'Completar tarea — registrar horas',taskhours:'Registrar horas de la tarea',monthtasks:'Tareas de este mes',monthtarget:'Meta mensual del proyecto',forecast:'Previsión a 6 meses'};
+  const addT={todo:'Add to-do',event:'Add event',project:'New project',timeblock:'Add time block',topic:'New topic',idea:'New idea',note:'Nueva nota',plan:'Nuevo plan',loghours:'Registrar horas manuales',logdaytask:'Registrar horas del día',assignevent:'Asignar evento a proyecto',completetask:'Completar tarea — registrar horas',taskhours:'Registrar horas de la tarea',monthtasks:'Tareas de este mes',monthtarget:'Meta mensual del proyecto',forecast:'Previsión a 6 meses',pastded:'Dedicación pasada'};
   const edtT={todo:'Edit to-do',event:'Edit event',project:'Edit project',topic:'Edit topic',idea:'Edit idea',note:'Editar nota',assignevent:'Asignar evento a proyecto',editmanual:'Editar registro de horas'};
   document.getElementById('mtitle').textContent=(ed?edtT[type]:addT[type])||'Add';
   const projOpts='<option value="">— None —</option>'+D.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
@@ -2871,9 +2894,23 @@ function buildM(){
       <div style="font-size:10px;color:var(--text3);margin-top:8px">Las horas se calculan sobre la capacidad de cada mes (festivos descontados).</div>`;
     }
   }
+  else if(type==='pastded'){
+    if(!D.projects.length)b=`<div style="font-size:12px;color:var(--text3)">Crea algún proyecto primero.</div>`;
+    else{
+      const months=recentNMonths(6);
+      b=`<div style="font-size:11px;color:var(--text3);margin-bottom:10px">Horas dedicadas y % sobre la capacidad de cada mes, por proyecto (del mes actual hacia atrás).</div>
+      <div style="overflow-x:auto"><table class="fc-table">
+        <thead><tr><th>Proyecto</th>${months.map(mo=>`<th>${mo.label}</th>`).join('')}</tr></thead>
+        <tbody>${D.projects.map(p=>`<tr><td>${p.name}</td>${months.map(mo=>{const hh=projMonthHours(p,mo.ym);const pct=mo.cap>0?Math.round(hh/mo.cap*100):0;return`<td>${hh?`${hh}h<br><span style="color:var(--text3);font-weight:400">${pct}%</span>`:'<span style="color:var(--text3)">—</span>'}</td>`;}).join('')}</tr>`).join('')}</tbody>
+        <tfoot><tr><td>Total</td>${months.map(mo=>{let tot=0;D.projects.forEach(p=>tot+=projMonthHours(p,mo.ym));tot=Math.round(tot*10)/10;const pct=mo.cap>0?Math.round(tot/mo.cap*100):0;return`<td>${tot}h · ${pct}%</td>`;}).join('')}</tr></tfoot>
+      </table></div>
+      <div style="font-size:10px;color:var(--text3);margin-top:8px">Se conservan horas manuales y bloques de siempre; los eventos de calendario de hace más de 3 meses no se guardan.</div>`;
+    }
+  }
   document.getElementById('mbody').innerHTML=b;
   if(type==='monthtarget')mtPreview(monthCapacityNow());
   if(type==='forecast'){const mb=document.querySelector('.mbox');if(mb)mb.style.maxWidth='760px';fcRecalc();}
+  if(type==='pastded'){const mb=document.querySelector('.mbox');if(mb)mb.style.maxWidth='760px';}
   if(type==='note'){const mb=document.querySelector('.mbox');if(mb)mb.style.maxWidth='680px';}
   if(type==='noteview'){
     const n=D.notes.find(x=>x.id===S.editId);
@@ -2890,6 +2927,7 @@ function buildM(){
     else if(type==='monthtasks')macts.innerHTML=`<button class="btn btn-p" onclick="closeM()">Listo</button>`;
     else if(type==='monthtarget')macts.innerHTML=`<button class="btn" style="color:#E24B4A;border-color:#E24B4A66;margin-right:auto" onclick="clearMonthTarget()">Quitar meta</button><button class="btn" onclick="closeM()">Cancelar</button><button class="btn btn-p" onclick="saveM()">Guardar</button>`;
     else if(type==='forecast')macts.innerHTML=`<button class="btn" onclick="closeM()">Cancelar</button><button class="btn btn-p" onclick="saveM()">Guardar</button>`;
+    else if(type==='pastded')macts.innerHTML=`<button class="btn btn-p" onclick="closeM()">Cerrar</button>`;
     else if(type==='noteview')macts.innerHTML=`<button class="btn" onclick="closeM()">Cerrar</button><button class="btn btn-p" onclick="openEdit('note',${S.editId})"><i class="ti ti-pencil"></i> Editar</button>`;
     else macts.innerHTML=`<button class="btn" onclick="closeM()">Cancel</button><button class="btn btn-p" onclick="saveM()">Save</button>`;
   }
