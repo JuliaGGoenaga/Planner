@@ -2452,7 +2452,9 @@ function renderProjects(){
     const metaH=p.monthTargetPct?Math.round(p.monthTargetPct/100*goal*10)/10:estH;
     plannedEst+=metaH;loggedTotal+=totalH;
     // La barra compara las horas DEDICADAS (registradas este mes) con la meta del proyecto
-    const compPct=metaH>0?Math.min(100,Math.round(totalH/metaH*100)):0;
+    const compPct=metaH>0?Math.round(totalH/metaH*100):0;
+    const barPct=Math.min(100,compPct);
+    const overMeta=metaH>0&&totalH>metaH;
     // Also show tasks with hours logged this month even if completed / not in the month plan
     const loggedTitles=new Set(manualEntries.map(e=>e.desc));
     const extraLogged=allProjectTasks.filter(t=>!monthTasks.includes(t)&&loggedTitles.has(t.title));
@@ -2499,8 +2501,8 @@ function renderProjects(){
       </div>
       <div class="pdesc">${p.desc||''}</div>
       <div class="phrow"><span style="font-weight:600;color:${p.color}">${totalH}h este mes</span><span class="meta-chip" onclick="openMonthTarget(${p.id})" title="Fijar meta mensual (% del total del mes)" style="cursor:pointer;text-decoration:underline dotted;text-underline-offset:2px">meta ${metaH}h${p.monthTargetPct?` · ${p.monthTargetPct}%`:''}</span></div>
-      ${(metaH>0||manualH>0||tbH>0||evH>0)?`<div class="phrow" style="font-size:10px;color:var(--text3);margin-top:-4px;margin-bottom:4px"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${(manualH>0||tbH>0||evH>0)?`${manualH}h manuales${tbH>0?` · ${tbH}h bloques`:''}${evH>0?` · ${evH}h eventos`:''}`:''}</span>${metaH>0?`<span style="flex-shrink:0;padding-left:6px">${totalH}h / ${metaH}h · ${compPct}%</span>`:''}</div>`:''}
-      <div class="hbar"><div class="hfill" style="width:${compPct}%;background:${p.color}"></div></div>
+      ${(metaH>0||manualH>0||tbH>0||evH>0)?`<div class="phrow" style="font-size:10px;color:var(--text3);margin-top:-4px;margin-bottom:4px"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${(manualH>0||tbH>0||evH>0)?`${manualH}h manuales${tbH>0?` · ${tbH}h bloques`:''}${evH>0?` · ${evH}h eventos`:''}`:''}</span>${metaH>0?`<span style="flex-shrink:0;padding-left:6px${overMeta?';color:var(--red);font-weight:700':''}">${totalH}h / ${metaH}h · ${compPct}%${overMeta?' ⚠️':''}</span>`:''}</div>`:''}
+      <div class="hbar"><div class="hfill" style="width:${barPct}%;background:${overMeta?'var(--red)':p.color}"></div></div>
       <div class="pacts">
         <button class="btn btn-sm" onclick="openMonthTasks(${p.id})"><i class="ti ti-calendar-check"></i> Tareas del mes</button>
         <button class="btn btn-sm" onclick="logH(${p.id})"><i class="ti ti-plus"></i> Horas manuales</button>
