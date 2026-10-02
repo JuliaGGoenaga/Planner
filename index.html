@@ -422,6 +422,7 @@ html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
 .month-section{margin-bottom:6px}
 .month-section-label{font-size:11px;font-weight:700;color:var(--text2);padding:6px 4px 5px;position:sticky;top:26px;z-index:2;background:var(--bg);display:flex;align-items:center;gap:5px;border-bottom:1px solid var(--border);margin-bottom:3px}
 .month-side{width:270px;flex-shrink:0;display:flex;flex-direction:column;gap:10px;position:sticky;top:0;max-height:calc(100dvh - 100px);overflow-y:auto}
+.ms-handle{display:none}
 .month-today-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px;flex-shrink:0}
 #month-today-wrap{flex-shrink:0}
 .day-modal-close{display:none}
@@ -590,7 +591,14 @@ html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
   #page-month.active .month-main{flex:1;min-height:0}
   #page-month.active #month-grid{flex:1;min-height:0;height:auto;overflow-y:auto;-webkit-overflow-scrolling:touch}
   #page-month.active #month-vac-row{flex-shrink:0}
-  #page-month.active .month-side{flex-shrink:0;max-height:34vh;overflow-y:auto}
+  /* Plans become a collapsible bottom drawer so they don't eat calendar height */
+  #page-month.active .month-layout{overflow:visible}
+  #page-month.active .month-main{padding-bottom:42px}
+  #page-month.active .month-side{display:contents}
+  .ms-drawer{position:fixed;left:0;right:0;bottom:calc(var(--bottomnav) + env(safe-area-inset-bottom));z-index:60;background:var(--surface);border-top:1px solid var(--border);border-radius:14px 14px 0 0;box-shadow:0 -4px 16px rgba(0,0,0,.14);max-height:72vh;overflow-y:auto;transform:translateY(calc(100% - 40px));transition:transform .25s}
+  .ms-drawer.open{transform:translateY(0)}
+  .ms-handle{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;height:40px;background:var(--surface2);border:none;border-radius:14px 14px 0 0;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;color:var(--text2);position:sticky;top:0;z-index:1}
+  .ms-drawer #month-plans{max-height:none;padding:0 10px 10px}
   /* Floating add button (To-dos / Ideas) replaces the top-right button */
   .fab-add-mobile{
     position:fixed;left:16px;
@@ -757,7 +765,10 @@ html.dark .cpick{box-shadow:0 0 0 1px rgba(255,255,255,0.2)}
               <button class="day-modal-close" onclick="closeDayModal()" title="Cerrar"><i class="ti ti-x"></i></button>
               <div id="month-today" class="month-today-panel"></div>
             </div>
-            <div id="month-plans" class="month-today-panel"></div>
+            <div class="ms-drawer">
+              <button class="ms-handle" onclick="toggleMonthPlans()"><i class="ti ti-chevron-up" id="ms-handle-ico"></i> Planes</button>
+              <div id="month-plans" class="month-today-panel"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -1777,14 +1788,14 @@ function weekDayCol(ds,extraCls){
     const hPct=dur?Math.max(100/numH*0.4,dur/numH*100):(100/numH*0.4);
     const c=ev.color||(ev.type==='meeting'?'var(--green)':ev.source?'var(--blue)':'var(--accent)');
     const isExt=!!ev.source;
-    const isPromoted=isExt&&D.events.some(e=>e.icsRef===ev.id);
+    const isPromoted=isExt&&D.events.some(e=>e.icsRef===ev.id&&e.date===ds);
     const drag=!isExt?` draggable="true" ondragstart="startTimeDrag(event,'ev',${ev.id})" ondragend="this.style.opacity='';_timeDrag={kind:null,id:null}"`:'' ;
     const eid=JSON.stringify(ev.id).replace(/"/g,'&quot;');
     const hasNotes=D.meetingNotes&&D.meetingNotes.some(n=>n.eventRef===ev.id);
     const noteIcon=hasNotes?`<i class="ti ti-notes mn-ev-noted"></i>`:'';
     const click=S.meetingNotesMode
       ?` onclick="openMeetingNotes(${eid})"`
-      :` onclick="openEventAssign(${eid})"`;
+      :` onclick="openEventAssign(${eid},'${ds}')"`;
     const del=!isExt?`<button class="btn-del" onclick="event.stopPropagation();delEvent(${ev.id})" style="font-size:9px;padding:0 1px"><i class="ti ti-x"></i></button>`:isPromoted?`<i class="ti ti-bookmark-filled" style="font-size:9px;opacity:.8;padding:0 2px" title="Registrado en proyecto"></i>`:`<button class="btn-del" onclick="event.stopPropagation();promoteIcsEvent(${eid})" style="font-size:9px;padding:0 1px" title="Añadir a proyecto"><i class="ti ti-tag"></i></button>`;
     const tLabel=ev.endTime?`${ev.time}–${ev.endTime}`:ev.time;
     const cursorStyle=isExt?'cursor:pointer;':'';
@@ -2207,6 +2218,7 @@ function toggleDayState(ds){
   sched();renderMonth();
 }
 function toggleMonthPaint(){S.monthPaintMode=!S.monthPaintMode;renderMonth();}
+function toggleMonthPlans(){const el=document.querySelector('#page-month .ms-drawer');if(!el)return;const open=el.classList.toggle('open');const ic=document.getElementById('ms-handle-ico');if(ic)ic.className='ti ti-chevron-'+(open?'down':'up');}
 function selectMonthDay(ds){
   S.selDay=ds;
   renderTodayPanel();
@@ -2807,7 +2819,7 @@ function buildM(){
     <div class="ff"><label>Día</label><input id="m-d" type="date" value="${S.mDay||todayStr()}"/></div>
     <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);cursor:pointer;margin-top:2px"><input type="checkbox" id="m-done" style="width:auto;margin:0"/> Marcar la tarea como completada</label>`;}
   else if(type==='assignevent'){
-    const ev=D.events.find(e=>e.id===S.mEventId)||D.events.find(e=>e.icsRef===S.mEventId)||EXT.find(e=>e.id===S.mEventId);if(!ev)return;
+    const ev=D.events.find(e=>e.id===S.mEventId)||D.events.find(e=>e.icsRef===S.mEventId&&e.date===S.mDay)||EXT.find(e=>e.id===S.mEventId&&e.date===S.mDay)||EXT.find(e=>e.id===S.mEventId);if(!ev)return;
     const projOpts='<option value="">— Sin proyecto —</option>'+D.projects.map(p=>`<option value="${p.id}"${p.id===ev.projectId?' selected':''}>${p.name}</option>`).join('');
     const info=`${ev.date||''}${ev.time?' · '+ev.time+(ev.endTime?'–'+ev.endTime:''):''}${ev.source?' · '+ev.source:''}`;
     b=`
@@ -3005,12 +3017,12 @@ function saveM(){
     }else if(type==='assignevent'){
       const pid=parseInt(gv('m-proj'))||null;
       const dur=parseFloat(gv('m-dur'));
-      // Reuse an existing copy: match by own id, or by icsRef to a calendar event already promoted
-      let ev=D.events.find(e=>e.id===S.mEventId)||D.events.find(e=>e.icsRef===S.mEventId);
-      // If still not found, it's a calendar (EXT) event not yet promoted - promote it once
+      // Reuse an existing copy: match by own id, or by icsRef+date (so recurring/same-name events hit the right day)
+      let ev=D.events.find(e=>e.id===S.mEventId)||D.events.find(e=>e.icsRef===S.mEventId&&e.date===S.mDay);
+      // If still not found, it's a calendar (EXT) event not yet promoted - promote this day's instance
       if(!ev){
         if(!pid&&!(dur>0))return; // nothing to do: no project and no hours on an unpromoted calendar event
-        const extEv=EXT.find(e=>e.id===S.mEventId);if(!extEv)return;
+        const extEv=EXT.find(e=>e.id===S.mEventId&&e.date===S.mDay)||EXT.find(e=>e.id===S.mEventId);if(!extEv)return;
         const dur0=extEv.endTime&&extEv.time?timeDiff(extEv.time,extEv.endTime):null;
         ev={id:nid(),title:extEv.title,date:extEv.date,time:extEv.time||'',endTime:extEv.endTime||'',duration:dur0||null,type:'ical',fromIcs:true,icsRef:extEv.id};
         D.events.push(ev);
@@ -3312,7 +3324,7 @@ function shiftSelDay(delta){
 function jumpToToday(){S.selDay=todayStr();renderTodayPanel();}
 function logHForDay(ds){S.mProjId=null;S.mType='logdaytask';S.mDay=ds;S.editId=null;buildM();}
 function logHoursForTask(taskId,ds){S.mType='taskhours';S.taskHoursId=taskId;S.mDay=ds;S.editId=null;buildM();}
-function openEventAssign(eventId){const ev=D.events.find(e=>e.id===eventId)||EXT.find(e=>e.id===eventId);if(!ev)return;S.mType='assignevent';S.mEventId=eventId;S.mDay=ev.date;S.editId=eventId;buildM();}
+function openEventAssign(eventId,day){const ev=(day&&(D.events.find(e=>e.id===eventId&&e.date===day)||EXT.find(e=>e.id===eventId&&e.date===day)))||D.events.find(e=>e.id===eventId)||EXT.find(e=>e.id===eventId);if(!ev)return;S.mType='assignevent';S.mEventId=eventId;S.mDay=day||ev.date;S.editId=eventId;buildM();}
 function dayProjectHours(ds){
   const out=[];
   D.projects.forEach(p=>{
@@ -3381,7 +3393,7 @@ function renderTodayPanel(){
         const isExt=!!item.source;
         const isUnassigned=!item.projectId&&!item.duration;
         const eid=JSON.stringify(item.id).replace(/"/g,'&quot;');
-        const click=`onclick="openEventAssign(${eid})"`;
+        const click=`onclick="openEventAssign(${eid},'${sel}')"`;
         html+=`<div class="mtp-item" ${click} style="cursor:pointer${isUnassigned?';opacity:.7;border:1px dashed var(--border);border-radius:4px;padding:6px;margin:-4px -2px':''}">          <div class="mtp-time">${item.time||''}</div>          <div style="width:2px;background:${c};border-radius:1px;flex-shrink:0;align-self:stretch"></div>
           <div class="mtp-title" style="color:${c}" title="${safeTitle}">${safeTitle}</div>
           ${dur?`<div class="mtp-hours">${dur}h</div>`:''}
@@ -3416,7 +3428,7 @@ function renderTodayPanel(){
         const eid=JSON.stringify(it.id).replace(/"/g,'&quot;');
         let onclick='';
         if(it.kind==='manual')onclick=`onclick="openEditManual(${it.projId},${eid})"`;
-        else if(it.kind==='event')onclick=`onclick="openEventAssign(${eid})"`;
+        else if(it.kind==='event')onclick=`onclick="openEventAssign(${eid},'${sel}')"`;
         const cur=onclick?';cursor:pointer':'';
         const pencil=onclick?' <i class="ti ti-pencil" style="font-size:8px;opacity:.5"></i>':'';
         return`<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${evStyle}${cur}" ${onclick} title="Editar: ${s}">${icon}${s} <span style="opacity:.7">(${it.hours}h)</span>${pencil}</div>`;
