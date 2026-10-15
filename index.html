@@ -296,6 +296,14 @@ html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
 .tpc-body{overflow-y:auto;padding:8px;flex:1}
 .tpc-sub{font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin:8px 0 4px}
 .tpc-sub:first-child{margin-top:0}
+.tpc-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tpc-count{margin-left:0;flex-shrink:0}
+.tpc-acts{display:flex;align-items:center;gap:0;flex-shrink:0;margin-left:2px}
+.tpc-btn{background:none;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:2px;border-radius:4px;opacity:.5;color:var(--text2);transition:opacity .15s,background .15s;font-size:13px;flex-shrink:0}
+.tpc-btn:hover{opacity:1;background:var(--surface)}
+.tpc-btn:disabled{opacity:.18;cursor:default;background:none}
+.todos-proj-col-arch{flex:0 0 190px;opacity:.92}
+.arch-row{display:flex;align-items:center;gap:6px;padding:5px 2px;font-size:11px}
 .tbubble{display:flex;align-items:flex-start;gap:6px;padding:6px 8px;background:var(--surface);border:1px solid var(--border);border-radius:8px;margin-bottom:5px}
 .tbubble:hover{border-color:var(--border2)}
 .tbubble .bchk{width:14px;height:14px;margin-top:1px}
@@ -2330,7 +2338,7 @@ function renderTodosByProject(items,today){
       <button class="btn-del" onclick="delTodo(${t.id})" title="Delete"><i class="ti ti-x"></i></button>
     </div>`;
   };
-  const colHtml=(label,color,colItems,projId)=>{
+  const colHtml=(label,color,colItems,projId,ctrls='')=>{
     const todayItems=colItems.filter(t=>!t.done&&t.date===today).sort((a,b)=>URG_RANK[a.urgency]-URG_RANK[b.urgency]);
     const undatedItems=colItems.filter(t=>!t.done&&!t.date).sort((a,b)=>URG_RANK[a.urgency]-URG_RANK[b.urgency]);
     const futureItems=colItems.filter(t=>!t.done&&t.date&&t.date>today).sort((a,b)=>(a.date||'').localeCompare(b.date||'')||URG_RANK[a.urgency]-URG_RANK[b.urgency]);
@@ -2341,19 +2349,44 @@ function renderTodosByProject(items,today){
     if(futureItems.length){body+=`<div class="tpc-sub">Próximas</div>`;futureItems.forEach(t=>body+=tb(t));}
     if(pastOrDone.length){body+=`<div class="tpc-sub">Pasadas / Completadas</div>`;pastOrDone.forEach(t=>body+=tb(t));}
     if(!body)body=`<div style="color:var(--text3);font-size:11px;padding:0.5rem 0">Sin tareas.</div>`;
-    const addBtn=`<button class="btn-del" onclick="addTaskToProject(${projId==null?'null':projId})" title="Añadir tarea a ${(label||'').replace(/"/g,'&quot;')}" style="color:var(--accent)"><i class="ti ti-plus"></i></button>`;
+    const addBtn=`<button class="tpc-btn" onclick="addTaskToProject(${projId==null?'null':projId})" title="Añadir tarea a ${(label||'').replace(/"/g,'&quot;')}" style="color:var(--accent);opacity:.85"><i class="ti ti-plus"></i></button>`;
     return`<div class="todos-proj-col">
-      <div class="tpc-head"><span class="tpc-dot" style="background:${color}"></span>${label}<span class="tpc-count">${colItems.length}</span>${addBtn}</div>
+      <div class="tpc-head"><span class="tpc-dot" style="background:${color}"></span><span class="tpc-name">${label}</span><span class="tpc-count">${colItems.length}</span><span class="tpc-acts">${ctrls}${addBtn}</span></div>
       <div class="tpc-body">${body}</div>
     </div>`;
   };
   let html='';
-  D.projects.forEach(p=>{
-    html+=colHtml(p.name,p.color,items.filter(t=>t.projectId===p.id),p.id);
+  const vis=D.projects.filter(p=>!p.archived);
+  vis.forEach((p,i)=>{
+    const left=`<button class="tpc-btn" onclick="moveProject(${p.id},-1)" title="Mover a la izquierda"${i===0?' disabled':''}><i class="ti ti-chevron-left"></i></button>`;
+    const right=`<button class="tpc-btn" onclick="moveProject(${p.id},1)" title="Mover a la derecha"${i===vis.length-1?' disabled':''}><i class="ti ti-chevron-right"></i></button>`;
+    const archBtn=`<button class="tpc-btn" onclick="archiveProject(${p.id})" title="Archivar proyecto"><i class="ti ti-archive"></i></button>`;
+    html+=colHtml(p.name,p.color,items.filter(t=>t.projectId===p.id),p.id,left+right+archBtn);
   });
   html+=colHtml('Sin proyecto','var(--text3)',items.filter(t=>!t.projectId),null);
+  const archived=D.projects.filter(p=>p.archived);
+  if(archived.length){
+    html+=`<div class="todos-proj-col todos-proj-col-arch">
+      <div class="tpc-head"><i class="ti ti-archive" style="color:var(--text3);font-size:13px"></i><span class="tpc-name">Archivados</span><span class="tpc-count">${archived.length}</span></div>
+      <div class="tpc-body">${archived.map(p=>{
+        const n=items.filter(t=>t.projectId===p.id).length;
+        return`<div class="arch-row"><span class="tpc-dot" style="background:${p.color}"></span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.name}</span>${n?`<span style="color:var(--text3);font-size:10px">${n}</span>`:''}<button class="tpc-btn" onclick="unarchiveProject(${p.id})" title="Restaurar proyecto"><i class="ti ti-arrow-back-up"></i></button></div>`;
+      }).join('')}</div>
+    </div>`;
+  }
   document.getElementById('todos-list').innerHTML=`<div class="todos-proj-cols">${html}</div>`;
 }
+function moveProject(id,dir){
+  const vis=D.projects.filter(p=>!p.archived);
+  const vi=vis.findIndex(p=>p.id===id);
+  const nj=vi+dir;
+  if(vi<0||nj<0||nj>=vis.length)return;
+  const a=D.projects.indexOf(vis[vi]),b=D.projects.indexOf(vis[nj]);
+  [D.projects[a],D.projects[b]]=[D.projects[b],D.projects[a]];
+  sched();renderTodos();
+}
+function archiveProject(id){const p=D.projects.find(p=>p.id===id);if(!p)return;p.archived=true;sched();renderTodos();}
+function unarchiveProject(id){const p=D.projects.find(p=>p.id===id);if(!p)return;delete p.archived;sched();renderTodos();}
 function addTaskToProject(projId){S.newTodoProj=projId||null;S.mType='todo';S.mDay=null;S.editId=null;buildM();}
 function toggleTodo(id,re){
   const t=D.todos.find(t=>t.id===id);if(!t)return;
