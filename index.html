@@ -2385,8 +2385,9 @@ function moveProject(id,dir){
   [D.projects[a],D.projects[b]]=[D.projects[b],D.projects[a]];
   sched();renderTodos();
 }
-function archiveProject(id){const p=D.projects.find(p=>p.id===id);if(!p)return;p.archived=true;sched();renderTodos();}
-function unarchiveProject(id){const p=D.projects.find(p=>p.id===id);if(!p)return;delete p.archived;sched();renderTodos();}
+function _refreshProjAndTodos(){if(document.querySelector('#page-todos.active'))renderTodos();if(document.querySelector('#page-projects.active'))renderProjects();}
+function archiveProject(id){const p=D.projects.find(p=>p.id===id);if(!p)return;p.archived=true;sched();_refreshProjAndTodos();}
+function unarchiveProject(id){const p=D.projects.find(p=>p.id===id);if(!p)return;delete p.archived;sched();_refreshProjAndTodos();}
 function addTaskToProject(projId){S.newTodoProj=projId||null;S.mType='todo';S.mDay=null;S.editId=null;buildM();}
 function toggleTodo(id,re){
   const t=D.todos.find(t=>t.id===id);if(!t)return;
@@ -2481,7 +2482,9 @@ function renderProjects(){
   vacations.forEach(ds=>{if(festSet.has(ds))return;const h=dayGoalHours(ds);if(h>0){vacH+=h;vacDays++;}});
   vacH=Math.round(vacH*10)/10;
   let plannedEst=0,loggedTotal=0;
-  g.innerHTML=D.projects.map(p=>{
+  const visibleProjects=D.projects.filter(p=>!p.archived);
+  const archivedCount=D.projects.length-visibleProjects.length;
+  g.innerHTML=visibleProjects.map(p=>{
     // Tasks selected for this month (explicitly or scheduled this month in the weekly view)
     const monthTasks=D.todos.filter(t=>t.projectId===p.id&&taskCountsMonth(t,monthPfx));
     const allProjectTasks=D.todos.filter(t=>t.projectId===p.id);
@@ -2542,6 +2545,7 @@ function renderProjects(){
         <div class="pname" style="margin-top:0;cursor:pointer" onclick="openMonthTasks(${p.id})" title="Elegir tareas de este mes">${p.name}</div>
         <div style="display:flex;gap:2px">
           <button class="btn-del" onclick="openEdit('project',${p.id})" title="Edit"><i class="ti ti-pencil" style="font-size:13px"></i></button>
+          <button class="btn-del" onclick="archiveProject(${p.id})" title="Archivar proyecto"><i class="ti ti-archive" style="font-size:13px"></i></button>
           <button class="btn-del" onclick="delProj(${p.id})" title="Delete" style="color:var(--text3)"><i class="ti ti-trash" style="font-size:13px"></i></button>
         </div>
       </div>
@@ -2556,7 +2560,12 @@ function renderProjects(){
       ${taskRows}${evRows}
     </div>`;
   }).join('');
+  if(!visibleProjects.length)g.innerHTML=`<div style="color:var(--text3);font-size:12px">Todos los proyectos están archivados. Pulsa <b>Archivados</b> para restaurarlos.</div>`;
   renderOccupation(goal,plannedEst,loggedTotal,month,vacH,vacDays);
+  if(archivedCount){
+    const side=document.getElementById('proj-side');
+    if(side)side.insertAdjacentHTML('beforeend',`<button class="btn" onclick="openArchivedProjects()" style="width:100%;margin-top:10px;justify-content:center;color:var(--text2)"><i class="ti ti-archive"></i> Archivados · ${archivedCount}</button>`);
+  }
 }
 function renderOccupation(goal,plannedEst,loggedTotal,month,vacH,vacDays){
   const side=document.getElementById('proj-side');if(!side)return;
@@ -2633,6 +2642,7 @@ function projMonthHours(p,ym){
   return Math.round(h*10)/10;
 }
 function openPastDedication(){S.mType='pastded';S.mDay=null;S.editId=null;S.mProjId=null;buildM();}
+function openArchivedProjects(){S.mType='archivedprojects';S.mDay=null;S.editId=null;S.mProjId=null;buildM();}
 function fcRecalc(){
   if(!_fcCtx)return;
   _fcCtx.forEach(mo=>{
@@ -2765,7 +2775,7 @@ function openEdit(type,id){
 }
 function buildM(){
   const type=S.mType,day=S.mDay||(type==='todo'?'':todayStr()),ed=S.editId;
-  const addT={todo:'Add to-do',event:'Add event',project:'New project',timeblock:'Add time block',topic:'New topic',idea:'New idea',note:'Nueva nota',plan:'Nuevo plan',loghours:'Registrar horas manuales',logdaytask:'Registrar horas del día',assignevent:'Asignar evento a proyecto',completetask:'Completar tarea — registrar horas',taskhours:'Registrar horas de la tarea',monthtasks:'Tareas de este mes',monthtarget:'Meta mensual del proyecto',forecast:'Previsión a 6 meses',pastded:'Dedicación pasada'};
+  const addT={todo:'Add to-do',event:'Add event',project:'New project',timeblock:'Add time block',topic:'New topic',idea:'New idea',note:'Nueva nota',plan:'Nuevo plan',loghours:'Registrar horas manuales',logdaytask:'Registrar horas del día',assignevent:'Asignar evento a proyecto',completetask:'Completar tarea — registrar horas',taskhours:'Registrar horas de la tarea',monthtasks:'Tareas de este mes',monthtarget:'Meta mensual del proyecto',forecast:'Previsión a 6 meses',pastded:'Dedicación pasada',archivedprojects:'Proyectos archivados'};
   const edtT={todo:'Edit to-do',event:'Edit event',project:'Edit project',topic:'Edit topic',idea:'Edit idea',note:'Editar nota',assignevent:'Asignar evento a proyecto',editmanual:'Editar registro de horas'};
   document.getElementById('mtitle').textContent=(ed?edtT[type]:addT[type])||'Add';
   const projOpts='<option value="">— None —</option>'+D.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
@@ -2953,6 +2963,16 @@ function buildM(){
       <div style="font-size:10px;color:var(--text3);margin-top:8px">Se conservan horas manuales y bloques de siempre; los eventos de calendario de hace más de 3 meses no se guardan.</div>`;
     }
   }
+  else if(type==='archivedprojects'){
+    const arch=D.projects.filter(p=>p.archived);
+    if(!arch.length)b=`<div style="font-size:12px;color:var(--text3)">No hay proyectos archivados.</div>`;
+    else b=`<div style="font-size:11px;color:var(--text3);margin-bottom:10px">Los proyectos archivados no aparecen en la lista ni en la ocupación. Restáuralos cuando quieras.</div>
+      ${arch.map(p=>`<div style="display:flex;align-items:center;gap:8px;padding:9px 2px;border-bottom:1px solid var(--border)">
+        <span class="tpc-dot" style="background:${p.color}"></span>
+        <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:600">${p.name}</span>
+        <button class="btn btn-sm" onclick="unarchiveProject(${p.id});buildM()"><i class="ti ti-arrow-back-up"></i> Restaurar</button>
+      </div>`).join('')}`;
+  }
   document.getElementById('mbody').innerHTML=b;
   if(type==='monthtarget')mtPreview(monthCapacityNow());
   if(type==='forecast'){const mb=document.querySelector('.mbox');if(mb)mb.style.maxWidth='760px';fcRecalc();}
@@ -2974,6 +2994,7 @@ function buildM(){
     else if(type==='monthtarget')macts.innerHTML=`<button class="btn" style="color:#E24B4A;border-color:#E24B4A66;margin-right:auto" onclick="clearMonthTarget()">Quitar meta</button><button class="btn" onclick="closeM()">Cancelar</button><button class="btn btn-p" onclick="saveM()">Guardar</button>`;
     else if(type==='forecast')macts.innerHTML=`<button class="btn" onclick="closeM()">Cancelar</button><button class="btn btn-p" onclick="saveM()">Guardar</button>`;
     else if(type==='pastded')macts.innerHTML=`<button class="btn btn-p" onclick="closeM()">Cerrar</button>`;
+    else if(type==='archivedprojects')macts.innerHTML=`<button class="btn btn-p" onclick="closeM()">Cerrar</button>`;
     else if(type==='noteview')macts.innerHTML=`<button class="btn" onclick="closeM()">Cerrar</button><button class="btn btn-p" onclick="openEdit('note',${S.editId})"><i class="ti ti-pencil"></i> Editar</button>`;
     else macts.innerHTML=`<button class="btn" onclick="closeM()">Cancel</button><button class="btn btn-p" onclick="saveM()">Save</button>`;
   }
