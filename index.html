@@ -2825,7 +2825,7 @@ function buildM(){
     const completed=D.todos.filter(t=>t.done&&(!t.date||t.date>=mPfx));
     const pendRows=pending.map(taskRow).join('');
     const doneRows=completed.map(taskRow).join('');
-    const projOpts2=D.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+    const projOpts2=D.projects.filter(p=>!p.archived).map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
     b=`
     ${projOpts2?`<div class="ff"><label>Proyecto <span style="font-size:10px;color:var(--text3);font-weight:400">(filtra las tareas y es donde se registran)</span></label><select id="m-proj" onchange="filterDayTasks(this.value)"><option value="">Todos los proyectos</option>${projOpts2}<option value="none">Sin proyecto</option></select></div>`:'<div style="font-size:11px;color:var(--text3);margin-bottom:8px">Crea un proyecto primero en la pestaña Proyectos.</div>'}
     <div class="ff"><label>Tarea</label>
@@ -3121,10 +3121,10 @@ function saveM(){
       if(newTitle){
         // New task needs a specific project (the one selected above)
         pid=selPid;if(!D.projects.find(p=>p.id===pid))return;
-        // Reuse an existing task with the same name so hours sum; new ones default to completed
+        // Reuse an existing task with the same name so hours sum; completion follows the checkbox
         let task=D.todos.find(t=>t.title===newTitle&&t.projectId===pid);
-        if(!task){task={id:nid(),title:newTitle,date:S.mDay||todayStr(),urgency:'med',done:true,projectId:pid,createdAt:new Date().toISOString()};D.todos.push(task);}
-        else{task.done=true;}
+        if(!task){task={id:nid(),title:newTitle,date:S.mDay||todayStr(),urgency:'med',done:markDone,projectId:pid,createdAt:new Date().toISOString()};D.todos.push(task);}
+        else if(markDone){task.done=true;}
         desc=newTitle;
       }else{
         const tid=parseInt(gv('m-task'));
