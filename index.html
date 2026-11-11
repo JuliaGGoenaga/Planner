@@ -1583,6 +1583,7 @@ function ttIcon(t){return t&&t.ttype==='mgmt'?'📋 ':t&&t.ttype==='work'?'💻 
 function isOverdue(t){return!!(t&&!t.done&&t.dueDate&&todayStr()>t.dueDate);}
 // Hours logged to a task (sum of manual entries whose description matches its title)
 function taskLoggedH(t){return Math.round(D.projects.reduce((s,p)=>s+(p.manualEntries||[]).filter(e=>e.desc===t.title).reduce((a,e)=>a+(e.hours||0),0),0)*10)/10;}
+function taskLoggedHMonth(t,ymPfx){return Math.round(D.projects.reduce((s,p)=>s+(p.manualEntries||[]).filter(e=>e.desc===t.title&&e.date&&e.date.startsWith(ymPfx)).reduce((a,e)=>a+(e.hours||0),0),0)*10)/10;}
 // Default hours for a new scheduled block: fill the hours still missing toward the estimate
 function defaultBlockH(t){
   const est=t.estimateH||0;
@@ -2497,8 +2498,9 @@ function renderProjects(){
     const totalH=Math.round((manualH+tbH+evH)*10)/10;
     // Planned & completion are based on the month's selected tasks
     const estH=Math.round(monthTasks.reduce((s,t)=>s+(t.estimateH||0),0)*10)/10;
-    // Meta (previsto) del proyecto: % de la capacidad del mes (ocupación) o, si no, la suma de horas previstas
-    const metaH=p.monthTargetPct?Math.round(p.monthTargetPct/100*goal*10)/10:estH;
+    // Meta (previsto) del proyecto: % de la capacidad del mes (previsión de este mes o meta fija) o, si no, la suma de horas previstas
+    const effPct=(p.forecast&&p.forecast[monthPfx])||p.monthTargetPct||0;
+    const metaH=effPct>0?Math.round(effPct/100*goal*10)/10:estH;
     plannedEst+=metaH;loggedTotal+=totalH;
     // La barra compara las horas DEDICADAS (registradas este mes) con la meta del proyecto
     const compPct=metaH>0?Math.round(totalH/metaH*100):0;
@@ -2517,9 +2519,11 @@ function renderProjects(){
       <div style="font-size:9px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">Tareas del mes</div>
       ${displayTasks.map(t=>{
         const accH=taskLoggedH(t);
+        const accMonthH=taskLoggedHMonth(t,monthPfx);
+        const hoursLabel=`${accMonthH}h${accMonthH!==accH?` (${accH}h)`:''}${t.estimateH?` / ${t.estimateH}h`:''}`;
         return`<div onclick="openEdit('todo',${t.id})" title="Editar tarea" style="cursor:pointer;font-size:10px;color:${t.done?'var(--text3)':'var(--text2)'};display:flex;align-items:center;gap:4px;padding:2px 0${t.done?';opacity:.7':''}">
         <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${t.done?'text-decoration:line-through':overdueStyle(t)}">${ttIcon(t)}${t.done?'✓':'○'} ${t.title}${t.date?` <span style="color:var(--text3);font-size:9px">${fmtS(new Date(t.date))}</span>`:'<span style="color:var(--text3);font-size:9px"> · sin fecha</span>'}</span>
-        <span style="flex-shrink:0;font-weight:600;color:var(--text3);font-size:10px">${accH}h${t.estimateH?` / ${t.estimateH}h`:''}</span>
+        <span style="flex-shrink:0;font-weight:600;color:var(--text3);font-size:10px" title="${accMonthH}h este mes${accMonthH!==accH?` · ${accH}h en total`:''}">${hoursLabel}</span>
         <button class="btn-del" onclick="event.stopPropagation();removeFromMonth(${t.id})" title="Quitar de este mes" style="font-size:10px;padding:1px 2px"><i class="ti ti-x"></i></button>
       </div>`;}).join('')}
       ${tbEntries.map(tb=>`<div style="font-size:10px;color:var(--text3);display:flex;align-items:center;gap:4px;padding:2px 0">
@@ -2550,7 +2554,7 @@ function renderProjects(){
         </div>
       </div>
       <div class="pdesc">${p.desc||''}</div>
-      <div class="phrow"><span style="font-weight:600;color:${p.color}">${totalH}h este mes</span><span class="meta-chip" onclick="openMonthTarget(${p.id})" title="Fijar meta mensual (% del total del mes)" style="cursor:pointer;text-decoration:underline dotted;text-underline-offset:2px">meta ${metaH}h${p.monthTargetPct?` · ${p.monthTargetPct}%`:''}</span></div>
+      <div class="phrow"><span style="font-weight:600;color:${p.color}">${totalH}h este mes</span><span class="meta-chip" onclick="openMonthTarget(${p.id})" title="Fijar meta mensual (% del total del mes)" style="cursor:pointer;text-decoration:underline dotted;text-underline-offset:2px">meta ${metaH}h${effPct>0?` · ${effPct}%`:''}</span></div>
       ${(metaH>0||manualH>0||tbH>0||evH>0)?`<div class="phrow" style="font-size:10px;color:var(--text3);margin-top:-4px;margin-bottom:4px"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${(manualH>0||tbH>0||evH>0)?`${manualH}h manuales${tbH>0?` · ${tbH}h bloques`:''}${evH>0?` · ${evH}h eventos`:''}`:''}</span>${metaH>0?`<span style="flex-shrink:0;padding-left:6px${overMeta?';color:var(--red);font-weight:700':''}">${totalH}h / ${metaH}h · ${compPct}%${overMeta?' ⚠️':''}</span>`:''}</div>`:''}
       <div class="hbar"><div class="hfill" style="width:${barPct}%;background:${overMeta?'var(--red)':p.color}"></div></div>
       <div class="pacts">
@@ -2652,7 +2656,7 @@ function fcRecalc(){
   });
 }
 function mtPreview(cap){const v=parseFloat((document.getElementById('m-pct')||{}).value)||0;const el=document.getElementById('m-pct-preview');if(el)el.textContent=v>0?`= ${Math.round(v/100*cap*10)/10} h de ${cap} h del mes`:'Sin meta: se usará la suma de horas previstas de las tareas.';}
-function clearMonthTarget(){const p=D.projects.find(p=>p.id===S.mProjId);if(p)delete p.monthTargetPct;closeM();sched();refreshPage();}
+function clearMonthTarget(){const p=D.projects.find(p=>p.id===S.mProjId);if(p){delete p.monthTargetPct;const ym=curMonthStr();if(p.forecast){delete p.forecast[ym];if(!Object.keys(p.forecast).length)delete p.forecast;}}closeM();sched();refreshPage();}
 function logH(projId){S.mProjId=projId;S.mType='loghours';S.mDay=null;S.editId=null;buildM()}
 function delManual(projId,entryId){const p=D.projects.find(p=>p.id===projId);if(!p)return;p.manualEntries=(p.manualEntries||[]).filter(e=>e.id!==entryId);sched();renderProjects()}
 function openEditManual(projId,entryId){S.mType='editmanual';S.mProjId=projId;S.editId=entryId;S.mDay=null;buildM();}
@@ -2931,7 +2935,7 @@ function buildM(){
   else if(type==='monthtarget'){
     const p=D.projects.find(p=>p.id===S.mProjId);
     const cap=monthCapacityNow();
-    const cur=(p&&p.monthTargetPct)||'';
+    const cur=(p&&((p.forecast&&p.forecast[curMonthStr()])||p.monthTargetPct))||'';
     b=`<div style="font-size:11px;color:var(--text3);margin-bottom:10px">Fija una meta mensual para <b>${p?p.name:''}</b> como <b>porcentaje del total de horas del mes</b> (${cap}h). La meta manda sobre la suma de horas previstas de las tareas, aunque no tengas tareas asignadas este mes.</div>
     <div class="ff"><label>Porcentaje del mes (%)</label><input id="m-pct" type="number" min="0" max="100" step="1" value="${cur}" placeholder="ej. 20" oninput="mtPreview(${cap})"/></div>
     <div id="m-pct-preview" style="font-size:12px;color:var(--text2);margin-top:2px"></div>`;
@@ -2940,10 +2944,10 @@ function buildM(){
     if(!D.projects.length)b=`<div style="font-size:12px;color:var(--text3)">Crea algún proyecto primero.</div>`;
     else{
       _fcCtx=nextNMonths(6);
-      b=`<div style="font-size:11px;color:var(--text3);margin-bottom:10px">Previsión general: define, para cada proyecto y mes, el <b>% del total de horas</b> que prevés dedicarle. Es independiente de la meta y la ocupación del mes en curso.</div>
+      b=`<div style="font-size:11px;color:var(--text3);margin-bottom:10px">Previsión general: define, para cada proyecto y mes, el <b>% del total de horas</b> que prevés dedicarle. La previsión del <b>mes en curso</b> fija también la meta de ese proyecto.</div>
       <div style="overflow-x:auto"><table class="fc-table">
         <thead><tr><th>Proyecto</th>${_fcCtx.map(mo=>`<th>${mo.label}</th>`).join('')}</tr></thead>
-        <tbody>${D.projects.map(p=>`<tr><td>${p.name}</td>${_fcCtx.map(mo=>`<td><input type="number" min="0" max="100" step="1" class="fc-in" data-pid="${p.id}" data-ym="${mo.ym}" value="${(p.forecast&&p.forecast[mo.ym])||''}" oninput="fcRecalc()"/></td>`).join('')}</tr>`).join('')}</tbody>
+        <tbody>${D.projects.map(p=>`<tr><td>${p.name}</td>${_fcCtx.map(mo=>`<td><input type="number" min="0" max="100" step="1" class="fc-in" data-pid="${p.id}" data-ym="${mo.ym}" value="${(p.forecast&&p.forecast[mo.ym])||(mo.ym===curMonthStr()?(p.monthTargetPct||''):'')}" oninput="fcRecalc()"/></td>`).join('')}</tr>`).join('')}</tbody>
         <tfoot><tr><td>Total</td>${_fcCtx.map(mo=>`<td id="fc-tot-${mo.ym}"></td>`).join('')}</tr>
                <tr><td style="color:var(--text3)">Horas</td>${_fcCtx.map(mo=>`<td id="fc-hrs-${mo.ym}" style="color:var(--text3);font-weight:400"></td>`).join('')}</tr></tfoot>
       </table></div>
@@ -3024,7 +3028,12 @@ function saveM(){
   const type=S.mType,eid=S.editId;
   if(type==='monthtarget'){
     const p=D.projects.find(p=>p.id===S.mProjId);
-    if(p){const v=parseFloat(gv('m-pct'));if(v>0)p.monthTargetPct=Math.min(100,v);else delete p.monthTargetPct;}
+    if(p){
+      const v=parseFloat(gv('m-pct'));const ym=curMonthStr();
+      if(v>0){p.monthTargetPct=Math.min(100,v);if(!p.forecast)p.forecast={};p.forecast[ym]=Math.min(100,v);}
+      else{delete p.monthTargetPct;if(p.forecast)delete p.forecast[ym];}
+      if(p.forecast&&!Object.keys(p.forecast).length)delete p.forecast;
+    }
     closeM();sched();refreshPage();return;
   }
   if(type==='forecast'){
