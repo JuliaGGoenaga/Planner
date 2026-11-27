@@ -366,6 +366,7 @@ html.dark .wt-today-col{background:rgba(255,255,255,0.05) !important}
 .phrow{font-size:11px;color:var(--text2);display:flex;justify-content:space-between;margin-bottom:3px}
 .hbar{height:4px;background:var(--surface2);border-radius:3px;overflow:hidden}
 .hfill{height:100%;border-radius:3px;transition:width .3s}
+.hbar-nometa{cursor:pointer;background:repeating-linear-gradient(45deg,var(--border) 0,var(--border) 2px,var(--surface2) 2px,var(--surface2) 6px)}
 .pacts{display:flex;flex-wrap:wrap;gap:5px;margin-top:9px}
 
 /* ── IDEAS ── */
@@ -2554,9 +2555,11 @@ function renderProjects(){
         </div>
       </div>
       <div class="pdesc">${p.desc||''}</div>
-      <div class="phrow"><span style="font-weight:600;color:${p.color}">${totalH}h este mes</span><span class="meta-chip" onclick="openMonthTarget(${p.id})" title="Fijar meta mensual (% del total del mes)" style="cursor:pointer;text-decoration:underline dotted;text-underline-offset:2px">meta ${metaH}h${effPct>0?` · ${effPct}%`:''}</span></div>
+      <div class="phrow"><span style="font-weight:600;color:${p.color}">${totalH}h este mes</span><span class="meta-chip" onclick="openMonthTarget(${p.id})" title="Fijar meta mensual (% del total del mes)" style="cursor:pointer;text-decoration:underline dotted;text-underline-offset:2px">${metaH>0?`meta ${metaH}h${effPct>0?` · ${effPct}%`:''}`:'sin meta'}</span></div>
       ${(metaH>0||manualH>0||tbH>0||evH>0)?`<div class="phrow" style="font-size:10px;color:var(--text3);margin-top:-4px;margin-bottom:4px"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${(manualH>0||tbH>0||evH>0)?`${manualH}h manuales${tbH>0?` · ${tbH}h bloques`:''}${evH>0?` · ${evH}h eventos`:''}`:''}</span>${metaH>0?`<span style="flex-shrink:0;padding-left:6px${overMeta?';color:var(--red);font-weight:700':''}">${totalH}h / ${metaH}h · ${compPct}%${overMeta?' ⚠️':''}</span>`:''}</div>`:''}
-      <div class="hbar"><div class="hfill" style="width:${barPct}%;background:${overMeta?'var(--red)':p.color}"></div></div>
+      ${metaH>0
+        ?`<div class="hbar"><div class="hfill" style="width:${barPct}%;background:${overMeta?'var(--red)':p.color}"></div></div>`
+        :`<div class="hbar hbar-nometa" onclick="openMonthTarget(${p.id})" title="Sin meta mensual — pulsa para fijar una y ver el progreso"></div>`}
       <div class="pacts">
         <button class="btn btn-sm" onclick="openMonthTasks(${p.id})"><i class="ti ti-calendar-check"></i> Tareas del mes</button>
         <button class="btn btn-sm" onclick="logH(${p.id})"><i class="ti ti-plus"></i> Horas manuales</button>
